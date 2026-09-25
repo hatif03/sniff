@@ -1,6 +1,6 @@
-# Sherlock Distribution Package
+﻿# Sniff Distribution Package
 
-This document explains what gets included in the Sherlock package and how AWS credentials are handled.
+This document explains what gets included in the Sniff package and how AWS credentials are handled.
 
 ## What's in the Package Build
 
@@ -9,7 +9,7 @@ When you run `python -m build`, the following files are packaged:
 ### Included in Package ✅
 
 ```
-sherlock/
+Sniff/
 ├── src/
 │   ├── __init__.py
 │   ├── cli/                    # CLI commands
@@ -57,11 +57,11 @@ The package contains only:
 
 When users install the package:
 ```bash
-pip install sherlock-0.1.0-py3-none-any.whl
+pip install Sniff-0.1.0-py3-none-any.whl
 ```
 
 They get:
-- The `sherlock` CLI command
+- The `Sniff` CLI command
 - Python source code
 - Persona templates
 - **NO AWS credentials**
@@ -74,12 +74,12 @@ Users must configure their own credentials using one of these methods:
 
 ```bash
 # One-time setup
-aws configure --profile sherlock
+aws configure --profile Sniff
 # Enter: Access Key, Secret Key, Region
 
 # Create .env
 cat > .env << EOF
-AWS_PROFILE=sherlock
+AWS_PROFILE=Sniff
 AWS_DEFAULT_REGION=us-west-2
 BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
 BEDROCK_REGION=us-west-2
@@ -96,7 +96,7 @@ export AWS_ACCESS_KEY_ID=AKIA...
 export AWS_SECRET_ACCESS_KEY=...
 export AWS_DEFAULT_REGION=us-west-2
 
-sherlock run --goal "Complete signup"
+Sniff run --goal "Complete signup"
 ```
 
 **Advantage:** No files to manage, credentials only in current session
@@ -125,7 +125,7 @@ chmod 600 .env  # Secure the file
 
 1. **Package file:**
    ```
-   sherlock-0.1.0-py3-none-any.whl
+   Sniff-0.1.0-py3-none-any.whl
    ```
 
 2. **Setup script:**
@@ -143,14 +143,14 @@ Users configure their own AWS credentials after installation:
 
 ```bash
 # Install package
-pip install sherlock-0.1.0-py3-none-any.whl
+pip install Sniff-0.1.0-py3-none-any.whl
 playwright install
 
 # Run setup script
 ./setup_demo.sh
 
 # Or configure manually
-aws configure --profile sherlock
+aws configure --profile Sniff
 ```
 
 ## Security Best Practices
@@ -175,7 +175,7 @@ aws configure --profile sherlock
 
 ## Credential Lookup Order
 
-Sherlock looks for credentials in this order:
+Sniff looks for credentials in this order:
 
 1. **Environment variables:**
    - `AWS_ACCESS_KEY_ID`
@@ -183,7 +183,7 @@ Sherlock looks for credentials in this order:
    - `AWS_SESSION_TOKEN` (optional)
 
 2. **`.env` file in current directory:**
-   - `AWS_PROFILE=sherlock` (then looks up profile)
+   - `AWS_PROFILE=Sniff` (then looks up profile)
    - OR `AWS_ACCESS_KEY_ID=...` (direct credentials)
 
 3. **AWS Profile:**
@@ -205,11 +205,11 @@ The `setup_demo.sh` script guides users through credential setup:
 
 This script:
 1. Checks Python version
-2. Verifies Sherlock installation
+2. Verifies Sniff installation
 3. Installs Playwright browsers
 4. Helps configure AWS credentials (choose method)
 5. Creates `.env` file with chosen method
-6. Runs `sherlock preflight` to verify
+6. Runs `Sniff preflight` to verify
 7. Provides demo commands
 
 ## Verification
@@ -217,8 +217,8 @@ This script:
 After setup, verify credentials:
 
 ```bash
-# Check Sherlock can access AWS
-sherlock preflight
+# Check Sniff can access AWS
+Sniff preflight
 
 # Expected output:
 # ✓ AWS credentials configured

@@ -1,5 +1,5 @@
-"""
-Preflight validation command for Sherlock AWS/Bedrock setup
+﻿"""
+Preflight validation command for sniff AWS/Bedrock setup
 
 Validates:
 - Environment variables configuration
@@ -10,8 +10,8 @@ Validates:
 - Model invocation capability
 
 Usage:
-    sherlock preflight
-    sherlock preflight --verbose
+    sniff preflight
+    sniff preflight --verbose
 """
 
 import os
@@ -27,7 +27,7 @@ from rich.table import Table
 from rich.panel import Panel
 import typer
 
-from ...core.config import SherlockConfig
+from ...core.config import SniffConfig
 
 console = Console()
 app = typer.Typer()
@@ -36,7 +36,7 @@ app = typer.Typer()
 class PreflightCheck:
     """Preflight validation for AWS Bedrock setup"""
 
-    def __init__(self, config: SherlockConfig, verbose: bool = False):
+    def __init__(self, config: SniffConfig, verbose: bool = False):
         self.config = config
         self.checks: List[Tuple[str, bool, str]] = []
         self.warnings: List[str] = []
@@ -343,7 +343,7 @@ class PreflightCheck:
 
     def run_all_checks(self) -> bool:
         """Run all preflight checks"""
-        console.print("\n[bold blue]Running Sherlock Preflight Checks...[/bold blue]\n")
+        console.print("\n[bold blue]Running sniff Preflight Checks...[/bold blue]\n")
 
         # Run checks in order
         checks_methods = [
@@ -401,7 +401,7 @@ class PreflightCheck:
             console.print(
                 Panel(
                     f"[bold green]✅ All checks passed ({passed}/{total})[/bold green]\n"
-                    "[green]System is ready for 'sherlock run'[/green]",
+                    "[green]System is ready for 'sniff run'[/green]",
                     title="Success",
                     border_style="green"
                 )
@@ -410,7 +410,7 @@ class PreflightCheck:
             console.print(
                 Panel(
                     f"[bold red]❌ {failed} check(s) failed ({passed}/{total} passed)[/bold red]\n"
-                    "[red]Fix the issues above before running Sherlock[/red]\n\n"
+                    "[red]Fix the issues above before running sniff[/red]\n\n"
                     "[yellow]Troubleshooting:[/yellow]\n"
                     "  • Check docs/plan/AWS_BEDROCK_PREREQUISITES.md\n"
                     "  • Verify .env file has correct values\n"
@@ -431,7 +431,7 @@ def main(
         help="Show detailed output during checks"
     ),
     config_path: str = typer.Option(
-        "./data/sherlock.json",
+        "./data/sniff.json",
         "--config",
         "-c",
         help="Path to configuration file"
@@ -441,7 +441,7 @@ def main(
     Run preflight checks to validate AWS and Bedrock configuration.
 
     Verifies:
-    - Configuration from sherlock.json and .env
+    - Configuration from sniff.json and .env
     - AWS credentials (via AWS CLI, SSO, or environment)
     - Bedrock service access (IAM permissions)
     - Model availability and access enablement
@@ -449,23 +449,23 @@ def main(
     - Model invocation capability (end-to-end test)
 
     Examples:
-        sherlock preflight
-        sherlock preflight --verbose
+        sniff preflight
+        sniff preflight --verbose
     """
 
     # Load configuration (this automatically loads .env file too)
     try:
-        config = SherlockConfig.load(Path(config_path))
+        config = SniffConfig.load(Path(config_path))
         if verbose:
             console.print(f"[dim]Loaded config from {config_path}[/dim]")
     except Exception as e:
         console.print(f"[yellow]Warning: Could not load config file: {e}[/yellow]")
         console.print("[yellow]Using environment variables and defaults...[/yellow]\n")
         try:
-            config = SherlockConfig.from_env()
+            config = SniffConfig.from_env()
         except Exception as e2:
             console.print(f"[red]Error: Could not load configuration: {e2}[/red]")
-            console.print("\n[yellow]Try running:[/yellow] sherlock init")
+            console.print("\n[yellow]Try running:[/yellow] sniff init")
             sys.exit(1)
 
     checker = PreflightCheck(config=config, verbose=verbose)

@@ -1,10 +1,10 @@
-# Sherlock Web Visualization Guide
+﻿# Sniff Web Visualization Guide
 
-Beautiful graph-based visualization of Sherlock test runs using Supabase + React/Next.js.
+Beautiful graph-based visualization of Sniff test runs using Supabase + React/Next.js.
 
 ## Overview
 
-Sherlock uploads test run artifacts to Supabase, which can then be visualized on a web dashboard with:
+Sniff uploads test run artifacts to Supabase, which can then be visualized on a web dashboard with:
 - **Timeline graphs** showing step-by-step journey progression
 - **Agent reasoning transparency** with confidence scores
 - **Persona review insights** with sentiment analysis
@@ -16,7 +16,7 @@ Sherlock uploads test run artifacts to Supabase, which can then be visualized on
 
 ```
 ┌─────────────────┐
-│  Sherlock CLI   │
+│  Sniff CLI   │
 │   (Local Run)   │
 └────────┬────────┘
          │ Upload artifacts
@@ -78,14 +78,14 @@ Execute `docs/supabase_schema.sql` in the Supabase SQL Editor:
 
 In Supabase Dashboard → Storage:
 
-1. Create bucket: `sherlock-screenshots` (public)
-2. Create bucket: `sherlock-videos` (public)
-3. Create bucket: `sherlock-traces` (public)
+1. Create bucket: `Sniff-screenshots` (public)
+2. Create bucket: `Sniff-videos` (public)
+3. Create bucket: `Sniff-traces` (public)
 
-### 4. Configure Sherlock
+### 4. Configure Sniff
 
 ```bash
-# In your Sherlock .env file
+# In your Sniff .env file
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your-anon-key
 ```
@@ -94,16 +94,16 @@ SUPABASE_KEY=your-anon-key
 
 ```bash
 # Upload latest run automatically (runs after each test)
-sherlock run --goal "Complete signup" --persona confused_user
+Sniff run --goal "Complete signup" --persona confused_user
 
 # Manually upload latest run
-sherlock upload
+Sniff upload
 
 # Upload specific run
-sherlock upload run_20260207_123456_abc123
+Sniff upload run_20260207_123456_abc123
 
 # Upload all past runs
-sherlock upload --all
+Sniff upload --all
 ```
 
 ## Web Dashboard Implementation
@@ -119,7 +119,7 @@ sherlock upload --all
 ### Project Structure
 
 ```
-sherlock-web/
+Sniff-web/
 ├── app/
 │   ├── page.tsx                    # Dashboard home (run list)
 │   ├── runs/[runId]/page.tsx       # Run details page
@@ -136,7 +136,7 @@ sherlock-web/
 │   ├── supabase.ts                 # Supabase client
 │   └── queries.ts                  # Database queries
 └── types/
-    └── sherlock.ts                 # TypeScript types
+    └── Sniff.ts                 # TypeScript types
 ```
 
 ### Key Visualizations
@@ -518,7 +518,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 Point your domain to the Vercel deployment for a branded experience:
 - `insights.yourcompany.com`
-- `sherlock.yourcompany.com`
+- `Sniff.yourcompany.com`
 
 ## Advanced Features
 

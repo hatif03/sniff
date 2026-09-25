@@ -1,4 +1,4 @@
-"""Agent Service module for Sherlock.
+﻿"""Agent Service module for sniff.
 
 Provides AI-driven decisioning using AWS Bedrock.
 Agent returns decisions only - never controls browser directly.

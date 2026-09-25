@@ -1,6 +1,6 @@
-# Sherlock Personas Website
+﻿# Sniff Personas Website
 
-A high-impact single-page website showcasing Sherlock Personas - AI-powered signup experiments with instant team alerts.
+A high-impact single-page website showcasing Sniff Personas - AI-powered signup experiments with instant team alerts.
 
 ## Features
 

@@ -1,4 +1,4 @@
-# Autonomous Mystery Shopper
+﻿# Autonomous Mystery Shopper
 
 ## The Challenge
 
@@ -126,11 +126,11 @@ related"
 
 ## Build Priorities
 
-1. End-to-end `sherlock run` with one signup journey.
+1. End-to-end `Sniff run` with one signup journey.
 2. Persona-driven decision loop with strict JSON action schema.
 3. Failure diagnosis + P0-P3 severity.
 4. Evidence bundle + Slack alert.
-5. Deterministic `sherlock demo` path for judges.
+5. Deterministic `Sniff demo` path for judges.
 
 ## Reference
 

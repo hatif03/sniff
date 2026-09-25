@@ -1,4 +1,4 @@
-"""Report builder for run summaries and artifacts.
+﻿"""Report builder for run summaries and artifacts.
 
 Generates:
 - Run summary JSON
@@ -149,7 +149,7 @@ class RunReport:
 
         lines = [
             "=" * 80,
-            f"Sherlock Run Report: {self.run_id}",
+            f"sniff Run Report: {self.run_id}",
             "=" * 80,
             "",
             f"Outcome: {self.outcome.value.upper()}",

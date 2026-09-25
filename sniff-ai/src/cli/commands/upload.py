@@ -1,4 +1,4 @@
-"""Sherlock upload command - Upload run artifacts to Supabase."""
+﻿"""sniff upload command - Upload run artifacts to Supabase."""
 
 import json
 from pathlib import Path
@@ -45,11 +45,11 @@ def upload_command(
 
     Examples:
 
-        sherlock upload
+        sniff upload
 
-        sherlock upload run_20260207_123456_abc123
+        sniff upload run_20260207_123456_abc123
 
-        sherlock upload --all
+        sniff upload --all
     """
 
     if not HAS_SUPABASE:
@@ -66,7 +66,7 @@ def upload_command(
 
     if not supabase_url or not supabase_key:
         console.print("[red]Error:[/red] Supabase not configured.")
-        console.print("Set SUPABASE_URL and SUPABASE_KEY in .env or run [cyan]sherlock init[/cyan]")
+        console.print("Set SUPABASE_URL and SUPABASE_KEY in .env or run [cyan]sniff init[/cyan]")
         raise typer.Exit(1)
 
     # Initialize uploader

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Simple integration test without pytest dependency.
 Tests that all components can be imported and work together.
 """
@@ -8,13 +8,13 @@ from datetime import datetime
 from pathlib import Path
 
 print("=" * 70)
-print("SHERLOCK INTEGRATION TEST SUITE")
+print("sniff INTEGRATION TEST SUITE")
 print("=" * 70)
 
 # Test 1: Import all core components
 print("\n[1/10] Testing core component imports...")
 try:
-    from src.core.config import SherlockConfig, PlaywrightConfig, BedrockConfig, SlackConfig
+    from src.core.config import SniffConfig, PlaywrightConfig, BedrockConfig, SlackConfig
     from src.core.persona import PersonaProfile
     from src.core.models import (
         Observation,
@@ -56,7 +56,7 @@ except Exception as e:
 # Test 4: Create configuration
 print("\n[4/10] Testing configuration creation...")
 try:
-    config = SherlockConfig(
+    config = SniffConfig(
         playwright=PlaywrightConfig(
             headless=True,
             screenshot_on_action=True,
@@ -69,12 +69,12 @@ try:
         ),
         slack=SlackConfig(
             webhook_url="https://hooks.slack.com/services/TEST/TEST/TEST",
-            channel="#sherlock-alerts",
+            channel="#sniff-alerts",
         ),
     )
     assert config.playwright.headless is True
     assert config.bedrock.region == "us-west-2"
-    assert config.slack.channel == "#sherlock-alerts"
+    assert config.slack.channel == "#sniff-alerts"
     print("✅ Configuration created successfully")
 except Exception as e:
     print(f"❌ Configuration creation failed: {e}")

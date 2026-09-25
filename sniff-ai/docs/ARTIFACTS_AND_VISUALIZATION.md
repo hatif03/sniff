@@ -1,10 +1,10 @@
-# Sherlock Artifacts & Web Visualization
+﻿# Sniff Artifacts & Web Visualization
 
-Complete guide to Sherlock's artifact system, Supabase upload, and beautiful web visualization.
+Complete guide to Sniff's artifact system, Supabase upload, and beautiful web visualization.
 
 ## 📦 Artifacts Stored per Run
 
-Each Sherlock test run (`artifacts/<run_id>/`) contains:
+Each Sniff test run (`artifacts/<run_id>/`) contains:
 
 ### 1. Visual Artifacts
 - **Screenshots** (`step_*.png`) - Full-page screenshots at each step
@@ -149,7 +149,7 @@ Each Sherlock test run (`artifacts/<run_id>/`) contains:
    -- This creates tables, views, and storage buckets
    ```
 
-3. **Configure Sherlock**
+3. **Configure Sniff**
    ```bash
    # Add to .env
    SUPABASE_ENABLED=true
@@ -168,7 +168,7 @@ Each Sherlock test run (`artifacts/<run_id>/`) contains:
 When `SUPABASE_AUTO_UPLOAD=true`, artifacts are automatically uploaded after each test:
 
 ```bash
-sherlock run --goal "Complete signup" --persona confused_user
+Sniff run --goal "Complete signup" --persona confused_user
 
 # Output includes:
 # ✓ Run completed
@@ -179,13 +179,13 @@ sherlock run --goal "Complete signup" --persona confused_user
 
 ```bash
 # Upload latest run
-sherlock upload
+Sniff upload
 
 # Upload specific run
-sherlock upload run_20260207_123456_abc123
+Sniff upload run_20260207_123456_abc123
 
 # Upload all past runs
-sherlock upload --all
+Sniff upload --all
 ```
 
 ## 📊 Web Dashboard Visualizations
@@ -194,7 +194,7 @@ sherlock upload --all
 
 ```
 ┌─────────────────┐
-│  Sherlock CLI   │ → Local test execution
+│  Sniff CLI   │ → Local test execution
 │   (Python)      │
 └────────┬────────┘
          │
@@ -399,8 +399,8 @@ Area chart showing:
 
 1. **Clone Web Template** (create Next.js app)
    ```bash
-   npx create-next-app@latest sherlock-web
-   cd sherlock-web
+   npx create-next-app@latest Sniff-web
+   cd Sniff-web
    npm install @supabase/supabase-js recharts
    ```
 
@@ -477,6 +477,6 @@ Area chart showing:
 
 1. Set up Supabase project and run schema
 2. Configure `.env` with Supabase credentials
-3. Run test and verify upload: `sherlock upload`
+3. Run test and verify upload: `Sniff upload`
 4. Build web dashboard following guide
 5. Deploy to Vercel and share with team!

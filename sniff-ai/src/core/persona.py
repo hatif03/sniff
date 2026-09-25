@@ -1,4 +1,4 @@
-"""Persona system for Sherlock.
+﻿"""Persona system for sniff.
 
 Defines user behavior profiles that shape agent exploration patterns:
 - confused_first_time_user - explores more, hesitates, may misinterpret copy

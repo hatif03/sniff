@@ -1,4 +1,4 @@
-"""Example orchestrator integration for CLI.
+﻿"""Example orchestrator integration for CLI.
 
 This file demonstrates how to use the orchestrator from CLI commands.
 """
@@ -7,7 +7,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-from .config import SherlockConfig
+from .config import SniffConfig
 from .orchestrator import RunOrchestrator
 from .persona import PersonaProfile, create_default_personas
 
@@ -30,7 +30,7 @@ async def example_run():
     4. Display results
     """
     # 1. Load configuration
-    config = SherlockConfig.from_env()
+    config = SniffConfig.from_env()
 
     # Validate required configuration
     validation_errors = config.validate_required()
@@ -83,7 +83,7 @@ async def example_run():
 
 async def example_report_loading():
     """Example of loading and displaying a previous run report."""
-    config = SherlockConfig.from_env()
+    config = SniffConfig.from_env()
 
     from ..evidence.report_builder import create_report_builder
 
@@ -125,7 +125,7 @@ async def example_report_loading():
 
 async def example_alert_test():
     """Example of testing Slack alert configuration."""
-    config = SherlockConfig.from_env()
+    config = SniffConfig.from_env()
 
     from ..alerts.slack import create_slack_alert
 
@@ -150,7 +150,7 @@ async def example_alert_test():
 
 def example_cli_run_command():
     """
-    Example CLI command implementation for 'sherlock run'.
+    Example CLI command implementation for 'sniff run'.
 
     This would be called from typer/click CLI handler.
     """
@@ -175,7 +175,7 @@ def example_cli_run_command():
 
 def example_cli_report_command():
     """
-    Example CLI command implementation for 'sherlock report'.
+    Example CLI command implementation for 'sniff report'.
 
     This would be called from typer/click CLI handler.
     """
@@ -187,7 +187,7 @@ def example_cli_report_command():
 
 def example_cli_alert_test_command():
     """
-    Example CLI command implementation for 'sherlock alert test'.
+    Example CLI command implementation for 'sniff alert test'.
 
     This would be called from typer/click CLI handler.
     """

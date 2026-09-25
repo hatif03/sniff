@@ -1,4 +1,4 @@
-"""State machine for orchestrator runtime flow.
+﻿"""State machine for orchestrator runtime flow.
 
 Defines states, transitions, and state management for autonomous run execution.
 
@@ -16,7 +16,7 @@ States:
 
 from enum import Enum
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class RunState(str, Enum):
@@ -62,7 +62,7 @@ class StateTransition:
         self.from_state = from_state
         self.to_state = to_state
         self.reason = reason
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for logging."""
@@ -102,7 +102,7 @@ class StateMachine:
         self.current_state = initial_state
         self.transitions: list[StateTransition] = []
         self.outcome: Optional[RunOutcome] = None
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now(timezone.utc)
 
     def transition(self, to_state: RunState, reason: str) -> None:
         """Transition to a new state.
@@ -154,7 +154,7 @@ class StateMachine:
         Returns:
             Duration in seconds
         """
-        return (datetime.utcnow() - self.start_time).total_seconds()
+        return (datetime.now(timezone.utc) - self.start_time).total_seconds()
 
     def get_transition_history(self) -> list[dict]:
         """Get full transition history.

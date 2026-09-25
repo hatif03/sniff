@@ -1,4 +1,4 @@
-"""Sherlock demo command - Deterministic demo mode for presentations."""
+﻿"""sniff demo command - Deterministic demo mode for presentations."""
 
 from pathlib import Path
 from typing import Optional
@@ -43,15 +43,15 @@ def demo_command(
 
     Examples:
 
-        sherlock demo
+        sniff demo
 
-        sherlock demo --scenario signup_failure --headed
+        sniff demo --scenario signup_failure --headed
 
-        sherlock demo --scenario diagnosis_showcase --slow
+        sniff demo --scenario diagnosis_showcase --slow
     """
 
     console.print(Panel.fit(
-        "[bold cyan]Sherlock Demo Mode[/bold cyan]\n"
+        "[bold cyan]sniff Demo Mode[/bold cyan]\n"
         "Deterministic presentation mode",
         border_style="cyan"
     ))
@@ -136,7 +136,7 @@ def demo_command(
         if config.security.allowed_domains:
             demo_url = f"https://{config.security.allowed_domains[0]}"
         else:
-            demo_url = "https://demo.sherlock.example.com"
+            demo_url = "https://demo.sniff.example.com"
 
         # Generate demo run ID
         from datetime import datetime
@@ -191,7 +191,7 @@ def demo_command(
             console.print(f"\nArtifacts: [cyan]{artifact_path}[/cyan]")
 
         console.print("\n[bold green]Demo presentation ready![/bold green]")
-        console.print("\nView full report: [cyan]sherlock report {run_id}[/cyan]")
+        console.print("\nView full report: [cyan]sniff report {run_id}[/cyan]")
 
     except ImportError as e:
         console.print(f"[red]Error:[/red] Orchestrator not yet implemented.")

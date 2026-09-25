@@ -1,12 +1,12 @@
-# Sherlock
+﻿# Sniff
 
 **Autonomous mystery shopper for mobile/web signup flow testing**
 
-Sherlock is an AI-powered testing system that simulates real user behavior to test signup flows, detect friction points, diagnose root causes, and escalate issues via Slack alerts.
+Sniff is an AI-powered testing system that simulates real user behavior to test signup flows, detect friction points, diagnose root causes, and escalate issues via Slack alerts.
 
 ---
 
-**📊 View Test Dashboards**: Check out the [Sherlock Website](https://github.com/abbasali-sariya-thg/sherlock_website) to view run history, visualize test results, and explore insights from your Sherlock tests in a beautiful web interface.
+**📊 View Test Dashboards**: Check out the [Sniff Website](https://github.com/abbasali-sariya-thg/sherlock_website) to view run history, visualize test results, and explore insights from your Sniff tests in a beautiful web interface.
 
 ---
 
@@ -31,7 +31,7 @@ Sherlock is an AI-powered testing system that simulates real user behavior to te
 ### From PyPI
 
 ```bash
-pip install sherlock
+pip install Sniff
 playwright install
 ```
 
@@ -39,7 +39,7 @@ playwright install
 
 ```bash
 git clone <repository-url>
-cd sherlock
+cd Sniff
 pip install -e .
 playwright install
 ```
@@ -47,23 +47,23 @@ playwright install
 ### From Wheel
 
 ```bash
-pip install sherlock-0.1.0-py3-none-any.whl
+pip install Sniff-0.1.0-py3-none-any.whl
 playwright install
 ```
 
 ## AWS Credentials Setup
 
-Sherlock requires AWS credentials for Bedrock access. Choose one of these methods:
+Sniff requires AWS credentials for Bedrock access. Choose one of these methods:
 
 ### Option 1: AWS Profile (Recommended)
 
 ```bash
 # Configure AWS CLI
-aws configure --profile sherlock
+aws configure --profile Sniff
 
 # Enter your credentials when prompted
 # Then create .env file:
-echo "AWS_PROFILE=sherlock" > .env
+echo "AWS_PROFILE=Sniff" > .env
 ```
 
 ### Option 2: Environment Variables
@@ -88,7 +88,7 @@ EOF
 ### Verify Setup
 
 ```bash
-sherlock preflight
+Sniff preflight
 ```
 
 **For demo setup, use the included script:**
@@ -101,7 +101,7 @@ sherlock preflight
 ### 1. Initialize Configuration
 
 ```bash
-sherlock init
+Sniff init
 ```
 
 This interactive setup will configure:
@@ -114,7 +114,7 @@ This interactive setup will configure:
 ### 2. Run Your First Test
 
 ```bash
-sherlock run --goal "Complete signup with document upload" \
+Sniff run --goal "Complete signup with document upload" \
              --persona impatient_user \
              --device "iPhone 13" \
              --network 3g
@@ -124,10 +124,10 @@ sherlock run --goal "Complete signup with document upload" \
 
 ```bash
 # View latest run report
-sherlock report
+Sniff report
 
 # View specific run
-sherlock report run_20260207_134429_45c8c7ec
+Sniff report run_20260207_134429_45c8c7ec
 ```
 
 ## Configuration
@@ -138,7 +138,7 @@ Create a `.env` file in your project directory:
 
 ```bash
 # AWS Credentials
-AWS_PROFILE=sherlock
+AWS_PROFILE=Sniff
 # Or use explicit credentials:
 # AWS_ACCESS_KEY_ID=AKIA...
 # AWS_SECRET_ACCESS_KEY=...
@@ -170,20 +170,20 @@ See `.env.example` for all available configuration options.
 ### Basic Signup Test
 
 ```bash
-sherlock run --goal "Complete account creation"
+Sniff run --goal "Complete account creation"
 ```
 
 ### Test with Specific Persona
 
 ```bash
-sherlock run --persona confused_first_time_user \
+Sniff run --persona confused_first_time_user \
              --goal "Sign up and verify email"
 ```
 
 ### Mobile Device Testing
 
 ```bash
-sherlock run --device "iPhone 14" \
+Sniff run --device "iPhone 14" \
              --network 3g \
              --goal "Complete onboarding"
 ```
@@ -191,19 +191,19 @@ sherlock run --device "iPhone 14" \
 ### Override Starting URL
 
 ```bash
-sherlock run --url https://staging.acme.com/signup \
+Sniff run --url https://staging.acme.com/signup \
              --goal "Complete signup form"
 ```
 
 ### Run in Headed Mode (Visible Browser)
 
 ```bash
-sherlock run --goal "Complete signup" --headed
+Sniff run --goal "Complete signup" --headed
 ```
 
 ## Personas
 
-Sherlock includes built-in personas that shape testing behavior:
+Sniff includes built-in personas that shape testing behavior:
 
 - **confused_first_time_user**: Explores more, hesitates, may misinterpret copy
 - **impatient_user**: Low tolerance for delays, early abandonment risk
@@ -213,7 +213,7 @@ Sherlock includes built-in personas that shape testing behavior:
 ### Create Custom Personas
 
 ```bash
-sherlock personas add
+Sniff personas add
 ```
 
 This launches an LLM-assisted builder that helps you create personas from natural language descriptions.
@@ -221,15 +221,15 @@ This launches an LLM-assisted builder that helps you create personas from natura
 ### List Available Personas
 
 ```bash
-sherlock personas list
+Sniff personas list
 ```
 
 ## Commands
 
-### `sherlock init`
+### `Sniff init`
 Initialize configuration interactively
 
-### `sherlock run`
+### `Sniff run`
 Execute autonomous test run
 - `--goal` (required): Test objective
 - `--persona`: User behavior profile
@@ -239,27 +239,27 @@ Execute autonomous test run
 - `--headless/--headed`: Browser visibility
 - `--max-steps`: Override step limit
 
-### `sherlock report [run_id]`
+### `Sniff report [run_id]`
 Display test run results and artifacts
 
-### `sherlock personas`
+### `Sniff personas`
 Manage user personas
 - `add`: Create new persona
 - `list`: Show all personas
 - `show <name>`: Display persona details
 
-### `sherlock alert test`
+### `Sniff alert test`
 Validate Slack webhook configuration
 
-### `sherlock demo`
+### `Sniff demo`
 Run deterministic demo mode with known failure paths
 
-### `sherlock preflight`
+### `Sniff preflight`
 Validate AWS/Bedrock setup
 
 ## Architecture
 
-Sherlock uses a modular monolith architecture:
+Sniff uses a modular monolith architecture:
 
 ```
 CLI → Run Orchestrator → Agent Service (Bedrock)
@@ -288,7 +288,7 @@ Artifacts are stored in `artifacts/<run_id>/`
 
 ## Diagnosis & Severity
 
-Sherlock classifies failures by:
+Sniff classifies failures by:
 
 **Root Cause:**
 - Backend (server errors, API failures)
@@ -304,7 +304,7 @@ Sherlock classifies failures by:
 
 ## Slack Alerts
 
-When enabled, Sherlock posts rich alerts with:
+When enabled, Sniff posts rich alerts with:
 - Severity indicator
 - Root cause classification
 - Evidence links

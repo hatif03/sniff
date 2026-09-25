@@ -1,4 +1,4 @@
-"""CLI commands for running experiments with multiple personas."""
+﻿"""CLI commands for running experiments with multiple personas."""
 
 import asyncio
 from typing import List, Optional
@@ -61,18 +61,18 @@ def run_experiment(
     Examples:
 
         # Run with specific personas
-        sherlock experiment run --name "Signup Flow Test" \\
+        sniff experiment run --name "Signup Flow Test" \\
                                 --goal "Complete signup" \\
                                 --persona impatient_user \\
                                 --persona confused_first_time_user
 
         # Run with all available personas
-        sherlock experiment run --name "Full UX Audit" \\
+        sniff experiment run --name "Full UX Audit" \\
                                 --goal "Complete onboarding" \\
                                 --all
 
         # Run in parallel for faster results
-        sherlock experiment run --name "Quick Test" \\
+        sniff experiment run --name "Quick Test" \\
                                 --goal "Sign up" \\
                                 --all \\
                                 --parallel
@@ -87,7 +87,7 @@ def run_experiment(
             persona_list = PersonaProfile.list_available(personas_dir)
             if not persona_list:
                 console.print(
-                    "[red]No personas found. Create personas first with 'sherlock personas add'[/red]"
+                    "[red]No personas found. Create personas first with 'sniff personas add'[/red]"
                 )
                 raise typer.Exit(1)
         elif personas:
@@ -145,7 +145,7 @@ def run_experiment(
         orchestrator.display_results(result)
 
         console.print(
-            f"[green]✓ View detailed report with: sherlock experiment show {result.experiment_id}[/green]"
+            f"[green]✓ View detailed report with: sniff experiment show {result.experiment_id}[/green]"
         )
 
     except KeyboardInterrupt:
@@ -172,7 +172,7 @@ def list_experiments():
         if not experiments:
             console.print("[yellow]No experiments found.[/yellow]")
             console.print(
-                "\nRun your first experiment with: sherlock experiment run --help"
+                "\nRun your first experiment with: sniff experiment run --help"
             )
             return
 

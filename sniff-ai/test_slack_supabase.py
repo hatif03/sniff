@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Test Slack-Supabase integration: verify alerts include Supabase URLs."""
 
 import os
@@ -25,9 +25,9 @@ def test_slack_with_supabase_urls():
         "success": True,
         "run_id": "test_run_12345",
         "public_url": "https://bmumkgbxobzavspbheij.supabase.co/runs/test_run_12345",
-        "latest_screenshot_url": "https://bmumkgbxobzavspbheij.supabase.co/storage/v1/object/public/sherlock-screenshots/test_run_12345/final.png",
-        "first_video_url": "https://bmumkgbxobzavspbheij.supabase.co/storage/v1/object/public/sherlock-videos/test_run_12345/recording.webm",
-        "trace_url": "https://bmumkgbxobzavspbheij.supabase.co/storage/v1/object/public/sherlock-traces/test_run_12345/trace.zip",
+        "latest_screenshot_url": "https://bmumkgbxobzavspbheij.supabase.co/storage/v1/object/public/sniff-screenshots/test_run_12345/final.png",
+        "first_video_url": "https://bmumkgbxobzavspbheij.supabase.co/storage/v1/object/public/sniff-videos/test_run_12345/recording.webm",
+        "trace_url": "https://bmumkgbxobzavspbheij.supabase.co/storage/v1/object/public/sniff-traces/test_run_12345/trace.zip",
         "screenshots_uploaded": 5,
         "videos_uploaded": 1,
         "trace_uploaded": True,
@@ -57,7 +57,7 @@ def test_slack_with_supabase_urls():
         print("❌ SLACK_WEBHOOK_URL not configured in .env")
         return False
 
-    slack = SlackAlert(webhook_url=webhook_url, bot_name="Sherlock Test Bot")
+    slack = SlackAlert(webhook_url=webhook_url, bot_name="sniff Test Bot")
 
     print("\n🧪 Testing Slack alert with Supabase URLs...")
     print(f"   Webhook: {webhook_url[:50]}...")

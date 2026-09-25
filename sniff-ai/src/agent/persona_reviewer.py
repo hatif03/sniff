@@ -1,4 +1,4 @@
-"""Persona Review Generator for Sherlock.
+﻿"""Persona Review Generator for sniff.
 
 After a test run completes, generates a review from the persona's perspective
 analyzing the user experience, friction points, and overall journey quality.
@@ -227,7 +227,7 @@ def create_persona_reviewer(config) -> PersonaReviewer:
     """Create persona reviewer instance from configuration.
 
     Args:
-        config: SherlockConfig instance
+        config: SniffConfig instance
 
     Returns:
         PersonaReviewer instance

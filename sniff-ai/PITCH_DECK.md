@@ -1,4 +1,4 @@
-# Sherlock - AI Mystery Shopper
+﻿# Sniff - AI Mystery Shopper
 ## Autonomous Signup Flow Testing
 
 ---
@@ -22,12 +22,12 @@
 
 ---
 
-## Slide 2: The Solution - Sherlock
+## Slide 2: The Solution - Sniff
 
 **AI-powered autonomous testing that acts like a mystery shopper**
 
 ```bash
-sherlock run --goal "Complete signup" \
+Sniff run --goal "Complete signup" \
              --persona confused_first_time_user \
              --device iphone13
 ```
@@ -80,9 +80,9 @@ CLI → Run Orchestrator (State Machine + Guardrails)
 
 ## Slide 4: Business Value & Results
 
-**What Makes Sherlock Different**
+**What Makes Sniff Different**
 
-| Traditional E2E Testing | Sherlock |
+| Traditional E2E Testing | Sniff |
 |------------------------|----------|
 | Scripted paths only | Autonomous exploration |
 | Binary pass/fail | Root cause diagnosis |
@@ -112,11 +112,11 @@ CLI → Run Orchestrator (State Machine + Guardrails)
 
 ```bash
 # 1. Run autonomous test (2 minutes)
-sherlock run --goal "Complete signup with document upload" \
+Sniff run --goal "Complete signup with document upload" \
              --persona confused_first_time_user
 
 # 2. Multi-persona experiment (parallel)
-sherlock experiment run --name "Signup UX Audit" \
+Sniff experiment run --name "Signup UX Audit" \
                        --goal "Complete signup" \
                        --all --parallel
 ```

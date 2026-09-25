@@ -1,30 +1,44 @@
-# Core dependencies for Sherlock mystery shopper system
+# Core dependencies for Sniff autonomous QA system
+# These versions mirror pyproject.toml dependencies.
+# Use `uv sync` (preferred) or `pip install -r requirements.txt` to install.
+#
+# Last updated: Sub-Task 2 dependency upgrade (see docs/adr/ADR-002-dependency-updates.md)
 
-# CLI framework
-typer>=0.9.0
-rich>=13.7.0
+# CLI framework — v0.27+ uses annotated-style decorators
+typer>=0.27.0
+
+# Terminal formatting — v15 new color system; no breaking changes for our usage
+rich>=15.0.0
+
+# Interactive CLI prompts
 questionary>=2.0.1
 
-# Data validation
-pydantic>=2.5.0
+# Data validation — v2.13 has significant performance improvements over v2.5
+pydantic>=2.13.0
 
-# Browser automation
-playwright>=1.40.0
+# Browser automation — v1.63 adds improved mobile emulation and network interception
+playwright>=1.63.0
 
-# AWS Bedrock
-boto3>=1.34.0
+# AWS SDK — v1.43 includes latest Bedrock client updates and model IDs
+boto3>=1.43.0
 
-# HTTP client for Slack webhooks
-httpx>=0.25.0
+# HTTP client for Slack webhooks and Typesafe AI API
+httpx>=0.28.0
 
 # Environment configuration
 python-dotenv>=1.0.0
 
-# Async support
-asyncio>=3.4.3
-
 # Image processing (for screenshot compression)
-Pillow>=10.0.0
+Pillow>=11.0.0
 
-# Supabase integration (optional)
-supabase>=2.3.0
+# Supabase cloud storage and database integration
+supabase>=2.31.0
+
+# Scheduler daemon for continuous/scheduled runs (APScheduler — see ADR-003)
+apscheduler>=3.11.0
+
+# FastAPI for scheduler webhook trigger endpoint
+fastapi>=0.115.0
+
+# ASGI server for scheduler webhook (lightweight, standard)
+uvicorn>=0.34.0

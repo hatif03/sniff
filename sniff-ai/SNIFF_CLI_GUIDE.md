@@ -1,4 +1,4 @@
-# Sherlock CLI - Complete Usage Guide
+﻿# Sniff CLI - Complete Usage Guide
 
 **Autonomous Mystery Shopper for Mobile/Web Signup Flows**
 
@@ -23,7 +23,7 @@ Date: February 7, 2026
 
 ## Overview
 
-Sherlock is an autonomous testing system that simulates real users navigating mobile and web signup flows. It uses AI-driven decision-making to detect friction points, diagnose root causes, and escalate issues via Slack alerts.
+Sniff is an autonomous testing system that simulates real users navigating mobile and web signup flows. It uses AI-driven decision-making to detect friction points, diagnose root causes, and escalate issues via Slack alerts.
 
 **Key Features:**
 - 🤖 AI-powered autonomous navigation using AWS Bedrock
@@ -43,11 +43,11 @@ Sherlock is an autonomous testing system that simulates real users navigating mo
 - AWS account with Bedrock access
 - Playwright browser binaries
 
-### Install Sherlock
+### Install Sniff
 
 ```bash
 # Clone repository
-cd /path/to/sherlock
+cd /path/to/Sniff
 
 # Install with pip/uv
 pip install -e .
@@ -61,7 +61,7 @@ playwright install
 ### Verify Installation
 
 ```bash
-sherlock --help
+Sniff --help
 ```
 
 ---
@@ -73,7 +73,7 @@ Complete setup in 3 steps:
 ### 1. Initialize Configuration
 
 ```bash
-sherlock init
+Sniff init
 ```
 
 This interactive wizard will configure:
@@ -86,7 +86,7 @@ This interactive wizard will configure:
 ### 2. Validate Setup
 
 ```bash
-sherlock preflight
+Sniff preflight
 ```
 
 Checks:
@@ -100,23 +100,23 @@ Checks:
 ### 3. Run Your First Test
 
 ```bash
-sherlock run --goal "Complete signup with email verification"
+Sniff run --goal "Complete signup with email verification"
 ```
 
 ---
 
 ## Commands Reference
 
-### `sherlock init`
+### `Sniff init`
 
 **Interactive configuration setup**
 
 ```bash
-sherlock init [OPTIONS]
+Sniff init [OPTIONS]
 ```
 
 **Options:**
-- `--config PATH` - Config file path (default: `./data/sherlock.json`)
+- `--config PATH` - Config file path (default: `./data/Sniff.json`)
 - `--force` - Overwrite existing configuration
 
 **What It Configures:**
@@ -151,19 +151,19 @@ sherlock init [OPTIONS]
 
 **Example:**
 ```bash
-sherlock init
+Sniff init
 # Follow prompts...
 ✓ Initialization complete!
 ```
 
 ---
 
-### `sherlock preflight`
+### `Sniff preflight`
 
 **Validate AWS and Bedrock setup**
 
 ```bash
-sherlock preflight [OPTIONS]
+Sniff preflight [OPTIONS]
 ```
 
 **Options:**
@@ -179,7 +179,7 @@ sherlock preflight [OPTIONS]
 
 **Example:**
 ```bash
-sherlock preflight --verbose
+Sniff preflight --verbose
 
 Preflight Check Results
 ┌────────────────────────┬─────────┬──────────────────────┐
@@ -198,12 +198,12 @@ Preflight Check Results
 
 ---
 
-### `sherlock personas`
+### `Sniff personas`
 
 **Manage user behavior personas**
 
 ```bash
-sherlock personas <COMMAND> [OPTIONS]
+Sniff personas <COMMAND> [OPTIONS]
 ```
 
 **Subcommands:**
@@ -211,7 +211,7 @@ sherlock personas <COMMAND> [OPTIONS]
 #### `list` - Show all personas
 
 ```bash
-sherlock personas list
+Sniff personas list
 ```
 
 Shows table of available personas with traits.
@@ -219,18 +219,18 @@ Shows table of available personas with traits.
 #### `show` - Display persona details
 
 ```bash
-sherlock personas show <NAME>
+Sniff personas show <NAME>
 ```
 
 Example:
 ```bash
-sherlock personas show confused_first_time_user
+Sniff personas show confused_first_time_user
 ```
 
 #### `add` - Create new persona (LLM-assisted)
 
 ```bash
-sherlock personas add
+Sniff personas add
 ```
 
 Interactive wizard:
@@ -241,7 +241,7 @@ Interactive wizard:
 
 Example:
 ```bash
-sherlock personas add
+Sniff personas add
 ? Describe the persona: An elderly user who is not tech-savvy
 # LLM generates complete persona profile
 ? Looks good? Yes
@@ -251,19 +251,19 @@ sherlock personas add
 #### `test` - Validate persona file
 
 ```bash
-sherlock personas test <NAME>
+Sniff personas test <NAME>
 ```
 
 Validates JSON schema and required fields.
 
 ---
 
-### `sherlock run`
+### `Sniff run`
 
 **Execute autonomous test run**
 
 ```bash
-sherlock run [OPTIONS]
+Sniff run [OPTIONS]
 ```
 
 **Required:**
@@ -281,12 +281,12 @@ sherlock run [OPTIONS]
 
 Basic run:
 ```bash
-sherlock run --goal "Complete signup with document upload"
+Sniff run --goal "Complete signup with document upload"
 ```
 
 With persona and device:
 ```bash
-sherlock run \
+Sniff run \
   --persona confused_first_time_user \
   --goal "Create account and verify email" \
   --device "iPhone 14" \
@@ -295,7 +295,7 @@ sherlock run \
 
 Headed mode (visible browser):
 ```bash
-sherlock run \
+Sniff run \
   --goal "Test signup flow" \
   --headed
 ```
@@ -311,7 +311,7 @@ sherlock run \
 
 **Output:**
 ```
-Running Sherlock Test Run...
+Running Sniff Test Run...
 
 Step 1: Navigate to signup page
 Step 2: Tap "Create Account" button
@@ -326,12 +326,12 @@ Report: ./artifacts/run_abc123/report.json
 
 ---
 
-### `sherlock report`
+### `Sniff report`
 
 **Display run results**
 
 ```bash
-sherlock report [OPTIONS] <RUN_ID>
+Sniff report [OPTIONS] <RUN_ID>
 ```
 
 **Options:**
@@ -341,17 +341,17 @@ sherlock report [OPTIONS] <RUN_ID>
 
 Pretty terminal output:
 ```bash
-sherlock report run_abc123
+Sniff report run_abc123
 ```
 
 JSON output:
 ```bash
-sherlock report run_abc123 --format json
+Sniff report run_abc123 --format json
 ```
 
 List all runs:
 ```bash
-sherlock report --list
+Sniff report --list
 ```
 
 **Report Contents:**
@@ -365,12 +365,12 @@ sherlock report --list
 
 ---
 
-### `sherlock alert`
+### `Sniff alert`
 
 **Manage Slack alerts**
 
 ```bash
-sherlock alert <COMMAND>
+Sniff alert <COMMAND>
 ```
 
 **Subcommands:**
@@ -378,7 +378,7 @@ sherlock alert <COMMAND>
 #### `test` - Send test alert
 
 ```bash
-sherlock alert test
+Sniff alert test
 ```
 
 Validates webhook and sends sample alert.
@@ -386,19 +386,19 @@ Validates webhook and sends sample alert.
 #### `configure` - Update Slack settings
 
 ```bash
-sherlock alert configure
+Sniff alert configure
 ```
 
 Interactive update of webhook URL, channel, bot name.
 
 ---
 
-### `sherlock demo`
+### `Sniff demo`
 
 **Deterministic demo mode**
 
 ```bash
-sherlock demo [OPTIONS]
+Sniff demo [OPTIONS]
 ```
 
 **Options:**
@@ -408,7 +408,7 @@ Runs pre-scripted path with known failure for judge presentations.
 
 **Example:**
 ```bash
-sherlock demo --scenario backend_timeout
+Sniff demo --scenario backend_timeout
 ```
 
 ---
@@ -417,7 +417,7 @@ sherlock demo --scenario backend_timeout
 
 ### Configuration Files
 
-**Primary Config:** `./data/sherlock.json`
+**Primary Config:** `./data/Sniff.json`
 - Structured settings (nested objects)
 - Feature flags
 - Paths and defaults
@@ -506,7 +506,7 @@ export BEDROCK_MODEL_ID="anthropic.claude-sonnet-4-5-20250929-v1:0"
 
 **Option 1: CLI (LLM-assisted)**
 ```bash
-sherlock personas add
+Sniff personas add
 ? Describe the persona: A power user who knows exactly what they want
 ```
 
@@ -534,16 +534,16 @@ vi src/personas/my_persona.json
 
 ```bash
 # 1. Initialize (first time only)
-sherlock init
+Sniff init
 
 # 2. Validate setup
-sherlock preflight
+Sniff preflight
 
 # 3. Run test
-sherlock run --goal "Complete signup"
+Sniff run --goal "Complete signup"
 
 # 4. View results
-sherlock report <run-id>
+Sniff report <run-id>
 ```
 
 ### Advanced Workflows
@@ -551,21 +551,21 @@ sherlock report <run-id>
 **Test different personas:**
 ```bash
 for persona in confused_first_time_user impatient_user careful_user; do
-  sherlock run --persona $persona --goal "Complete signup"
+  Sniff run --persona $persona --goal "Complete signup"
 done
 ```
 
 **Test different devices:**
 ```bash
-sherlock run --goal "Signup" --device "iPhone 13"
-sherlock run --goal "Signup" --device "Pixel 5"
+Sniff run --goal "Signup" --device "iPhone 13"
+Sniff run --goal "Signup" --device "Pixel 5"
 ```
 
 **Test different network conditions:**
 ```bash
-sherlock run --goal "Signup" --network 4g
-sherlock run --goal "Signup" --network 3g
-sherlock run --goal "Signup" --network slow3g
+Sniff run --goal "Signup" --network 4g
+Sniff run --goal "Signup" --network 3g
+Sniff run --goal "Signup" --network slow3g
 ```
 
 ### Interpreting Results
@@ -586,7 +586,7 @@ Evidence: ./artifacts/run_abc123/
   - screenshots/
   - trace.json
   - execution.log
-Slack Alert: Sent to #sherlock-alerts
+Slack Alert: Sent to #Sniff-alerts
 ```
 
 ---
@@ -600,7 +600,7 @@ Slack Alert: Sent to #sherlock-alerts
 **Solution:**
 ```bash
 # Option 1: Run init again
-sherlock init
+Sniff init
 
 # Option 2: Set in .env
 echo "AWS_ACCESS_KEY_ID=AKIA..." >> .env
@@ -625,7 +625,7 @@ echo "BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-5-20250929-v1:0" >> .env
 2. Navigate to Model access
 3. Request access to Claude models
 4. Wait for approval (usually instant)
-5. Run `sherlock preflight` again
+5. Run `Sniff preflight` again
 
 #### "No module named 'src'"
 
@@ -640,7 +640,7 @@ pip install -e .
 **Check:**
 ```bash
 # 1. Validate config
-sherlock preflight --verbose
+Sniff preflight --verbose
 
 # 2. Check .env exists
 cat .env
@@ -653,7 +653,7 @@ tail -f ./artifacts/latest/execution.log
 
 **Verbose output:**
 ```bash
-sherlock run --goal "Test" --headed
+Sniff run --goal "Test" --headed
 ```
 
 **Check trace logs:**
@@ -675,14 +675,14 @@ cat ./artifacts/<run-id>/trace.jsonl
 ### Custom Configuration Path
 
 ```bash
-sherlock init --config /custom/path/sherlock.json
-sherlock run --config /custom/path/sherlock.json --goal "Test"
+Sniff init --config /custom/path/Sniff.json
+Sniff run --config /custom/path/Sniff.json --goal "Test"
 ```
 
 ### Override Guardrails
 
 ```bash
-sherlock run \
+Sniff run \
   --goal "Complex multi-step flow" \
   --max-steps 100
 ```
@@ -691,14 +691,14 @@ sherlock run \
 
 Watch the browser in real-time:
 ```bash
-sherlock run --goal "Debug signup" --headed
+Sniff run --goal "Debug signup" --headed
 ```
 
 ### JSON Reports for CI/CD
 
 ```bash
-sherlock run --goal "Nightly test" > /dev/null
-sherlock report <run-id> --format json > report.json
+Sniff run --goal "Nightly test" > /dev/null
+Sniff report <run-id> --format json > report.json
 
 # Parse results
 if jq -e '.outcome == "success"' report.json; then
@@ -713,7 +713,7 @@ fi
 ### Slack Alert Testing
 
 ```bash
-sherlock alert test
+Sniff alert test
 # Sends sample alert to configured webhook
 ```
 
@@ -743,7 +743,7 @@ sherlock alert test
 
 Always configure allowed domains:
 ```bash
-sherlock init
+Sniff init
 # When asked for allowed domains:
 example.com,staging.example.com
 ```
@@ -754,7 +754,7 @@ This prevents autonomous actions on unintended sites.
 
 ```bash
 # Run preflight before important test runs
-sherlock preflight
+Sniff preflight
 ```
 
 ---
@@ -762,11 +762,11 @@ sherlock preflight
 ## File Structure
 
 ```
-sherlock/
+Sniff/
 ├── .env                          # Environment variables (gitignored)
 ├── data/
-│   ├── sherlock.json            # Main configuration
-│   └── sherlock.db              # Run history
+│   ├── Sniff.json            # Main configuration
+│   └── Sniff.db              # Run history
 ├── artifacts/
 │   └── run_<id>/                # Per-run evidence
 │       ├── screenshots/
@@ -787,28 +787,28 @@ sherlock/
 
 ### Check Documentation
 
-- `sherlock --help` - Command overview
-- `sherlock <command> --help` - Command-specific help
+- `Sniff --help` - Command overview
+- `Sniff <command> --help` - Command-specific help
 - This guide - Complete reference
 
 ### Common Commands
 
 ```bash
 # Show version
-sherlock --version
+Sniff --version
 
 # Get help
-sherlock --help
-sherlock run --help
+Sniff --help
+Sniff run --help
 
 # Validate setup
-sherlock preflight --verbose
+Sniff preflight --verbose
 
 # List personas
-sherlock personas list
+Sniff personas list
 
 # View recent runs
-sherlock report --list
+Sniff report --list
 ```
 
 ---
@@ -835,6 +835,6 @@ sherlock report --list
 
 ---
 
-**Sherlock CLI v1.0.0**
+**Sniff CLI v1.0.0**
 Autonomous Mystery Shopper System
 Built for hackathon demo - February 2026

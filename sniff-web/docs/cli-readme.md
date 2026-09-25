@@ -1,6 +1,6 @@
-# Sherlock CLI Documentation
+﻿# Sniff CLI Documentation
 
-Welcome to the Sherlock CLI documentation. Sherlock is a persona-driven testing tool that simulates real user behavior to detect signup flow issues before they impact your users.
+Welcome to the Sniff CLI documentation. Sniff is a persona-driven testing tool that simulates real user behavior to detect signup flow issues before they impact your users.
 
 ## Table of Contents
 
@@ -17,42 +17,42 @@ Welcome to the Sherlock CLI documentation. Sherlock is a persona-driven testing 
 ## Installation
 
 ```bash
-# Install Sherlock CLI using pip
-pip install sherlock-personas
+# Install Sniff CLI using pip
+pip install Sniff-personas
 
 # Or install from source
-git clone https://github.com/your-org/sherlock.git
-cd sherlock
+git clone https://github.com/your-org/Sniff.git
+cd Sniff
 pip install -e .
 ```
 
 ## Quick Start
 
-Run your first Sherlock test in 60 seconds:
+Run your first Sniff test in 60 seconds:
 
 ```bash
 # Basic signup flow test
-sherlock run
+Sniff run
 
 # Test with a specific persona
-sherlock run --persona confused_first_time_user
+Sniff run --persona confused_first_time_user
 
 # Test on a specific device
-sherlock run --device iphone13
+Sniff run --device iphone13
 
 # Test with network throttling
-sherlock run --network 3g
+Sniff run --network 3g
 ```
 
 ## Commands
 
-### `sherlock run`
+### `Sniff run`
 
 Execute a persona-driven test run.
 
 **Usage:**
 ```bash
-sherlock run [options]
+Sniff run [options]
 ```
 
 **Options:**
@@ -67,62 +67,62 @@ sherlock run [options]
 
 **Example:**
 ```bash
-sherlock run \
+Sniff run \
   --persona power_user \
   --device iphone13 \
   --network 3g \
   --url https://app.example.com/signup
 ```
 
-### `sherlock init`
+### `Sniff init`
 
-Initialize a new Sherlock configuration in your project.
+Initialize a new Sniff configuration in your project.
 
 **Usage:**
 ```bash
-sherlock init
+Sniff init
 ```
 
-This creates a `sherlock.config.json` file with default settings.
+This creates a `Sniff.config.json` file with default settings.
 
-### `sherlock list`
+### `Sniff list`
 
 List available personas, devices, and network profiles.
 
 **Usage:**
 ```bash
 # List all available options
-sherlock list
+Sniff list
 
 # List personas only
-sherlock list --personas
+Sniff list --personas
 
 # List devices only
-sherlock list --devices
+Sniff list --devices
 
 # List network profiles
-sherlock list --networks
+Sniff list --networks
 ```
 
-### `sherlock config`
+### `Sniff config`
 
-Manage Sherlock configuration.
+Manage Sniff configuration.
 
 **Usage:**
 ```bash
 # View current configuration
-sherlock config view
+Sniff config view
 
 # Set a configuration value
-sherlock config set <key> <value>
+Sniff config set <key> <value>
 
 # Reset to defaults
-sherlock config reset
+Sniff config reset
 ```
 
 ## Personas
 
-Sherlock includes built-in personas that simulate different user behaviors:
+Sniff includes built-in personas that simulate different user behaviors:
 
 ### Standard User
 **ID:** `standard_user`
@@ -189,7 +189,7 @@ Simulate various network speeds:
 
 ## Configuration
 
-Create a `sherlock.config.json` in your project root:
+Create a `Sniff.config.json` in your project root:
 
 ```json
 {
@@ -230,7 +230,7 @@ Create a `sherlock.config.json` in your project root:
 Configure Slack alerts to get notified instantly when issues are detected:
 
 ```bash
-sherlock run --slack https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+Sniff run --slack https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 ```
 
 **Alert Format:**
@@ -270,7 +270,7 @@ Send alerts to any webhook endpoint:
 ### Example 1: Basic Signup Flow Test
 
 ```bash
-sherlock run \
+Sniff run \
   --url https://app.example.com/signup \
   --persona standard_user
 ```
@@ -278,7 +278,7 @@ sherlock run \
 ### Example 2: Mobile Performance Test
 
 ```bash
-sherlock run \
+Sniff run \
   --persona mobile_first_user \
   --device iphone13 \
   --network 3g \
@@ -288,7 +288,7 @@ sherlock run \
 ### Example 3: Accessibility Audit
 
 ```bash
-sherlock run \
+Sniff run \
   --persona accessibility_focused \
   --device desktop \
   --debug
@@ -297,7 +297,7 @@ sherlock run \
 ### Example 4: Power User Flow
 
 ```bash
-sherlock run \
+Sniff run \
   --persona power_user \
   --device laptop \
   --network 5g
@@ -308,7 +308,7 @@ sherlock run \
 ```bash
 # Test multiple personas in sequence
 for persona in standard_user confused_first_time_user power_user; do
-  sherlock run \
+  Sniff run \
     --persona $persona \
     --device iphone13 \
     --network 3g \
@@ -319,8 +319,8 @@ done
 ### Example 6: CI/CD Integration
 
 ```yaml
-# .github/workflows/sherlock.yml
-name: Sherlock E2E Tests
+# .github/workflows/Sniff.yml
+name: Sniff E2E Tests
 
 on:
   push:
@@ -336,12 +336,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Sherlock
-        run: pip install sherlock-personas
+      - name: Install Sniff
+        run: pip install Sniff-personas
 
       - name: Run Signup Tests
         run: |
-          sherlock run \
+          Sniff run \
             --persona confused_first_time_user \
             --device iphone13 \
             --network 3g \
@@ -352,19 +352,19 @@ jobs:
 
 ### Common Issues
 
-**Issue: "Command not found: sherlock"**
+**Issue: "Command not found: Sniff"**
 ```bash
 # Solution: Install using pip and ensure it's in your PATH
-pip install sherlock-personas
+pip install Sniff-personas
 
 # Verify installation
-sherlock --version
+Sniff --version
 ```
 
 **Issue: "Timeout waiting for element"**
 ```bash
 # Solution: Increase timeout in config
-sherlock config set timeout 60000
+Sniff config set timeout 60000
 ```
 
 **Issue: "Network throttling not working"**
@@ -375,10 +375,10 @@ sherlock config set timeout 60000
 
 ## Support
 
-- **Documentation:** https://docs.sherlock.dev
-- **GitHub Issues:** https://github.com/sherlock/cli/issues
-- **Discord Community:** https://discord.gg/sherlock
-- **Email:** support@sherlock.dev
+- **Documentation:** https://docs.Sniff.dev
+- **GitHub Issues:** https://github.com/Sniff/cli/issues
+- **Discord Community:** https://discord.gg/Sniff
+- **Email:** support@Sniff.dev
 
 ## License
 
@@ -386,4 +386,4 @@ MIT License - see LICENSE file for details
 
 ---
 
-Built with ❤️ by the Sherlock team
+Built with ❤️ by the Sniff team

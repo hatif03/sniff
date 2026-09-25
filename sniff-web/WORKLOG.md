@@ -1,7 +1,7 @@
-# Sherlock Website - Implementation Worklog
+﻿# Sniff Website - Implementation Worklog
 
 ## Project Overview
-Building a high-impact single-page website for Sherlock with animation-first storytelling, clean design, and smooth performance.
+Building a high-impact single-page website for Sniff with animation-first storytelling, clean design, and smooth performance.
 
 ## Progress Status
 **Started:** 2026-02-07

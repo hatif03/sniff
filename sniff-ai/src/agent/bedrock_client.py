@@ -1,4 +1,4 @@
-"""AWS Bedrock client wrapper for Sherlock Agent Service.
+﻿"""AWS Bedrock client wrapper for sniff Agent Service.
 
 Provides a clean interface to AWS Bedrock with:
 - Model invocation with structured prompts

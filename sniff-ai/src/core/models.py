@@ -1,4 +1,4 @@
-"""Core data models for Sherlock mystery shopper system.
+﻿"""Core data models for sniff mystery shopper system.
 
 Defines contracts between components:
 - Observation: Worker → Agent
@@ -12,7 +12,7 @@ Architecture boundaries:
 - Orchestrator owns control flow and state machine
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -55,7 +55,7 @@ class Observation(BaseModel):
     """
     runId: str = Field(..., description="Unique run identifier")
     step: int = Field(..., ge=0, description="Step number in current run")
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     url: str = Field(..., description="Current page URL")
     screenshotPath: str = Field(..., description="Absolute path to screenshot artifact")
     visibleText: list[str] = Field(default_factory=list, description="Extracted visible text snippets")
@@ -189,7 +189,7 @@ class ActionResult(BaseModel):
         default_factory=dict,
         description="Additional execution details"
     )
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class SanitizedDecision(BaseModel):

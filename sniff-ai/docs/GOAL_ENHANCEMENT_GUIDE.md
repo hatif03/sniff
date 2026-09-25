@@ -1,8 +1,8 @@
-# Goal Enhancement Guide
+﻿# Goal Enhancement Guide
 
 ## Overview
 
-Sherlock's **Goal Enhancement** feature automatically enriches simple user goals with website-specific context and persona-appropriate strategies, dramatically improving agent decision quality.
+Sniff's **Goal Enhancement** feature automatically enriches simple user goals with website-specific context and persona-appropriate strategies, dramatically improving agent decision quality.
 
 ## The Problem
 
@@ -21,7 +21,7 @@ Agent knows: Nothing about the website structure, available options, or optimal 
 ```
 User provides: "Complete signup"
     ↓
-1. Sherlock navigates to the website
+1. Sniff navigates to the website
 2. Analyzes page structure, buttons, forms, OAuth options
 3. Uses LLM to create detailed, context-aware plan
     ↓
@@ -223,8 +223,8 @@ To see the full enhanced goal:
 # Set log level to DEBUG
 export SHERLOCK_LOG_LEVEL=DEBUG
 
-# Run sherlock
-sherlock run --goal "Complete signup" --persona impatient_user
+# Run Sniff
+Sniff run --goal "Complete signup" --persona impatient_user
 ```
 
 ### Access Enhanced Goal in Code
@@ -318,11 +318,11 @@ if detected_language != "en":
 **Solution:**
 ```bash
 # Verify Bedrock access
-sherlock preflight
+Sniff preflight
 
 # Check logs for specific error
 export SHERLOCK_LOG_LEVEL=DEBUG
-sherlock run ...
+Sniff run ...
 ```
 
 ### Agent Ignores Enhanced Goal
@@ -355,4 +355,4 @@ Planned improvements:
 
 **Status:** ✅ Active in `feature/experiments` branch
 **Performance:** Minimal overhead, significant quality improvement
-**Compatibility:** Works with all existing Sherlock features
+**Compatibility:** Works with all existing Sniff features

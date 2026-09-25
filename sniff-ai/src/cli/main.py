@@ -1,12 +1,12 @@
-"""Main CLI entry point for Sherlock.
+﻿"""Main CLI entry point for sniff.
 
 Provides commands:
-- sherlock init - Interactive configuration setup
-- sherlock personas - Manage user personas
-- sherlock run - Execute autonomous test run
-- sherlock report - Display run results
-- sherlock alert test - Test Slack integration
-- sherlock demo - Deterministic demo mode
+- sniff init - Interactive configuration setup
+- sniff personas - Manage user personas
+- sniff run - Execute autonomous test run
+- sniff report - Display run results
+- sniff alert test - Test Slack integration
+- sniff demo - Deterministic demo mode
 """
 
 import typer
@@ -17,7 +17,7 @@ from .commands import init, personas, run, report, alert, demo, preflight, exper
 
 # Create Typer app
 app = typer.Typer(
-    name="sherlock",
+    name="Sniff",
     help="Autonomous mystery shopper for mobile/web signup flow testing",
     add_completion=False,
 )
@@ -39,7 +39,7 @@ app.add_typer(experiment.app, name="experiment", help="Run experiments with mult
 @app.callback()
 def callback():
     """
-    Sherlock - Autonomous Mystery Shopper
+    sniff - Autonomous Mystery Shopper
 
     Test mobile/web signup flows with AI-driven navigation and diagnosis.
     Detect friction, diagnose root causes, and escalate via Slack alerts.

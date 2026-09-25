@@ -1,8 +1,8 @@
-# Sherlock One-Page Website Design + Technical Spec
+﻿# Sniff One-Page Website Design + Technical Spec
 
 ## 1) Goal
 
-Create a **high-impact single-page website** for Sherlock that feels clean, calm, and memorable for judges:
+Create a **high-impact single-page website** for Sniff that feels clean, calm, and memorable for judges:
 - Animation-first storytelling
 - Strong product narrative in under 90 seconds scroll time
 - Fast loading and smooth motion on modern laptops
@@ -31,10 +31,10 @@ Create a **high-impact single-page website** for Sherlock that feels clean, calm
 ## 3) Single-Page Narrative Structure
 
 ## Section 1: Hero (Hook)
-- Headline: “Your Signup Flow Is Breaking. Sherlock Already Knows.”
-- Subheadline: “Powered by Sherlock Personas for mobile/web signup quality.”
+- Headline: “Your Signup Flow Is Breaking. Sniff Already Knows.”
+- Subheadline: “Powered by Sniff Personas for mobile/web signup quality.”
 - Primary CTA: `Watch Live Demo`
-- Secondary CTA: `Run Sherlock CLI`
+- Secondary CTA: `Run Sniff CLI`
 - Animation:
   - Gentle text fade/slide
   - Soft underline sweep on headline
@@ -80,7 +80,7 @@ Create a **high-impact single-page website** for Sherlock that feels clean, calm
   - Subtle node fade-in
 
 ## Section 7: CTA Footer
-- “Launch Sherlock in 60 Seconds.”
+- “Launch Sniff in 60 Seconds.”
 - Buttons:
   - `Get Started`
   - `View Architecture`
@@ -108,7 +108,7 @@ Create a **high-impact single-page website** for Sherlock that feels clean, calm
 - Hero headline reveal with soft underline sweep.
 - Scroll progress indicator that gently fills.
 - Slack alert card with clean rise + fade.
-- Terminal command replay (`sherlock run ...`) with caret blink.
+- Terminal command replay (`Sniff run ...`) with caret blink.
 
 ---
 
@@ -194,7 +194,7 @@ Create a **high-impact single-page website** for Sherlock that feels clean, calm
 
 ## 9) SEO + Social Preview
 
-- Title: `Sherlock Personas — AI Signup Experiments With Instant Team Alerts`
+- Title: `Sniff Personas — AI Signup Experiments With Instant Team Alerts`
 - Description: `Persona-driven mobile/web signup experiments with diagnosis and instant team alerts.`
 - OG image: dark neon hero with CLI + alert card visual
 - Add structured metadata in Next.js `generateMetadata`
@@ -208,7 +208,7 @@ Create a **high-impact single-page website** for Sherlock that feels clean, calm
 3. Pause at replay section to show bug detection + alert animation.
 4. Jump to architecture snapshot and connect to CLI product story.
 5. End on CTA with run command:
-   - `sherlock run --persona confused_first_time_user --device iphone13 --network 3g`
+   - `Sniff run --persona confused_first_time_user --device iphone13 --network 3g`
 
 ---
 
@@ -233,7 +233,7 @@ Create a **high-impact single-page website** for Sherlock that feels clean, calm
 
 ## 12) Acceptance Criteria
 
-- Website tells full Sherlock story in one-page scroll.
+- Website tells full Sniff story in one-page scroll.
 - Motion feels premium, smooth, and minimal.
 - At least 3 standout animated moments are demo-ready.
 - Page remains smooth and readable on standard laptop hardware.
@@ -244,27 +244,27 @@ Create a **high-impact single-page website** for Sherlock that feels clean, calm
 ## 13) Branded Hero Copy Options (Experimentation + Alerts)
 
 ## Option A
-- Eyebrow: `Sherlock Personas`
+- Eyebrow: `Sniff Personas`
 - Headline: `Run signup experiments before users feel friction.`
-- Subheadline: `Sherlock Personas explores real user behavior patterns and alerts your team the moment risk appears.`
+- Subheadline: `Sniff Personas explores real user behavior patterns and alerts your team the moment risk appears.`
 
 ## Option B
-- Eyebrow: `Sherlock Personas`
+- Eyebrow: `Sniff Personas`
 - Headline: `Experiment across signup journeys. Alert the right team instantly.`
-- Subheadline: `From persona-driven journeys to clear incident context, Sherlock keeps your team ahead of drop-off.`
+- Subheadline: `From persona-driven journeys to clear incident context, Sniff keeps your team ahead of drop-off.`
 
 ## Option C
-- Eyebrow: `Sherlock Personas`
+- Eyebrow: `Sniff Personas`
 - Headline: `Turn signup uncertainty into continuous experiments.`
-- Subheadline: `Sherlock runs realistic personas, detects friction early, and sends instant team alerts with evidence.`
+- Subheadline: `Sniff runs realistic personas, detects friction early, and sends instant team alerts with evidence.`
 
 ## Option D
-- Eyebrow: `Sherlock Personas`
+- Eyebrow: `Sniff Personas`
 - Headline: `Every signup flow is an experiment.`
-- Subheadline: `Sherlock makes each run measurable, explainable, and immediately actionable for your team.`
+- Subheadline: `Sniff makes each run measurable, explainable, and immediately actionable for your team.`
 
 ## Option E
-- Eyebrow: `Sherlock Personas`
+- Eyebrow: `Sniff Personas`
 - Headline: `See friction sooner. Respond faster as a team.`
 - Subheadline: `Persona-led signup experiments with live team alerts and clear next actions.`
 

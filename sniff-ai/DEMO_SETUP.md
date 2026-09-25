@@ -1,6 +1,6 @@
-# Sherlock Demo Setup Guide
+﻿# Sniff Demo Setup Guide
 
-This guide helps you quickly set up Sherlock for a demo or presentation.
+This guide helps you quickly set up Sniff for a demo or presentation.
 
 ## Prerequisites
 
@@ -10,16 +10,16 @@ This guide helps you quickly set up Sherlock for a demo or presentation.
 
 ## Quick Setup (5 minutes)
 
-### Step 1: Install Sherlock
+### Step 1: Install Sniff
 
 ```bash
-pip install sherlock-0.1.0-py3-none-any.whl
+pip install Sniff-0.1.0-py3-none-any.whl
 playwright install
 ```
 
 Or from PyPI:
 ```bash
-pip install sherlock
+pip install Sniff
 playwright install
 ```
 
@@ -31,7 +31,7 @@ Choose one of the following methods:
 
 ```bash
 # Configure AWS CLI
-aws configure --profile sherlock
+aws configure --profile Sniff
 
 # When prompted, enter:
 # - AWS Access Key ID: [Your key]
@@ -42,7 +42,7 @@ aws configure --profile sherlock
 
 Create `.env` file:
 ```bash
-AWS_PROFILE=sherlock
+AWS_PROFILE=Sniff
 AWS_DEFAULT_REGION=us-west-2
 BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
 BEDROCK_REGION=us-west-2
@@ -79,7 +79,7 @@ SHERLOCK_ALLOWED_DOMAINS=staging.example.com,deriv.com
 
 ```bash
 # Test AWS/Bedrock connectivity
-sherlock preflight
+Sniff preflight
 
 # Expected output:
 # ✓ AWS credentials configured
@@ -90,7 +90,7 @@ sherlock preflight
 ### Step 4: Run Demo Test
 
 ```bash
-sherlock run \
+Sniff run \
   --url https://deriv.com \
   --goal "Complete signup process" \
   --persona impatient_user \
@@ -104,7 +104,7 @@ sherlock run \
 ### Scenario 1: Impatient User (Shows Friction Detection)
 
 ```bash
-sherlock run \
+Sniff run \
   --persona impatient_user \
   --goal "Complete signup with email" \
   --device "iPhone 13" \
@@ -116,7 +116,7 @@ sherlock run \
 ### Scenario 2: Confused First-Time User
 
 ```bash
-sherlock run \
+Sniff run \
   --persona confused_first_time_user \
   --goal "Create account and verify" \
   --device "iPhone 14"
@@ -127,7 +127,7 @@ sherlock run \
 ### Scenario 3: Network Performance Testing
 
 ```bash
-sherlock run \
+Sniff run \
   --persona impatient_user \
   --goal "Complete signup" \
   --network slow3g \
@@ -140,10 +140,10 @@ sherlock run \
 
 ```bash
 # View latest run report
-sherlock report
+Sniff report
 
 # View specific run with artifacts
-sherlock report run_20260207_134429_45c8c7ec
+Sniff report run_20260207_134429_45c8c7ec
 
 # Artifacts are stored in:
 # ./artifacts/<run_id>/
@@ -155,10 +155,10 @@ sherlock report run_20260207_134429_45c8c7ec
 
 ```bash
 # Check AWS configuration
-aws sts get-caller-identity --profile sherlock
+aws sts get-caller-identity --profile Sniff
 
 # If this fails, reconfigure:
-aws configure --profile sherlock
+aws configure --profile Sniff
 ```
 
 ### Bedrock Access Denied
@@ -189,10 +189,10 @@ For a clean demo every time:
 rm -rf artifacts/*
 
 # Remove database history
-rm -f data/sherlock.db
+rm -f data/Sniff.db
 
 # Run fresh test
-sherlock run --goal "Your demo goal"
+Sniff run --goal "Your demo goal"
 ```
 
 ## Presentation Tips
@@ -207,7 +207,7 @@ sherlock run --goal "Your demo goal"
 
 Before your demo:
 
-- [ ] AWS credentials configured and tested (`sherlock preflight`)
+- [ ] AWS credentials configured and tested (`Sniff preflight`)
 - [ ] Playwright browsers installed (`playwright install`)
 - [ ] .env file configured with allowed domains
 - [ ] Test run completed successfully (rehearsal)
@@ -220,25 +220,25 @@ Before your demo:
 
 ```bash
 # Preflight check
-sherlock preflight
+Sniff preflight
 
 # Run demo
-sherlock run --goal "Your goal" --persona impatient_user --headed
+Sniff run --goal "Your goal" --persona impatient_user --headed
 
 # View results
-sherlock report
+Sniff report
 
 # List personas
-sherlock personas list
+Sniff personas list
 
 # Test Slack alerts (if configured)
-sherlock alert test
+Sniff alert test
 ```
 
 ## Support
 
 If you encounter issues during setup:
-1. Check `sherlock preflight` output
+1. Check `Sniff preflight` output
 2. Verify AWS credentials: `aws sts get-caller-identity`
 3. Check model access in Bedrock console
 4. Review logs in artifacts directory

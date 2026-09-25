@@ -1,8 +1,8 @@
-# Sherlock Product Requirements Document (PRD)
+﻿# Sniff Product Requirements Document (PRD)
 
 ## 1. Document Control
 
-- **Product Name:** Sherlock
+- **Product Name:** Sniff
 - **Version:** v1.0 (Hackathon PRD)
 - **Date:** February 6, 2026
 - **Owner:** Solo Builder
@@ -12,7 +12,7 @@
 
 ## 2. Executive Summary
 
-Sherlock is a CLI-first autonomous mystery shopper for mobile/web signup journeys. It simulates realistic user behavior, detects signup friction, diagnoses probable root causes, and escalates issues to Slack with actionable evidence.
+Sniff is a CLI-first autonomous mystery shopper for mobile/web signup journeys. It simulates realistic user behavior, detects signup friction, diagnoses probable root causes, and escalates issues to Slack with actionable evidence.
 
 This PRD is intentionally scoped for a solo hackathon build in ~8–9 implementation hours plus demo polish. The strategy is to deliver one deeply reliable end-to-end flow (not many shallow features) that visibly demonstrates AI value.
 
@@ -83,7 +83,7 @@ Persona behavior profiles drive how the agent explores UI:
 - `impatient_user`
 - `careful_user`
 
-Persona setup is created with `sherlock personas add`, where minimal natural-language input is expanded to structured persona JSON using an LLM-assisted normalization step.
+Persona setup is created with `Sniff personas add`, where minimal natural-language input is expanded to structured persona JSON using an LLM-assisted normalization step.
 
 ---
 
@@ -91,14 +91,14 @@ Persona setup is created with `sherlock personas add`, where minimal natural-lan
 
 ## 8.1 In Scope (MVP)
 
-- Bun + TypeScript CLI package (`sherlock`)
+- Bun + TypeScript CLI package (`Sniff`)
 - Commands:
-  - `sherlock init`
-  - `sherlock personas add|list|test`
-  - `sherlock run`
-  - `sherlock report`
-  - `sherlock alert test`
-  - `sherlock demo`
+  - `Sniff init`
+  - `Sniff personas add|list|test`
+  - `Sniff run`
+  - `Sniff report`
+  - `Sniff alert test`
+  - `Sniff demo`
 - Playwright-based mobile emulation worker
 - Bedrock-based decision service
 - Diagnosis engine (hybrid rule + LLM interpretation)
@@ -117,17 +117,17 @@ Persona setup is created with `sherlock personas add`, where minimal natural-lan
 
 ## 9.1 CLI and Configuration
 
-- FR-1: System must initialize project config through `sherlock init`.
+- FR-1: System must initialize project config through `Sniff init`.
 - FR-2: System must store Bedrock model/region, staging URL, Slack webhook, and defaults.
 - FR-3: System must support run-time overrides (`--persona`, `--device`, `--network`, `--url`).
 - FR-4: System must fail fast on missing required config.
 
 ## 9.2 Persona Management
 
-- FR-5: `sherlock personas add` must accept short natural-language persona input.
+- FR-5: `Sniff personas add` must accept short natural-language persona input.
 - FR-6: System must convert input into validated persona JSON schema.
 - FR-7: User must confirm/edit generated persona before saving.
-- FR-8: `sherlock run` must load a saved persona profile by name.
+- FR-8: `Sniff run` must load a saved persona profile by name.
 
 ## 9.3 Run Orchestration
 
@@ -159,13 +159,13 @@ Persona setup is created with `sherlock personas add`, where minimal natural-lan
 
 - FR-23: Each run must generate an evidence bundle in `artifacts/<runId>/`.
 - FR-24: Evidence must include screenshots, action timeline, diagnosis JSON, and summary report.
-- FR-25: `sherlock report` must print a concise run summary and artifact locations.
+- FR-25: `Sniff report` must print a concise run summary and artifact locations.
 
 ## 9.8 Alerting
 
 - FR-26: On diagnosed failure, system must send Slack alert with rich formatting.
 - FR-27: Alert must include severity, root cause, top repro steps, and evidence references.
-- FR-28: `sherlock alert test` must validate webhook and payload formatting.
+- FR-28: `Sniff alert test` must validate webhook and payload formatting.
 
 ---
 
@@ -234,30 +234,30 @@ Deployment model for MVP:
 
 ## 13. CLI Command Requirements
 
-## 13.1 `sherlock init`
+## 13.1 `Sniff init`
 
 - Must prompt for required environment settings.
 - Must validate Bedrock model + region configuration shape.
 - Must persist config to local project config file.
 
-## 13.2 `sherlock personas add`
+## 13.2 `Sniff personas add`
 
 - Must accept minimal persona text.
 - Must run LLM-assisted normalization.
 - Must present preview and confirmation.
 - Must save JSON profile with unique persona name.
 
-## 13.3 `sherlock run`
+## 13.3 `Sniff run`
 
 - Must validate persona existence and runtime config.
 - Must execute the full state machine.
 - Must output final status and report pointer.
 
-## 13.4 `sherlock report`
+## 13.4 `Sniff report`
 
 - Must retrieve and display run outcome, diagnosis, key timestamps, artifact path.
 
-## 13.5 `sherlock demo`
+## 13.5 `Sniff demo`
 
 - Must run deterministic demo mode optimized for judge walkthrough.
 - Must include known-failure path to guarantee visible alerting narrative.
@@ -268,24 +268,24 @@ Deployment model for MVP:
 
 ## 14.1 First-Time Setup
 
-1. User runs `sherlock init`
+1. User runs `Sniff init`
 2. Provides staging URL, Bedrock details, webhook
 3. Config saved and validated
 
 ## 14.2 Persona Creation
 
-1. User runs `sherlock personas add`
+1. User runs `Sniff personas add`
 2. Enters short phrase (e.g., “confused first-time user, low patience on slow network”)
 3. LLM returns structured profile
 4. User confirms and saves
 
 ## 14.3 Test Run and Escalation
 
-1. User runs `sherlock run --persona confused_first_time_user --device iphone13 --network 3g`
+1. User runs `Sniff run --persona confused_first_time_user --device iphone13 --network 3g`
 2. Agent navigates flow via worker tools
 3. Failure detected and diagnosed
 4. Slack alert sent with evidence
-5. User checks `sherlock report`
+5. User checks `Sniff report`
 
 ---
 
@@ -305,7 +305,7 @@ Deployment model for MVP:
   **Mitigation:** Strict JSON schema + parser/repair retry + bounded action set.
 
 - **Risk:** Demo flakiness  
-  **Mitigation:** Deterministic `sherlock demo` mode and rehearsed staging path.
+  **Mitigation:** Deterministic `Sniff demo` mode and rehearsed staging path.
 
 - **Risk:** Scope overload for solo build  
   **Mitigation:** Lock MVP scope to one flow + core diagnosis + one alert channel.
@@ -365,12 +365,12 @@ Metrics should be available in run summary and stored with run metadata.
 ## 20. Acceptance Criteria (Definition of Done)
 
 Product is MVP-complete when all are true:
-- AC-1: `sherlock init` completes and saves valid config.
-- AC-2: `sherlock personas add` creates a usable validated profile from minimal input.
-- AC-3: `sherlock run` autonomously executes one staging signup journey.
+- AC-1: `Sniff init` completes and saves valid config.
+- AC-2: `Sniff personas add` creates a usable validated profile from minimal input.
+- AC-3: `Sniff run` autonomously executes one staging signup journey.
 - AC-4: On failure, diagnosis + severity + repro steps are generated.
 - AC-5: Slack alert is posted with evidence references.
-- AC-6: `sherlock report` outputs run summary with artifact path.
+- AC-6: `Sniff report` outputs run summary with artifact path.
 - AC-7: Demo run is repeatable with high reliability.
 
 ---

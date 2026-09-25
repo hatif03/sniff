@@ -1,4 +1,4 @@
-# Sherlock Architecture (Hackathon Solo Strategy)
+﻿# Sniff Architecture (Hackathon Solo Strategy)
 
 ## 1) Objective
 
@@ -53,14 +53,14 @@ Implementation note:
 
 ## 4) High-Level Component Model
 
-### A) `Sherlock CLI` (Control Plane)
+### A) `Sniff CLI` (Control Plane)
 User-facing package and command surface:
-- `sherlock init`
-- `sherlock run`
-- `sherlock personas ...`
-- `sherlock report`
-- `sherlock alert test`
-- `sherlock demo`
+- `Sniff init`
+- `Sniff run`
+- `Sniff personas ...`
+- `Sniff report`
+- `Sniff alert test`
+- `Sniff demo`
 
 Responsibilities:
 - Parse command intent and config.
@@ -138,7 +138,7 @@ Responsibilities:
 ## 5) Runtime Flow (End-to-End)
 
 1. User executes:
-   - `sherlock run --persona confused --goal "Complete signup with document upload" --device iphone13 --network 3g`
+   - `Sniff run --persona confused --goal "Complete signup with document upload" --device iphone13 --network 3g`
 2. CLI loads config + flow target + previously saved persona profile + run goal.
 3. Orchestrator enters `SETUP`.
 4. Execution Worker boots mobile browser context and opens staging signup URL.
@@ -207,7 +207,7 @@ Persona examples:
 Important:
 - Persist reasoning summaries per step.
 - Show this timeline in demo; judges love transparent intelligence.
-- Persona profiles are created during `sherlock personas add` and reused in `sherlock run`.
+- Persona profiles are created during `Sniff personas add` and reused in `Sniff run`.
 - Each run must include a user-defined goal (`--goal` or interactive prompt), which is passed to the agent and used in completion checks.
 
 ---
@@ -274,7 +274,7 @@ Result:
 
 ## 10) CLI Package Design
 
-### `sherlock init`
+### `Sniff init`
 Interactive setup:
 - staging URL
 - Bedrock region/model
@@ -282,7 +282,7 @@ Interactive setup:
 - default persona/device/network
 - owner routing map
 
-### `sherlock run`
+### `Sniff run`
 Launch autonomous run with overrides.
 
 Goal behavior:
@@ -290,10 +290,10 @@ Goal behavior:
 - Use goal text as primary objective for agent decisions and completion evaluation.
 - Optionally allow persona-level default goal template, but run-time goal always takes precedence.
 
-### `sherlock personas`
+### `Sniff personas`
 - list/add/test persona profiles.
 
-### `sherlock personas add` (LLM-assisted persona builder)
+### `Sniff personas add` (LLM-assisted persona builder)
 Flow:
 - User provides minimal persona intent in CLI (short natural language).
 - LLM expands this into normalized persona JSON.
@@ -302,20 +302,20 @@ Flow:
 
 Goal handling:
 - Persona profile may include `default_goal_template` (optional).
-- Final active goal is selected by the user at `sherlock run` time.
+- Final active goal is selected by the user at `Sniff run` time.
 
 Why:
 - Minimal typing for users.
 - Consistent, schema-safe persona configs.
 - Better repeatability across runs.
 
-### `sherlock report`
+### `Sniff report`
 - summarize by run id and print artifact references.
 
-### `sherlock alert test`
+### `Sniff alert test`
 - verify Slack payload channel + formatting.
 
-### `sherlock demo`
+### `Sniff demo`
 - deterministic mode for judge presentation.
 
 ---
@@ -359,7 +359,7 @@ src/
     impatient_user.json
     careful_user.json
 data/
-  sherlock.db
+  Sniff.db
 artifacts/
   <runId>/
 ```

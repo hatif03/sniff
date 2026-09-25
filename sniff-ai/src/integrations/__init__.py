@@ -1,4 +1,4 @@
-"""Sherlock integrations with external services.
+﻿"""sniff integrations with external services.
 
 Available integrations:
 - Supabase: Upload artifacts and run data to Supabase

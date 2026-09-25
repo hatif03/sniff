@@ -1,4 +1,4 @@
-"""Slack alerting service with rich block formatting.
+﻿"""Slack alerting service with rich block formatting.
 
 Sends structured alerts to Slack webhook with:
 - Severity indicator
@@ -38,7 +38,7 @@ class SlackAlert:
         "Integration": "🔌",
     }
 
-    def __init__(self, webhook_url: Optional[str] = None, bot_name: str = "Sherlock Alert Bot"):
+    def __init__(self, webhook_url: Optional[str] = None, bot_name: str = "Sniff Alert Bot"):
         """Initialize Slack alert sender.
 
         Args:
@@ -118,7 +118,7 @@ class SlackAlert:
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": f"{severity_emoji} Sherlock Alert: {diagnosis.severity} - {diagnosis.rootCause}",
+                "text": f"{severity_emoji} sniff Alert: {diagnosis.severity} - {diagnosis.rootCause}",
             }
         })
 
@@ -295,14 +295,14 @@ class SlackAlert:
                     "type": "header",
                     "text": {
                         "type": "plain_text",
-                        "text": "🧪 Sherlock Test Alert",
+                        "text": "🧪 sniff Test Alert",
                     }
                 },
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "This is a test alert from Sherlock. Your webhook is configured correctly!"
+                        "text": "This is a test alert from sniff. Your webhook is configured correctly!"
                     }
                 },
                 {
@@ -333,7 +333,7 @@ class SlackAlert:
             return False
 
 
-def create_slack_alert(webhook_url: Optional[str] = None, bot_name: str = "Sherlock Alert Bot") -> SlackAlert:
+def create_slack_alert(webhook_url: Optional[str] = None, bot_name: str = "Sniff Alert Bot") -> SlackAlert:
     """Create SlackAlert instance with configuration.
 
     Args:

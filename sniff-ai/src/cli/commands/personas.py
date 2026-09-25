@@ -1,4 +1,4 @@
-"""Sherlock personas command - Manage user behavior profiles."""
+﻿"""sniff personas command - Manage user behavior profiles."""
 
 from pathlib import Path
 from typing import Optional
@@ -174,7 +174,7 @@ def list_personas(
 
     if not persona_names:
         console.print("[yellow]No personas found.[/yellow]")
-        console.print("Create one with: [cyan]sherlock personas add[/cyan]")
+        console.print("Create one with: [cyan]sniff personas add[/cyan]")
         return
 
     if verbose:

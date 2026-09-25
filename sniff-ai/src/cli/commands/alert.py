@@ -1,4 +1,4 @@
-"""Sherlock alert command - Test and manage Slack alerting."""
+﻿"""sniff alert command - Test and manage Slack alerting."""
 
 from typing import Optional
 from datetime import datetime
@@ -31,9 +31,9 @@ def test_alert(
 
     Examples:
 
-        sherlock alert test
+        sniff alert test
 
-        sherlock alert test --webhook https://hooks.slack.com/services/...
+        sniff alert test --webhook https://hooks.slack.com/services/...
     """
 
     console.print(Panel.fit(
@@ -51,9 +51,9 @@ def test_alert(
     if not webhook:
         console.print("[red]Error:[/red] No Slack webhook URL configured.")
         console.print("\nConfigure webhook in one of these ways:")
-        console.print("  1. Run [cyan]sherlock init[/cyan] and configure Slack")
+        console.print("  1. Run [cyan]sniff init[/cyan] and configure Slack")
         console.print("  2. Set SLACK_WEBHOOK_URL in .env")
-        console.print("  3. Use --webhook flag: [cyan]sherlock alert test --webhook URL[/cyan]")
+        console.print("  3. Use --webhook flag: [cyan]sniff alert test --webhook URL[/cyan]")
         raise typer.Exit(1)
 
     console.print(f"\n[dim]Webhook: {webhook[:50]}...[/dim]")
@@ -69,7 +69,7 @@ def test_alert(
             "likelyOwner": "DevOps",
             "suggestedFix": "This is a test alert - no action needed",
             "reproSteps": [
-                "Run 'sherlock alert test'",
+                "Run 'sniff alert test'",
                 "Check your Slack channel",
                 "Verify message appears correctly"
             ]
@@ -96,7 +96,7 @@ def test_alert(
             console.print("\n[bold green]✓ Test alert sent successfully![/bold green]")
             console.print("\nCheck your Slack channel for the test message.")
             console.print("The alert should show:")
-            console.print("  - Test message from Sherlock")
+            console.print("  - Test message from sniff")
             console.print("  - Confirmation that webhook is configured correctly")
         else:
             console.print(f"\n[bold red]✗ Failed to send alert[/bold red]")
@@ -156,7 +156,7 @@ def configure_alert():
 
         bot_name = questionary.text(
             "Bot display name:",
-            default=config.slack.bot_name or "Sherlock Alert Bot"
+            default=config.slack.bot_name or "Sniff Alert Bot"
         ).ask()
 
         config.slack.bot_name = bot_name

@@ -1,8 +1,8 @@
-"""Configuration management for Sherlock.
+﻿"""Configuration management for Sniff.
 
 Handles:
 - .env loading and validation
-- Config persistence (sherlock.json)
+- Config persistence (sniff.json)
 - Default values and overrides
 - Pydantic models for type safety
 """
@@ -41,7 +41,7 @@ class SlackConfig(BaseModel):
     """Slack alerting configuration."""
     webhook_url: Optional[str] = Field(default=None, description="Slack webhook URL")
     channel: Optional[str] = Field(default=None, description="Override channel")
-    bot_name: Optional[str] = Field(default="Sherlock Alert Bot", description="Bot display name")
+    bot_name: Optional[str] = Field(default="Sniff Alert Bot", description="Bot display name")
 
 
 class GuardrailsConfig(BaseModel):
@@ -81,18 +81,18 @@ class SupabaseConfig(BaseModel):
     url: Optional[str] = Field(default=None, description="Supabase project URL")
     key: Optional[str] = Field(default=None, description="Supabase anon/service key")
     auto_upload: bool = Field(default=True, description="Auto-upload runs after completion")
-    screenshots_bucket: str = Field(default="sherlock-screenshots", description="Screenshots bucket name")
-    videos_bucket: str = Field(default="sherlock-videos", description="Videos bucket name")
-    traces_bucket: str = Field(default="sherlock-traces", description="Traces bucket name")
+    screenshots_bucket: str = Field(default="sniff-screenshots", description="Screenshots bucket name")
+    videos_bucket: str = Field(default="sniff-videos", description="Videos bucket name")
+    traces_bucket: str = Field(default="sniff-traces", description="Traces bucket name")
 
 
-class SherlockConfig(BaseModel):
-    """Main Sherlock configuration model."""
+class SniffConfig(BaseModel):
+    """Main Sniff configuration model."""
 
     # Application settings
     env: str = Field(default="development", description="Environment: development|staging|production")
     log_level: str = Field(default="INFO", description="Logging level")
-    db_path: str = Field(default="./data/sherlock.db", description="SQLite database path")
+    db_path: str = Field(default="./data/sniff.db", description="SQLite database path")
     artifacts_path: str = Field(default="./artifacts", description="Artifacts storage path")
     personas_path: str = Field(default="./src/personas", description="Persona storage path")
     primary_url: Optional[str] = Field(default=None, description="Default staging URL for test runs")
@@ -111,7 +111,7 @@ class SherlockConfig(BaseModel):
     test_mode: bool = Field(default=False, description="Skip browser launch for tests")
 
     @classmethod
-    def from_env(cls) -> 'SherlockConfig':
+    def from_env(cls) -> 'SniffConfig':
         """Load configuration from environment variables.
 
         Loads .env file if present, then constructs config from environment.
@@ -120,12 +120,12 @@ class SherlockConfig(BaseModel):
         load_dotenv()
 
         return cls(
-            env=os.getenv('SHERLOCK_ENV', 'development'),
-            log_level=os.getenv('SHERLOCK_LOG_LEVEL', 'INFO'),
-            db_path=os.getenv('SHERLOCK_DB_PATH', './data/sherlock.db'),
-            artifacts_path=os.getenv('SHERLOCK_ARTIFACTS_PATH', './artifacts'),
-            personas_path=os.getenv('SHERLOCK_PERSONAS_PATH', './src/personas'),
-            primary_url=os.getenv('SHERLOCK_PRIMARY_URL'),
+            env=os.getenv('SNIFF_ENV', 'development'),
+            log_level=os.getenv('SNIFF_LOG_LEVEL', 'INFO'),
+            db_path=os.getenv('SNIFF_DB_PATH', './data/sniff.db'),
+            artifacts_path=os.getenv('SNIFF_ARTIFACTS_PATH', './artifacts'),
+            personas_path=os.getenv('SNIFF_PERSONAS_PATH', './src/personas'),
+            primary_url=os.getenv('SNIFF_PRIMARY_URL'),
 
             playwright=PlaywrightConfig(
                 headless=os.getenv('PLAYWRIGHT_HEADLESS', 'true').lower() == 'true',
@@ -149,27 +149,27 @@ class SherlockConfig(BaseModel):
             slack=SlackConfig(
                 webhook_url=os.getenv('SLACK_WEBHOOK_URL'),
                 channel=os.getenv('SLACK_CHANNEL'),
-                bot_name=os.getenv('SLACK_BOT_NAME', 'Sherlock Alert Bot'),
+                bot_name=os.getenv('SLACK_BOT_NAME', 'Sniff Alert Bot'),
             ),
 
             guardrails=GuardrailsConfig(
-                max_steps=int(os.getenv('SHERLOCK_MAX_STEPS', '50')),
-                max_intent_retries=int(os.getenv('SHERLOCK_MAX_INTENT_RETRIES', '3')),
-                max_dwell_time=int(os.getenv('SHERLOCK_MAX_DWELL_TIME', '30')),
-                hard_timeout=int(os.getenv('SHERLOCK_HARD_TIMEOUT', '600')),
-                max_run_duration=int(os.getenv('SHERLOCK_MAX_RUN_DURATION', '300')),
+                max_steps=int(os.getenv('SNIFF_MAX_STEPS', '50')),
+                max_intent_retries=int(os.getenv('SNIFF_MAX_INTENT_RETRIES', '3')),
+                max_dwell_time=int(os.getenv('SNIFF_MAX_DWELL_TIME', '30')),
+                hard_timeout=int(os.getenv('SNIFF_HARD_TIMEOUT', '600')),
+                max_run_duration=int(os.getenv('SNIFF_MAX_RUN_DURATION', '300')),
             ),
 
             security=SecurityConfig(
-                allowed_domains=os.getenv('SHERLOCK_ALLOWED_DOMAINS', ''),
-                redact_pii=os.getenv('SHERLOCK_REDACT_PII', 'true').lower() == 'true',
-                enforce_domain_allowlist=os.getenv('SHERLOCK_ENFORCE_DOMAIN_ALLOWLIST', 'true').lower() == 'true',
+                allowed_domains=os.getenv('SNIFF_ALLOWED_DOMAINS', ''),
+                redact_pii=os.getenv('SNIFF_REDACT_PII', 'true').lower() == 'true',
+                enforce_domain_allowlist=os.getenv('SNIFF_ENFORCE_DOMAIN_ALLOWLIST', 'true').lower() == 'true',
             ),
 
             defaults=DefaultsConfig(
-                persona=os.getenv('SHERLOCK_DEFAULT_PERSONA'),
-                device=os.getenv('SHERLOCK_DEFAULT_DEVICE', 'iPhone 13'),
-                network=os.getenv('SHERLOCK_DEFAULT_NETWORK', '4g'),
+                persona=os.getenv('SNIFF_DEFAULT_PERSONA'),
+                device=os.getenv('SNIFF_DEFAULT_DEVICE', 'iPhone 13'),
+                network=os.getenv('SNIFF_DEFAULT_NETWORK', '4g'),
             ),
 
             supabase=SupabaseConfig(
@@ -177,24 +177,24 @@ class SherlockConfig(BaseModel):
                 url=os.getenv('SUPABASE_URL'),
                 key=os.getenv('SUPABASE_KEY'),
                 auto_upload=os.getenv('SUPABASE_AUTO_UPLOAD', 'true').lower() == 'true',
-                screenshots_bucket=os.getenv('SUPABASE_SCREENSHOTS_BUCKET', 'sherlock-screenshots'),
-                videos_bucket=os.getenv('SUPABASE_VIDEOS_BUCKET', 'sherlock-videos'),
-                traces_bucket=os.getenv('SUPABASE_TRACES_BUCKET', 'sherlock-traces'),
+                screenshots_bucket=os.getenv('SUPABASE_SCREENSHOTS_BUCKET', 'sniff-screenshots'),
+                videos_bucket=os.getenv('SUPABASE_VIDEOS_BUCKET', 'sniff-videos'),
+                traces_bucket=os.getenv('SUPABASE_TRACES_BUCKET', 'sniff-traces'),
             ),
 
-            demo_mode=os.getenv('SHERLOCK_DEMO_MODE', 'false').lower() == 'true',
-            test_mode=os.getenv('SHERLOCK_TEST_MODE', 'false').lower() == 'true',
+            demo_mode=os.getenv('SNIFF_DEMO_MODE', 'false').lower() == 'true',
+            test_mode=os.getenv('SNIFF_TEST_MODE', 'false').lower() == 'true',
         )
 
     @classmethod
-    def load(cls, config_path: Optional[Path] = None) -> 'SherlockConfig':
+    def load(cls, config_path: Optional[Path] = None) -> 'SniffConfig':
         """Load configuration from JSON file or create default.
 
         Args:
-            config_path: Path to sherlock.json config file. Defaults to ./data/sherlock.json
+            config_path: Path to sniff.json config file. Defaults to ./data/sniff.json
 
         Returns:
-            SherlockConfig instance
+            SniffConfig instance
         """
         # ALWAYS load .env file first (contains AWS credentials, etc.)
         # This is needed even when loading from JSON because validation
@@ -202,7 +202,7 @@ class SherlockConfig(BaseModel):
         load_dotenv()
 
         if config_path is None:
-            config_path = Path('./data/sherlock.json')
+            config_path = Path('./data/sniff.json')
 
         if config_path.exists():
             with open(config_path, 'r') as f:
@@ -216,10 +216,10 @@ class SherlockConfig(BaseModel):
         """Save configuration to JSON file.
 
         Args:
-            config_path: Path to save config. Defaults to ./data/sherlock.json
+            config_path: Path to save config. Defaults to ./data/sniff.json
         """
         if config_path is None:
-            config_path = Path('./data/sherlock.json')
+            config_path = Path('./data/sniff.json')
 
         # Ensure directory exists
         config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -279,18 +279,18 @@ class SherlockConfig(BaseModel):
 
         # Check domain allowlist if enforcement enabled
         if self.security.enforce_domain_allowlist and not self.security.allowed_domains:
-            errors.append("Domain allowlist enforcement enabled but no domains configured. Set SHERLOCK_ALLOWED_DOMAINS")
+            errors.append("Domain allowlist enforcement enabled but no domains configured. Set SNIFF_ALLOWED_DOMAINS")
 
         return errors
 
 
-def get_config(config_path: Optional[Path] = None) -> SherlockConfig:
-    """Get Sherlock configuration singleton.
+def get_config(config_path: Optional[Path] = None) -> SniffConfig:
+    """Get sniff configuration singleton.
 
     Args:
         config_path: Optional path to config file
 
     Returns:
-        SherlockConfig instance
+        SniffConfig instance
     """
-    return SherlockConfig.load(config_path)
+    return SniffConfig.load(config_path)

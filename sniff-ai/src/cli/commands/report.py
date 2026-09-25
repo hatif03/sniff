@@ -1,4 +1,4 @@
-"""Sherlock report command - Display run results and artifacts."""
+﻿"""sniff report command - Display run results and artifacts."""
 
 import json
 from pathlib import Path
@@ -39,13 +39,13 @@ def report_command(
 
     Examples:
 
-        sherlock report
+        sniff report
 
-        sherlock report run_20260207_123456_abc123
+        sniff report run_20260207_123456_abc123
 
-        sherlock report --verbose
+        sniff report --verbose
 
-        sherlock report --format json
+        sniff report --format json
     """
 
     config = get_config()
@@ -62,7 +62,7 @@ def report_command(
 
         if not run_dirs:
             console.print("[yellow]No test runs found.[/yellow]")
-            console.print("Run a test with: [cyan]sherlock run --goal 'Complete signup'[/cyan]")
+            console.print("Run a test with: [cyan]sniff run --goal 'Complete signup'[/cyan]")
             raise typer.Exit(0)
 
         run_id = run_dirs[0].name

@@ -1,4 +1,4 @@
-"""Diagnosis classifier for root cause and severity analysis.
+﻿"""Diagnosis classifier for root cause and severity analysis.
 
 Hybrid approach combining:
 - Deterministic signals (HTTP errors, timeouts, console errors)
@@ -9,7 +9,7 @@ Output: DiagnosisResult with root cause, severity, owner, repro steps, and sugge
 
 import logging
 from typing import Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..core.models import DiagnosisResult, Observation, ActionResult
 
@@ -298,7 +298,7 @@ class DiagnosisClassifier:
             Evidence dictionary
         """
         evidence = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "total_observations": len(observations),
             "total_actions": len(action_results),
             "failed_actions": len([r for r in action_results if not r.success]),

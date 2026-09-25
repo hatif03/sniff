@@ -1,4 +1,4 @@
-"""Sherlock run command - Execute autonomous test runs."""
+﻿"""sniff run command - Execute autonomous test runs."""
 
 from pathlib import Path
 from typing import Optional
@@ -73,18 +73,18 @@ def run_command(
 
     Examples:
 
-        sherlock run --goal "Complete signup with document upload"
+        sniff run --goal "Complete signup with document upload"
 
-        sherlock run --persona confused_first_time_user \\
+        sniff run --persona confused_first_time_user \\
                      --goal "Create account and verify email"
 
-        sherlock run --goal "Complete onboarding" \\
+        sniff run --goal "Complete onboarding" \\
                      --device "iPhone 14" \\
                      --network 3g
     """
 
     console.print(Panel.fit(
-        "[bold cyan]Sherlock Test Run[/bold cyan]\n"
+        "[bold cyan]sniff Test Run[/bold cyan]\n"
         "Autonomous mystery shopper execution",
         border_style="cyan"
     ))
@@ -94,7 +94,7 @@ def run_command(
         config = get_config()
     except Exception as e:
         console.print(f"[red]Error loading configuration:[/red] {e}")
-        console.print("Run [cyan]sherlock init[/cyan] first to set up configuration.")
+        console.print("Run [cyan]sniff init[/cyan] first to set up configuration.")
         raise typer.Exit(1)
 
     # Validate configuration
@@ -103,7 +103,7 @@ def run_command(
         console.print("[red]Configuration validation failed:[/red]")
         for error in validation_errors:
             console.print(f"  - {error}")
-        console.print("\nRun [cyan]sherlock init[/cyan] to fix configuration.")
+        console.print("\nRun [cyan]sniff init[/cyan] to fix configuration.")
         raise typer.Exit(1)
 
     # REQUIRED: Get goal (either from flag or interactive prompt)
@@ -233,7 +233,7 @@ def run_command(
         if artifact_path.exists():
             console.print(f"\nArtifacts saved to: [cyan]{artifact_path}[/cyan]")
 
-        console.print("\nView full report with: [cyan]sherlock report {run_id}[/cyan]")
+        console.print("\nView full report with: [cyan]sniff report {run_id}[/cyan]")
 
     except ImportError as e:
         console.print(f"[red]Error:[/red] Orchestrator not yet implemented.")

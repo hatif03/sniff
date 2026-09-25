@@ -1,6 +1,6 @@
-# Sherlock Deployment Guide
+﻿# Sniff Deployment Guide
 
-This guide covers all methods to deploy and distribute Sherlock as a Python package.
+This guide covers all methods to deploy and distribute Sniff as a Python package.
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ After installation, users configure their own credentials using one of these met
 
 1. **AWS Profile** (Recommended):
    ```bash
-   aws configure --profile sherlock
+   aws configure --profile Sniff
    ```
 
 2. **Environment Variables**:
@@ -81,8 +81,8 @@ python -m build
 ```
 
 This creates:
-- `dist/sherlock-0.1.0-py3-none-any.whl` (wheel file)
-- `dist/sherlock-0.1.0.tar.gz` (source distribution)
+- `dist/Sniff-0.1.0-py3-none-any.whl` (wheel file)
+- `dist/Sniff-0.1.0.tar.gz` (source distribution)
 
 ### Step 3: Test Installation Locally
 
@@ -92,13 +92,13 @@ python -m venv test-env
 source test-env/bin/activate  # On Windows: test-env\Scripts\activate
 
 # Install from wheel
-pip install dist/sherlock-0.1.0-py3-none-any.whl
+pip install dist/Sniff-0.1.0-py3-none-any.whl
 
 # Install Playwright browsers
 playwright install
 
 # Test the installation
-sherlock --help
+Sniff --help
 
 # Deactivate when done
 deactivate
@@ -108,7 +108,7 @@ deactivate
 
 Share the `.whl` file with users. They can install it with:
 ```bash
-pip install sherlock-0.1.0-py3-none-any.whl
+pip install Sniff-0.1.0-py3-none-any.whl
 playwright install
 ```
 
@@ -116,7 +116,7 @@ playwright install
 
 ## Method 2: Publish to PyPI
 
-This allows users to install with `pip install sherlock`.
+This allows users to install with `pip install Sniff`.
 
 ### Step 1: Create PyPI Accounts
 
@@ -128,14 +128,14 @@ This allows users to install with `pip install sherlock`.
 **For Test PyPI:**
 1. Go to https://test.pypi.org/manage/account/token/
 2. Click "Add API token"
-3. Name: `sherlock-test`
+3. Name: `Sniff-test`
 4. Scope: "Entire account" or specific project
 5. Copy the token (starts with `pypi-`)
 
 **For Production PyPI:**
 1. Go to https://pypi.org/manage/account/token/
 2. Follow same steps as above
-3. Name: `sherlock-production`
+3. Name: `Sniff-production`
 
 ### Step 3: Configure Credentials
 
@@ -179,10 +179,10 @@ twine upload --repository testpypi dist/*
 ```bash
 pip install --index-url https://test.pypi.org/simple/ \
             --extra-index-url https://pypi.org/simple/ \
-            sherlock
+            Sniff
 
 playwright install
-sherlock --help
+Sniff --help
 ```
 
 ### Step 7: Upload to Production PyPI
@@ -195,15 +195,15 @@ twine upload dist/*
 
 Now anyone can install with:
 ```bash
-pip install sherlock
+pip install Sniff
 playwright install
 ```
 
 ### Step 8: Verify on PyPI
 
 Check your package page:
-- Production: https://pypi.org/project/sherlock/
-- Test: https://test.pypi.org/project/sherlock/
+- Production: https://pypi.org/project/Sniff/
+- Test: https://test.pypi.org/project/Sniff/
 
 ---
 
@@ -230,23 +230,23 @@ Users can install directly from your GitHub repository.
 
 **From main branch:**
 ```bash
-pip install git+https://github.com/abbasalisariya/sherlock.git
+pip install git+https://github.com/abbasalisariya/Sniff.git
 ```
 
 **From specific tag:**
 ```bash
-pip install git+https://github.com/abbasalisariya/sherlock.git@v0.1.0
+pip install git+https://github.com/abbasalisariya/Sniff.git@v0.1.0
 ```
 
 **From specific branch:**
 ```bash
-pip install git+https://github.com/abbasalisariya/sherlock.git@develop
+pip install git+https://github.com/abbasalisariya/Sniff.git@develop
 ```
 
 **Editable install for development:**
 ```bash
-git clone https://github.com/abbasalisariya/sherlock.git
-cd sherlock
+git clone https://github.com/abbasalisariya/Sniff.git
+cd Sniff
 pip install -e .
 ```
 
@@ -267,25 +267,25 @@ python -m build
 1. Go to your repository on GitHub
 2. Click "Releases" → "Create a new release"
 3. Tag version: `v0.1.0`
-4. Release title: `Sherlock v0.1.0 - Initial Release`
+4. Release title: `Sniff v0.1.0 - Initial Release`
 5. Description: Copy relevant sections from CHANGELOG
 6. Attach files:
-   - `dist/sherlock-0.1.0-py3-none-any.whl`
-   - `dist/sherlock-0.1.0.tar.gz`
+   - `dist/Sniff-0.1.0-py3-none-any.whl`
+   - `dist/Sniff-0.1.0.tar.gz`
 7. Publish release
 
 ### Step 3: Users Download and Install
 
 Users can download the wheel from the release page and install:
 ```bash
-pip install sherlock-0.1.0-py3-none-any.whl
+pip install Sniff-0.1.0-py3-none-any.whl
 ```
 
 ---
 
 ## Method 5: Docker Container (Optional)
 
-Package Sherlock in a Docker container for consistent deployments.
+Package Sniff in a Docker container for consistent deployments.
 
 ### Create Dockerfile
 
@@ -307,7 +307,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Install sherlock package
+# Install Sniff package
 RUN pip install -e .
 
 # Install Playwright browsers
@@ -317,9 +317,9 @@ RUN playwright install --with-deps chromium
 RUN mkdir -p /app/artifacts /app/data
 
 ENV SHERLOCK_ARTIFACTS_PATH=/app/artifacts
-ENV SHERLOCK_DB_PATH=/app/data/sherlock.db
+ENV SHERLOCK_DB_PATH=/app/data/Sniff.db
 
-ENTRYPOINT ["sherlock"]
+ENTRYPOINT ["Sniff"]
 CMD ["--help"]
 ```
 
@@ -327,19 +327,19 @@ CMD ["--help"]
 
 ```bash
 # Build
-docker build -t sherlock:0.1.0 .
+docker build -t Sniff:0.1.0 .
 
 # Run
 docker run -v $(pwd)/artifacts:/app/artifacts \
            -v $(pwd)/.env:/app/.env \
-           sherlock:0.1.0 run --goal "Complete signup"
+           Sniff:0.1.0 run --goal "Complete signup"
 ```
 
 ### Publish to Docker Hub
 
 ```bash
-docker tag sherlock:0.1.0 yourusername/sherlock:0.1.0
-docker push yourusername/sherlock:0.1.0
+docker tag Sniff:0.1.0 yourusername/Sniff:0.1.0
+docker push yourusername/Sniff:0.1.0
 ```
 
 ---
@@ -390,8 +390,8 @@ Before deploying a new version:
 
 ### Package Name Already Exists on PyPI
 
-If `sherlock` is taken, choose a different name:
-1. Update `name` in `pyproject.toml` to `sherlock-ai-tester` or similar
+If `Sniff` is taken, choose a different name:
+1. Update `name` in `pyproject.toml` to `Sniff-ai-tester` or similar
 2. Rebuild and upload
 
 ### Missing Dependencies

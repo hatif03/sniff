@@ -1,4 +1,4 @@
-"""Agent Decision Service for Sherlock.
+﻿"""Agent Decision Service for sniff.
 
 Converts observations into validated agent decisions using Bedrock.
 Implements strict schema validation with bounded retries for malformed outputs.
@@ -14,7 +14,7 @@ import logging
 import base64
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from pydantic import ValidationError
 
@@ -309,7 +309,7 @@ class DecisionService:
             is_fallback: Whether this is a fallback decision
         """
         entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "runId": observation.runId,
             "step": observation.step,
             "url": observation.url,
@@ -424,7 +424,7 @@ def create_agent_service(config):
     """Create agent service instance from configuration.
 
     Args:
-        config: SherlockConfig instance
+        config: SniffConfig instance
 
     Returns:
         DecisionService instance configured with Bedrock client

@@ -1,7 +1,43 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * globals.css — Global styles for sniff-web
+ *
+ * Tailwind v4 Migration (ADR-002):
+ * - Replaced `@tailwind base/components/utilities` with `@import "tailwindcss"`
+ * - Moved theme customizations (colors, fonts) from tailwind.config.ts to
+ *   the @theme CSS block below. This is the Tailwind v4 CSS-native approach.
+ * - tailwind.config.ts has been removed; all config now lives here.
+ *
+ * Decision: CSS-native config is preferred in v4 because it colocates the
+ * design tokens with the stylesheet, eliminates the Node.js config build step,
+ * and gives instant hot reload on theme changes.
+ */
 
+@import "tailwindcss";
+
+/*
+ * @theme — Design token definitions (replaces tailwind.config.ts theme.extend)
+ * These CSS custom properties become Tailwind utility classes automatically.
+ * e.g. `bg-background`, `text-accent`, `font-display`
+ */
+@theme {
+  /* Brand colors */
+  --color-background: #F7F8FA;
+  --color-surface: #FFFFFF;
+  --color-primary: #1F2937;
+  --color-accent: #4F46E5;
+  --color-soft-accent: #7C83FD;
+  --color-warning: #D97706;
+  --color-critical: #DC2626;
+  --color-text: #111827;
+  --color-muted: #6B7280;
+
+  /* Typography */
+  --font-display: var(--font-space-grotesk), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+}
+
+/* CSS custom properties for font variables (set by next/font in layout.tsx) */
 :root {
   --font-space-grotesk: 'Space Grotesk', sans-serif;
   --font-inter: 'Inter', sans-serif;

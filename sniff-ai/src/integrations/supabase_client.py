@@ -1,4 +1,4 @@
-"""Supabase client for uploading Sherlock run artifacts and data.
+﻿"""Supabase client for uploading sniff run artifacts and data.
 
 Uploads:
 - Screenshots, videos, traces to Supabase Storage
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class SupabaseUploader:
-    """Handles uploading Sherlock artifacts to Supabase."""
+    """Handles uploading sniff artifacts to Supabase."""
 
     def __init__(
         self,
@@ -63,9 +63,9 @@ class SupabaseUploader:
             raise RuntimeError(f"Failed to initialize Supabase client: {e}") from e
 
         # Storage bucket names
-        self.screenshots_bucket = "sherlock-screenshots"
-        self.videos_bucket = "sherlock-videos"
-        self.traces_bucket = "sherlock-traces"
+        self.screenshots_bucket = "sniff-screenshots"
+        self.videos_bucket = "sniff-videos"
+        self.traces_bucket = "sniff-traces"
 
     def upload_run(
         self,
@@ -521,7 +521,7 @@ def create_supabase_uploader(config) -> Optional[SupabaseUploader]:
     """Create Supabase uploader from configuration.
 
     Args:
-        config: SherlockConfig instance
+        config: SniffConfig instance
 
     Returns:
         SupabaseUploader instance or None if disabled/not configured

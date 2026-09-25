@@ -1,10 +1,10 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-**Sherlock** is an autonomous mystery shopper system that tests mobile/web signup flows using AI-driven navigation and diagnosis. The system simulates real user behavior, detects friction points, diagnoses root causes, and escalates issues via Slack alerts.
+**Sniff** is an autonomous mystery shopper system that tests mobile/web signup flows using AI-driven navigation and diagnosis. The system simulates real user behavior, detects friction points, diagnoses root causes, and escalates issues via Slack alerts.
 
 **Current Status**: Planning phase - architecture and requirements defined, implementation not yet started.
 
@@ -81,7 +81,7 @@ src/
     slack.py          # Webhook integration
   personas/           # Persona JSON profiles
 data/
-  sherlock.db        # SQLite for run history
+  Sniff.db        # SQLite for run history
 artifacts/
   <runId>/           # Per-run evidence bundles
 ```
@@ -132,7 +132,7 @@ artifacts/
 
 ## CLI Commands (Planned)
 
-### `sherlock init`
+### `Sniff init`
 Interactive setup for:
 - **Primary staging URL** - Default entry point for test runs (e.g., `https://staging.acme.com`)
 - **Allowed domains** - Security allowlist to prevent accidental production runs (e.g., `["staging.acme.com", "auth-staging.acme.com"]`)
@@ -141,9 +141,9 @@ Interactive setup for:
 - Default persona/device/network
 - Owner routing map
 
-The primary staging URL becomes the default starting point for all `sherlock run` executions unless overridden.
+The primary staging URL becomes the default starting point for all `Sniff run` executions unless overridden.
 
-### `sherlock personas add`
+### `Sniff personas add`
 LLM-assisted persona builder:
 1. User provides minimal natural language description
 2. LLM expands to normalized persona JSON
@@ -152,13 +152,13 @@ LLM-assisted persona builder:
 
 Personas may include optional `default_goal_template`, but final goal is always specified at run time.
 
-### `sherlock run`
+### `Sniff run`
 Launches autonomous test run.
 
 **Required at runtime**: User-defined goal via `--goal` flag or interactive prompt. The goal drives agent decisions and completion evaluation.
 
 **URL Handling**:
-- Uses the **primary staging URL** configured during `sherlock init` by default
+- Uses the **primary staging URL** configured during `Sniff init` by default
 - Optional `--url` flag overrides the default for specific test scenarios
 - URL is the **starting/entry point** - agent navigates from there based on the goal
 - All navigation is validated against the allowed domains allowlist
@@ -166,13 +166,13 @@ Launches autonomous test run.
 Examples:
 ```bash
 # Uses configured default staging URL (typical usage)
-sherlock run --persona confused_first_time_user \
+Sniff run --persona confused_first_time_user \
              --goal "Complete signup with document upload" \
              --device iphone13 \
              --network 3g
 
 # Override starting URL for specific test scenario
-sherlock run --url https://staging.acme.com/signup \
+Sniff run --url https://staging.acme.com/signup \
              --persona impatient_user \
              --goal "Complete signup with document upload" \
              --device iphone13 \
@@ -186,13 +186,13 @@ sherlock run --url https://staging.acme.com/signup \
 
 This tests realistic user journeys, not just direct links to specific pages.
 
-### `sherlock report`
+### `Sniff report`
 Displays run summary with artifact references by run ID.
 
-### `sherlock alert test`
+### `Sniff alert test`
 Validates Slack webhook and payload formatting.
 
-### `sherlock demo`
+### `Sniff demo`
 Deterministic mode for judge presentation with known-failure path to guarantee visible alerting.
 
 ## Persona System
@@ -204,7 +204,7 @@ Deterministic mode for judge presentation with known-failure path to guarantee v
 
 **Storage**: JSON files in `src/personas/` with schema validation via Pydantic.
 
-**Creation**: Via `sherlock personas add` with LLM normalization for consistency.
+**Creation**: Via `Sniff personas add` with LLM normalization for consistency.
 
 ## Execution Worker Tool Interface
 
@@ -298,11 +298,11 @@ Must target staging URLs only. Never automate against production environments.
 **Build ONE reliable end-to-end path**, not many shallow features.
 
 **Priority sequence**:
-1. End-to-end `sherlock run` with one signup journey
+1. End-to-end `Sniff run` with one signup journey
 2. Persona-driven decision loop with strict JSON action schema
 3. Failure diagnosis + P0-P3 severity
 4. Evidence bundle + Slack alert
-5. Deterministic `sherlock demo` path
+5. Deterministic `Sniff demo` path
 
 **Explicitly out of scope for v1**:
 - Multi-industry templates

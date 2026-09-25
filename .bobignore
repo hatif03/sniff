@@ -1,0 +1,108 @@
+﻿# =============================================================================
+# Sniff — .bobignore
+# =============================================================================
+# Tells Bob (IBM Bob AI agent) which files to exclude from context indexing.
+# This prevents Bob from accidentally reading, logging, or surfacing secrets,
+# large binary artifacts, or auto-generated lock files that would bloat context.
+#
+# Pattern syntax mirrors .gitignore.
+# Reference: https://bob.ibm.com/docs/configuration/bobignore
+# =============================================================================
+
+# =============================================================================
+# SECRETS & CREDENTIALS — Bob must never read these
+# =============================================================================
+.env
+.env.*
+*.env
+sniff.json
+sherlock.json
+.aws/
+aws-credentials.json
+aws_credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+secrets.yaml
+secrets.yml
+*.secret
+*.secrets
+supabase-key.txt
+typesafe-key.txt
+slack-webhook.txt
+
+# =============================================================================
+# LARGE RUNTIME ARTIFACTS — too large / not useful for code context
+# =============================================================================
+artifacts/
+experiments/
+data/
+runs/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+screenshots/
+videos/
+traces/
+trace.zip
+
+# =============================================================================
+# LOCK FILES — auto-generated, high noise, low signal for Bob
+# =============================================================================
+uv.lock
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# =============================================================================
+# BUILD OUTPUT & CACHE
+# =============================================================================
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.next/
+node_modules/
+build/
+dist/
+.vercel/
+htmlcov/
+coverage/
+
+# =============================================================================
+# PLAYWRIGHT GENERATED OUTPUT
+# =============================================================================
+playwright-report/
+test-results/
+*.trace
+
+# =============================================================================
+# LOGS
+# =============================================================================
+*.log
+logs/
+
+# =============================================================================
+# OS & EDITOR NOISE
+# =============================================================================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# =============================================================================
+# TEMPORARY FILES
+# =============================================================================
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/

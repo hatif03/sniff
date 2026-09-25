@@ -1,4 +1,4 @@
-"""Orchestrator for running experiments with multiple personas."""
+﻿"""Orchestrator for running experiments with multiple personas."""
 
 import asyncio
 import json
@@ -20,7 +20,7 @@ from .experiment_models import (
     ExperimentInsights,
 )
 from .orchestrator import RunOrchestrator
-from .config import SherlockConfig
+from .config import SniffConfig
 from ..evidence.report_builder import ReportBuilder
 
 console = Console()
@@ -29,7 +29,7 @@ console = Console()
 class ExperimentOrchestrator:
     """Orchestrates experiment runs with multiple personas."""
 
-    def __init__(self, config: SherlockConfig):
+    def __init__(self, config: SniffConfig):
         self.config = config
         self.experiments_dir = Path("experiments")
         self.experiments_dir.mkdir(exist_ok=True)

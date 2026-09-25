@@ -1,6 +1,6 @@
-# AWS Profile Setup for Sherlock
+﻿# AWS Profile Setup for Sniff
 
-This guide explains how to configure AWS credentials using profiles for Sherlock demos.
+This guide explains how to configure AWS credentials using profiles for Sniff demos.
 
 ## Quick Setup (2 minutes)
 
@@ -43,7 +43,7 @@ aws --version
 ### Step 2: Run AWS Configure
 
 ```bash
-aws configure --profile sherlock
+aws configure --profile Sniff
 ```
 
 **You'll be prompted for 4 values:**
@@ -72,7 +72,7 @@ Enter `json` (or press Enter for default)
 
 **Test the profile:**
 ```bash
-aws sts get-caller-identity --profile sherlock
+aws sts get-caller-identity --profile Sniff
 ```
 
 **Expected output:**
@@ -88,35 +88,35 @@ If you see this, your profile is configured correctly! ✅
 
 **Test Bedrock access:**
 ```bash
-aws bedrock list-foundation-models --region us-west-2 --profile sherlock --query 'modelSummaries[0:3].[modelId,modelName]'
+aws bedrock list-foundation-models --region us-west-2 --profile Sniff --query 'modelSummaries[0:3].[modelId,modelName]'
 ```
 
-### Step 4: Configure Sherlock
+### Step 4: Configure Sniff
 
-Create a `.env` file in your Sherlock working directory:
+Create a `.env` file in your Sniff working directory:
 
 ```bash
 cat > .env << EOF
 # AWS Configuration
-AWS_PROFILE=sherlock
+AWS_PROFILE=Sniff
 AWS_DEFAULT_REGION=us-west-2
 
 # Bedrock Configuration
 BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
 BEDROCK_REGION=us-west-2
 
-# Sherlock Configuration
+# Sniff Configuration
 SHERLOCK_ALLOWED_DOMAINS=staging.example.com,deriv.com
 PLAYWRIGHT_HEADLESS=false
 SHERLOCK_MAX_STEPS=50
 EOF
 ```
 
-### Step 5: Test with Sherlock
+### Step 5: Test with Sniff
 
 ```bash
-# Verify Sherlock can access AWS
-sherlock preflight
+# Verify Sniff can access AWS
+Sniff preflight
 
 # Expected output:
 # ✓ AWS credentials configured
@@ -128,12 +128,12 @@ sherlock preflight
 
 ## Where Are Credentials Stored?
 
-When you run `aws configure --profile sherlock`, two files are created:
+When you run `aws configure --profile Sniff`, two files are created:
 
 ### 1. `~/.aws/credentials`
 Contains your access keys (secured with 600 permissions):
 ```ini
-[sherlock]
+[Sniff]
 aws_access_key_id = AKIA...
 aws_secret_access_key = wJalrXUtnFEMI/...
 ```
@@ -141,12 +141,12 @@ aws_secret_access_key = wJalrXUtnFEMI/...
 ### 2. `~/.aws/config`
 Contains regional settings:
 ```ini
-[profile sherlock]
+[profile Sniff]
 region = us-west-2
 output = json
 ```
 
-**Security:** These files are stored in your home directory with restricted permissions. They're NOT in your project directory and NOT in the Sherlock package.
+**Security:** These files are stored in your home directory with restricted permissions. They're NOT in your project directory and NOT in the Sniff package.
 
 ---
 
@@ -165,7 +165,7 @@ output = json
 
 ### If You're a Demo User
 
-Ask the Sherlock administrator/organizer for:
+Ask the Sniff administrator/organizer for:
 - AWS Access Key ID
 - AWS Secret Access Key
 - AWS Region (usually `us-west-2`)
@@ -182,8 +182,8 @@ You can have multiple AWS profiles for different projects:
 # Default profile
 aws configure
 
-# Sherlock profile
-aws configure --profile sherlock
+# Sniff profile
+aws configure --profile Sniff
 
 # Work profile
 aws configure --profile work
@@ -199,8 +199,8 @@ cat ~/.aws/credentials
 
 Switch profiles by changing `AWS_PROFILE` in `.env`:
 ```bash
-# Use sherlock profile
-AWS_PROFILE=sherlock
+# Use Sniff profile
+AWS_PROFILE=Sniff
 
 # Use work profile
 AWS_PROFILE=work
@@ -216,7 +216,7 @@ AWS CLI is not installed. Follow Step 1 above.
 
 ### "The security token included in the request is invalid"
 
-Your access key or secret key is incorrect. Run `aws configure --profile sherlock` again.
+Your access key or secret key is incorrect. Run `aws configure --profile Sniff` again.
 
 ### "Could not connect to the endpoint URL"
 
@@ -243,17 +243,17 @@ Your IAM user doesn't have Bedrock permissions. Ask your AWS administrator to ad
 }
 ```
 
-### Profile exists but Sherlock can't find it
+### Profile exists but Sniff can't find it
 
 Ensure your `.env` file has:
 ```bash
-AWS_PROFILE=sherlock
+AWS_PROFILE=Sniff
 ```
 
 And verify the profile name matches:
 ```bash
 aws configure list-profiles
-# Should show "sherlock"
+# Should show "Sniff"
 ```
 
 ---
@@ -280,39 +280,39 @@ aws configure list-profiles
 
 ```bash
 # Configure new profile
-aws configure --profile sherlock
+aws configure --profile Sniff
 
 # List all profiles
 aws configure list-profiles
 
 # Test profile
-aws sts get-caller-identity --profile sherlock
+aws sts get-caller-identity --profile Sniff
 
 # View profile config
-aws configure list --profile sherlock
+aws configure list --profile Sniff
 
 # Set default profile for current session
-export AWS_PROFILE=sherlock
+export AWS_PROFILE=Sniff
 
 # Use specific profile for one command
-aws s3 ls --profile sherlock
+aws s3 ls --profile Sniff
 ```
 
 ---
 
-## For Sherlock Demo
+## For Sniff Demo
 
 Once your AWS profile is configured:
 
 1. ✅ AWS CLI installed
-2. ✅ Profile configured: `aws configure --profile sherlock`
-3. ✅ Profile tested: `aws sts get-caller-identity --profile sherlock`
-4. ✅ `.env` file created with `AWS_PROFILE=sherlock`
-5. ✅ Sherlock verified: `sherlock preflight`
+2. ✅ Profile configured: `aws configure --profile Sniff`
+3. ✅ Profile tested: `aws sts get-caller-identity --profile Sniff`
+4. ✅ `.env` file created with `AWS_PROFILE=Sniff`
+5. ✅ Sniff verified: `Sniff preflight`
 
 Now you're ready to run demos:
 ```bash
-sherlock run \
+Sniff run \
   --url https://deriv.com \
   --goal "Complete signup process" \
   --persona impatient_user \

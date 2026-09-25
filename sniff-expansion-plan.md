@@ -7,12 +7,27 @@
 **Scope**:
 1. Project rename — "sherlock" → "sniff" everywhere
 2. Market research findings embedded as product direction
-3. Dependency updates across Python (sniff-ai) and Node (sniff-web)
+3. Dependency updates across Python (sniff-ai) and Node (sniff-web), including Tailwind v4 migration
 4. Architecture evolution: three-tier intelligence (Deterministic / Jev / Reasoning)
-5. Jev skill setup via Typesafe AI
+5. Jev skill setup via Typesafe AI (API key available)
 6. New feature roadmap derived from competitive analysis
+7. Security hygiene — `.gitignore` and `.bobignore` to prevent credential exposure
+8. Documentation discipline — every code decision documented inline and in ADR files
 
 **Non-goals**: Full implementation of every new feature (this plan tracks what to build and how; implementation follows per sub-task).
+
+## Confirmed Decisions
+
+| Question | Decision |
+|---|---|
+| Typesafe AI access | API key available — implement Jev client fully in Sub-Task 3 |
+| UI vs CI/CD priority | Journey Replay UI (Sub-Task 7) before CI/CD integration (Sub-Task 8) |
+| Tailwind version | Upgrade to v4 during Sub-Task 2 |
+| Sniff Score weights | Use research-backed weights: P0=−50, P1=−25, P2=−12, P3=−5; bonus +10 for goal success; performance/step-excess deductions up to −8 total |
+| Scheduler approach | APScheduler-backed in-process daemon (`sniff daemon start/stop/status`) — portable, no OS cron dependency, works in containers and cloud VMs |
+| Documentation | Every file changed must include a header docstring explaining purpose + decisions; ADR (Architecture Decision Record) files in `docs/adr/` for major architectural choices |
+| Security | `.gitignore` and `.bobignore` maintained; no credentials in tracked files; all secrets via env vars only |
+| Bob files | All Bob-related files (plan, skills, modes) kept in `.bob/` and maintained |
 
 ---
 
@@ -78,7 +93,7 @@ From their docs and positioning:
 
 ### Sub-Task 1 — Full Project Rename: "sherlock" → "sniff"
 
-**Status**: [ ] pending
+**Status**: [x] done
 
 **Intent**: The project is internally called "sherlock" in every configuration file, package metadata, class names, CLI entry points, environment variables, Slack bot name, and documentation. This sub-task renames all occurrences to "sniff" to match the public brand.
 
@@ -117,50 +132,61 @@ From their docs and positioning:
 
 ---
 
-### Sub-Task 2 — Dependency Updates
+### Sub-Task 2 — Dependency Updates + Tailwind v4 Migration
 
 **Status**: [ ] pending
 
-**Intent**: Bring all Python and Node packages to their latest stable versions. Identify any breaking changes in major version bumps, update usage accordingly, and ensure all tests pass after the upgrade.
+**Intent**: Bring all Python and Node packages to their latest stable versions. Identify any breaking changes in major version bumps, update usage accordingly, and ensure all tests pass after the upgrade. Tailwind v4 is a confirmed breaking migration — it removes `tailwind.config.js` in favour of CSS-based configuration (`@import "tailwindcss"` in the CSS file) and changes the class utility naming convention for some utilities.
 
 **Expected Outcomes**:
 - `sniff-ai/pyproject.toml` dependencies reflect latest stable versions
 - `sniff-web/package.json` dependencies reflect latest stable versions
+- `tailwindcss` upgraded to v4; `tailwind.config.js` removed; CSS config migrated to `globals.css`
 - `uv.lock` / lock files regenerated cleanly
-- Existing tests pass
+- All existing tests pass
 - No deprecation warnings from updated packages
+- `docs/adr/ADR-002-dependency-updates.md` documents every breaking change handled
 
 **Todo List**:
-1. **Python packages** — check latest versions for each dependency:
-   - `playwright` (currently `>=1.40.0`) → latest is ~1.52+
-   - `boto3` (currently `>=1.34.0`) → latest is ~1.38+
-   - `pydantic` (currently `>=2.5.0`) → latest is ~2.11+
-   - `typer` (currently `>=0.9.0`) → latest is ~0.16+
-   - `rich` (currently `>=13.7.0`) → latest is ~14.0+
-   - `httpx` (currently `>=0.25.0`) → latest is ~0.28+
-   - `supabase` (currently `>=2.3.0`) → latest is ~2.15+
-   - `pytest` (currently `>=7.4.0`) → latest is ~8.4+
-   - `pytest-asyncio` (currently `>=0.21.0`) → latest is ~0.26+
-   - `ruff` (currently `>=0.1.0`) → latest is ~0.11+
+1. **Python packages** — update to latest stable:
+   - `playwright >=1.52.0`
+   - `boto3 >=1.38.0`
+   - `pydantic >=2.11.0`
+   - `typer >=0.16.0`
+   - `rich >=14.0.0`
+   - `httpx >=0.28.0`
+   - `supabase >=2.15.0`
+   - `pytest >=8.4.0`
+   - `pytest-asyncio >=0.26.0`
+   - `ruff >=0.11.0`
 2. Update `pyproject.toml` with pinned latest stable versions
 3. Run `uv lock` to regenerate lock file
-4. Run `uv run pytest` to verify tests pass
-5. **Node packages** — check latest versions:
-   - `next` (currently `^15.1.6`) → latest is ~15.3+
-   - `react` / `react-dom` (currently `^19.0.0`) → latest is ~19.1+
-   - `@supabase/supabase-js` (currently `^2.95.3`) → latest is ~2.50+
-   - `framer-motion` (currently `^12.33.0`) → check for breaking changes
-   - `tailwindcss` (currently `^3.4.0`) — consider v4 migration
-   - `typescript` (currently `^5.7.0`) → latest is ~5.8+
-   - `eslint` (currently `^9.0.0`) → latest is ~9.x
-6. Update `sniff-web/package.json` with updated versions
+4. Run `uv run pytest` to verify no regressions
+5. **Node packages** — update to latest stable:
+   - `next ^15.3.0`
+   - `react` / `react-dom ^19.1.0`
+   - `@supabase/supabase-js ^2.50.0`
+   - `framer-motion ^12.x` (check changelog for breaking changes)
+   - `tailwindcss ^4.0.0` (breaking — see step 6)
+   - `@tailwindcss/postcss ^4.0.0` (replaces old PostCSS plugin)
+   - `typescript ^5.8.0`
+   - `eslint ^9.x`
+6. **Tailwind v4 migration** (breaking):
+   - Remove `tailwind.config.js` (or `tailwind.config.ts`)
+   - Update `postcss.config.js` to use `@tailwindcss/postcss` plugin
+   - Update `globals.css`: replace `@tailwind base; @tailwind components; @tailwind utilities;` with `@import "tailwindcss";`
+   - Move any `theme.extend` values to CSS custom properties in `globals.css`
+   - Run the Tailwind v4 upgrade codemod: `npx @tailwindcss/upgrade`
+   - Audit component files for renamed utilities (e.g. `shadow-sm` → `shadow-xs` in v4)
 7. Run `npm install` and `npm run build` to verify
-8. Document any breaking changes handled
+8. Write `docs/adr/ADR-002-dependency-updates.md` documenting all breaking changes handled
 
 **Relevant Context**:
 - `sniff-ai/pyproject.toml`
 - `sniff-ai/uv.lock`
 - `sniff-web/package.json`
+- `sniff-web/tailwind.config.js` (to be removed)
+- `sniff-web/app/globals.css` (to be updated)
 - `sniff-ai/requirements.txt`
 
 ---
@@ -375,21 +401,36 @@ This restructuring moves the majority of per-step navigation decisions to Jev (c
 
 **Status**: [ ] pending
 
-**Intent**: Introduce a single composite UX health score (0–100) computed per run, trended over time. The score penalizes severity (P0=-40, P1=-20, P2=-10, P3=-5), step count excess, performance issues, and rewards successful goal completion. This gives product teams a simple north-star metric.
+**Intent**: Introduce a single composite UX health score (0–100) computed per run, trended over time. The score uses research-backed penalty weights and rewards, giving product teams a simple north-star metric.
+
+**Scoring Formula** (confirmed):
+```
+Base score: 100
+Deductions:
+  P0 issue detected:        −50
+  P1 issue detected:        −25
+  P2 issue detected:        −12
+  P3 issue detected:         −5
+  TTFB > 3s:                 −4
+  Step count > 1.5× median:  −4
+Bonuses:
+  Goal completed:           +10 (max 100 cap)
+Final: clamp(score, 0, 100)
+```
 
 **Expected Outcomes**:
-- `SniffScore` model with score (0-100), component breakdown, trend vs previous run
+- `SniffScore` model with score (0-100), component breakdown (per-penalty detail), trend vs previous run
 - Score computed in `ReportBuilder.build_report()`
-- Score displayed in Slack alerts (as a bar or number)
+- Score displayed in Slack alerts (emoji bar: 🟢 80+, 🟡 50-79, 🔴 <50)
 - Score stored in Supabase `runs` table
 - Score visible in web dashboard on run overview cards
 - `sniff score [run_id]` CLI command to display score
 
 **Todo List**:
-1. Define scoring formula in `src/evidence/scorer.py`
+1. Define scoring formula in `src/evidence/scorer.py` with the confirmed weights above
 2. Add `SniffScore` to `RunReport` model
 3. Integrate scoring into `ReportBuilder.build_report()`
-4. Add score to Slack alert blocks
+4. Add score to Slack alert blocks (emoji health bar)
 5. Add score to Supabase `runs` table (migration)
 6. Add `RunOverviewCard` score display in `sniff-web`
 7. Add `sniff score` CLI command
@@ -427,38 +468,89 @@ This restructuring moves the majority of per-step navigation decisions to Jev (c
 
 ---
 
+### Sub-Task 11 — Security Hygiene and Bob File Maintenance
+
+**Status**: [ ] pending
+
+**Intent**: Ensure no credentials or sensitive data can accidentally leak into version control. Maintain all Bob-related agent files properly. This sub-task runs alongside all others as a cross-cutting concern.
+
+**Expected Outcomes**:
+- `.gitignore` at repo root covers: `.env`, `*.env`, `sherlock.json`, `sniff.json`, `artifacts/`, `*.pem`, `*.key`, AWS credential files, `__pycache__/`, `.uv/`, `node_modules/`
+- `.bobignore` at repo root covers the same secrets + tells Bob not to index credential files
+- `sniff-expansion-plan.md` kept in repo root (Bob context artifact)
+- All `docs/adr/` files tracked in git (they are documentation)
+- `CONTRIBUTING.md` added documenting: how to run, how to add features, coding conventions, ADR process
+
+**Todo List**:
+1. Create/update `.gitignore` at repo root with comprehensive secret and artifact exclusions
+2. Create `.bobignore` at repo root with same exclusions + Bob-specific patterns
+3. Audit existing tracked files for any accidentally committed secrets (`.env`, config JSON with keys)
+4. Create `CONTRIBUTING.md` documenting project conventions
+5. Create `docs/adr/` directory with `ADR-000-template.md` and `ADR-001-three-tier-architecture.md`
+6. Ensure `sniff-expansion-plan.md` is tracked and up to date
+
+**Relevant Context**:
+- Repo root `d:\sniff`
+- `sniff-ai/.env.example` — reference for what secrets look like
+- `sniff-ai/sniff.json` / `sherlock.json` — may contain API keys if user ran `sniff init`
+
+---
+
 ## Execution Order
 
-The sub-tasks should be executed in this order because later tasks depend on earlier ones:
+The sub-tasks should be executed in this order:
 
 ```
+Sub-Task 11 (Security + Bob Files)       ← First: safety before anything else
+    ↓
 Sub-Task 1 (Rename)
     ↓
-Sub-Task 2 (Dependencies)
+Sub-Task 2 (Dependencies + Tailwind v4)
     ↓
 Sub-Task 3 (Jev Setup)
     ↓
 Sub-Task 4 (Three-Tier Architecture)     ← Depends on 3
     ↓
-Sub-Task 5 (Scheduled Runs)
+Sub-Task 5 (Scheduled Runs)              ← APScheduler daemon approach
 Sub-Task 6 (Regression Detection)        ← Can run in parallel with 5
-Sub-Task 7 (Journey Replay UI)           ← Can run in parallel with 5,6
-Sub-Task 8 (CI/CD Integration)           ← Can run after 4
+Sub-Task 7 (Journey Replay UI)           ← Priority over Sub-Task 8
 Sub-Task 9 (Sniff Score)                 ← Can run after 4
+    ↓
+Sub-Task 8 (CI/CD Integration)           ← After 7
     ↓
 Sub-Task 10 (Architecture Docs)          ← Last, documents everything
 ```
 
 ---
 
-## Open Questions / Decisions Needed
+## Documentation Standards (applies to all sub-tasks)
 
-1. **Jev API access**: Do you have a Typesafe AI API key and account? The Jev client implementation in Sub-Task 3 requires this. If not yet available, we can stub the client and implement the routing architecture first.
+Every file touched during implementation must:
+1. Include a module-level docstring stating: purpose, decisions made, why this approach was chosen
+2. Each class must have a docstring explaining its role in the architecture
+3. Non-obvious logic must have inline comments with the reasoning
+4. Major architectural decisions go into `docs/adr/ADR-XXX-<topic>.md`
 
-2. **ColdVisit inspiration depth**: Should the Journey Replay UI (Sub-Task 7) be prioritized over CI/CD (Sub-Task 8), or vice versa? Both are high-value but Sub-Task 7 is more UI-intensive.
+ADR format:
+```
+# ADR-XXX: Title
+## Status: Accepted
+## Context: What problem are we solving?
+## Decision: What did we decide?
+## Rationale: Why this option over alternatives?
+## Consequences: What are the trade-offs?
+```
 
-3. **Tailwind v4**: `sniff-web` uses Tailwind v3. Tailwind v4 is a breaking change. Should we upgrade to v4 now or stay on v3?
+---
 
-4. **Sniff Score formula**: The scoring formula is a proposal. Do you want to adjust the penalty weights (P0=-40, P1=-20, P2=-10, P3=-5) before implementation?
+## All Decisions Recorded
 
-5. **Scheduler daemon**: Should the scheduler be a simple cron-based approach (OS cron calling `sniff run`) or an in-process APScheduler daemon? The daemon approach is more portable but adds complexity.
+| # | Question | Decision | Rationale |
+|---|---|---|---|
+| 1 | Typesafe AI access | Full implementation, key available | No need to stub |
+| 2 | UI vs CI/CD priority | Journey Replay (Sub-Task 7) first | Higher user value, ColdVisit parity |
+| 3 | Tailwind version | Upgrade to v4 | Modern standard; avoid tech debt |
+| 4 | Sniff Score weights | P0=−50, P1=−25, P2=−12, P3=−5, success=+10 | More severe penalty for P0 blockers; P1 is still major |
+| 5 | Scheduler approach | APScheduler in-process daemon | Works in Docker/cloud; no OS cron dependency; portable |
+| 6 | Documentation | ADR files + module docstrings on every change | Traceability for all decisions |
+| 7 | Security | .gitignore + .bobignore; audit for leaked secrets | First sub-task executed |

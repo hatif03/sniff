@@ -1,4 +1,4 @@
-# Supabase Project Setup for Sherlock
+﻿# Supabase Project Setup for Sniff
 
 ## Quick Setup (2 minutes)
 
@@ -7,7 +7,7 @@
 1. Go to https://supabase.com/dashboard
 2. Click **"New Project"**
 3. Fill in the details:
-   - **Name**: `sherlock-mystery-shopper`
+   - **Name**: `Sniff-mystery-shopper`
    - **Database Password**: Generate a strong password (save it!)
    - **Region**: Choose closest to you (e.g., `us-west-1` or `ap-south-1`)
    - **Pricing Plan**: Free tier is fine
@@ -29,7 +29,7 @@ Once the project is created:
 Run this command and paste your project reference ID when prompted:
 
 ```bash
-cd /Users/abbasalisariya/code/hackathon/sherlock
+cd /Users/abbasalisariya/code/hackathon/Sniff
 supabase link --project-ref YOUR_PROJECT_REF
 ```
 
@@ -45,7 +45,7 @@ If you prefer full automation, create a Personal Access Token:
 
 1. Go to https://supabase.com/dashboard/account/tokens
 2. Click **"Generate new token"**
-3. Give it a name: "Sherlock Setup"
+3. Give it a name: "Sniff Setup"
 4. Save the token securely
 5. Run: `export SUPABASE_ACCESS_TOKEN=your_token_here`
 

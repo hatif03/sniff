@@ -1,4 +1,4 @@
-# Sherlock Experiments Guide
+﻿# Sniff Experiments Guide
 
 Experiments allow you to run the same test goal with multiple personas to compare how different user types experience your signup flow.
 
@@ -25,7 +25,7 @@ Running experiments helps you:
 ### Run with Specific Personas
 
 ```bash
-sherlock experiment run \
+Sniff experiment run \
   --name "Signup Flow Test" \
   --goal "Complete signup with email" \
   --persona impatient_user \
@@ -36,7 +36,7 @@ sherlock experiment run \
 ### Run with All Personas
 
 ```bash
-sherlock experiment run \
+Sniff experiment run \
   --name "Full UX Audit" \
   --goal "Complete onboarding" \
   --all
@@ -45,7 +45,7 @@ sherlock experiment run \
 ### Run in Parallel (Faster)
 
 ```bash
-sherlock experiment run \
+Sniff experiment run \
   --name "Quick Test" \
   --goal "Sign up and verify email" \
   --all \
@@ -56,7 +56,7 @@ sherlock experiment run \
 
 ## Command Reference
 
-### `sherlock experiment run`
+### `Sniff experiment run`
 
 Run a new experiment with multiple personas.
 
@@ -82,7 +82,7 @@ Run a new experiment with multiple personas.
 
 ```bash
 # Basic experiment with 3 personas
-sherlock experiment run \
+Sniff experiment run \
   --name "Email Signup Test" \
   --goal "Complete email signup" \
   --persona impatient_user \
@@ -90,7 +90,7 @@ sherlock experiment run \
   --persona power_user
 
 # Test on slow 3G network
-sherlock experiment run \
+Sniff experiment run \
   --name "Mobile Performance Test" \
   --goal "Complete signup" \
   --all \
@@ -98,14 +98,14 @@ sherlock experiment run \
   --device "iPhone 13"
 
 # Run in parallel for speed
-sherlock experiment run \
+Sniff experiment run \
   --name "Fast Audit" \
   --goal "Create account" \
   --all \
   --parallel
 
 # Specific URL override
-sherlock experiment run \
+Sniff experiment run \
   --name "Checkout Flow" \
   --goal "Complete checkout" \
   --url https://staging.example.com/checkout \
@@ -115,12 +115,12 @@ sherlock experiment run \
 
 ---
 
-### `sherlock experiment list`
+### `Sniff experiment list`
 
 List all experiments with summary results.
 
 ```bash
-sherlock experiment list
+Sniff experiment list
 ```
 
 **Output:**
@@ -136,12 +136,12 @@ sherlock experiment list
 
 ---
 
-### `sherlock experiment show <experiment_id>`
+### `Sniff experiment show <experiment_id>`
 
 Show detailed results for a specific experiment.
 
 ```bash
-sherlock experiment show exp_20260207_143027_8a3f1b2c
+Sniff experiment show exp_20260207_143027_8a3f1b2c
 ```
 
 **Output:**
@@ -182,12 +182,12 @@ Recommendations:
 
 ---
 
-### `sherlock experiment compare <experiment_id>`
+### `Sniff experiment compare <experiment_id>`
 
 Compare persona performance in detail.
 
 ```bash
-sherlock experiment compare exp_20260207_143027_8a3f1b2c
+Sniff experiment compare exp_20260207_143027_8a3f1b2c
 ```
 
 **Output:**
@@ -234,7 +234,7 @@ Runs personas one after another.
 
 **Example:**
 ```bash
-sherlock experiment run \
+Sniff experiment run \
   --name "Debug Test" \
   --goal "Complete signup" \
   --persona impatient_user \
@@ -264,7 +264,7 @@ Runs all personas simultaneously.
 
 **Example:**
 ```bash
-sherlock experiment run \
+Sniff experiment run \
   --name "Fast Audit" \
   --goal "Complete signup" \
   --all \
@@ -286,7 +286,7 @@ sherlock experiment run \
 **Goal:** Identify which user types struggle most with your flow.
 
 ```bash
-sherlock experiment run \
+Sniff experiment run \
   --name "Signup UX Audit" \
   --goal "Complete email signup and verify account" \
   --all \
@@ -307,14 +307,14 @@ sherlock experiment run \
 
 ```bash
 # Test with slow 3G
-sherlock experiment run \
+Sniff experiment run \
   --name "3G Performance Test" \
   --goal "Complete signup" \
   --persona impatient_user \
   --network slow3g
 
 # Compare with 4G
-sherlock experiment run \
+Sniff experiment run \
   --name "4G Performance Test" \
   --goal "Complete signup" \
   --persona impatient_user \
@@ -334,14 +334,14 @@ sherlock experiment run \
 
 ```bash
 # Test variant A
-sherlock experiment run \
+Sniff experiment run \
   --name "Variant A Test" \
   --goal "Complete signup" \
   --url https://staging.example.com/signup-a \
   --all
 
 # Test variant B
-sherlock experiment run \
+Sniff experiment run \
   --name "Variant B Test" \
   --goal "Complete signup" \
   --url https://staging.example.com/signup-b \
@@ -361,20 +361,20 @@ sherlock experiment run \
 
 ```bash
 # Before deployment
-sherlock experiment run \
+Sniff experiment run \
   --name "Pre-Deploy Baseline" \
   --goal "Complete checkout" \
   --all
 
 # After deployment
-sherlock experiment run \
+Sniff experiment run \
   --name "Post-Deploy Verification" \
   --goal "Complete checkout" \
   --all
 
 # Compare results
-sherlock experiment compare exp_BEFORE_ID
-sherlock experiment compare exp_AFTER_ID
+Sniff experiment compare exp_BEFORE_ID
+Sniff experiment compare exp_AFTER_ID
 ```
 
 ---
@@ -405,17 +405,17 @@ sherlock experiment compare exp_AFTER_ID
 
 ```bash
 # First run: Debug with sequential + headed
-sherlock experiment run --name "Debug" --goal "Sign up" --all --headed
+Sniff experiment run --name "Debug" --goal "Sign up" --all --headed
 
 # Once working: Run faster with parallel + headless
-sherlock experiment run --name "Production" --goal "Sign up" --all --parallel
+Sniff experiment run --name "Production" --goal "Sign up" --all --parallel
 ```
 
 ### 4. Use All Personas for Comprehensive Testing
 
 ```bash
 # Tests all user types
-sherlock experiment run --name "Full Audit" --goal "Complete flow" --all
+Sniff experiment run --name "Full Audit" --goal "Complete flow" --all
 ```
 
 ### 5. Document Experiments
@@ -423,7 +423,7 @@ sherlock experiment run --name "Full Audit" --goal "Complete flow" --all
 Use the `--description` flag:
 
 ```bash
-sherlock experiment run \
+Sniff experiment run \
   --name "Q1 2026 Signup Audit" \
   --goal "Complete signup" \
   --description "Testing new OAuth flow after redesign" \
@@ -491,7 +491,7 @@ Each persona run also generates standard artifacts in `artifacts/<run_id>/`.
 **Check:**
 1. Is the URL accessible?
 2. Are allowed domains configured correctly?
-3. Does `sherlock preflight` pass?
+3. Does `Sniff preflight` pass?
 
 ### Parallel Runs Fail
 
@@ -522,14 +522,14 @@ Create persona subsets for specific testing:
 
 ```bash
 # Test only advanced users
-sherlock experiment run \
+Sniff experiment run \
   --name "Advanced User Test" \
   --goal "Use advanced features" \
   --persona power_user \
   --persona careful_user
 
 # Test only struggling users
-sherlock experiment run \
+Sniff experiment run \
   --name "Struggling User Test" \
   --goal "Complete basic signup" \
   --persona confused_first_time_user \
@@ -540,7 +540,7 @@ sherlock experiment run \
 
 ```bash
 # Run experiment, then upload to Supabase
-sherlock experiment run --name "Test" --goal "Signup" --all
+Sniff experiment run --name "Test" --goal "Signup" --all
 
 # Results auto-upload if SUPABASE_ENABLED=true in .env
 ```
@@ -575,10 +575,10 @@ A: Each persona run uses Bedrock API calls. More personas = higher cost.
 
 ```bash
 # 1. Create personas
-sherlock personas add  # Create custom personas
+Sniff personas add  # Create custom personas
 
 # 2. Run initial experiment
-sherlock experiment run \
+Sniff experiment run \
   --name "Initial Signup Test" \
   --goal "Complete signup with email verification" \
   --all \
@@ -586,21 +586,21 @@ sherlock experiment run \
   --headed  # Watch it run
 
 # 3. Review results
-sherlock experiment list
-sherlock experiment show exp_20260207_143027_8a3f1b2c
+Sniff experiment list
+Sniff experiment show exp_20260207_143027_8a3f1b2c
 
 # 4. Compare personas
-sherlock experiment compare exp_20260207_143027_8a3f1b2c
+Sniff experiment compare exp_20260207_143027_8a3f1b2c
 
 # 5. Run targeted follow-up with failing personas
-sherlock experiment run \
+Sniff experiment run \
   --name "Fix Verification - Confused Users" \
   --goal "Complete signup with email verification" \
   --persona confused_first_time_user \
   --headed
 
 # 6. Run final validation with all personas
-sherlock experiment run \
+Sniff experiment run \
   --name "Final Validation" \
   --goal "Complete signup with email verification" \
   --all \

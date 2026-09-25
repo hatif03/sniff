@@ -1,4 +1,4 @@
-"""Tests for orchestrator and related components.
+﻿"""Tests for orchestrator and related components.
 
 These tests validate:
 - State machine transitions
@@ -9,7 +9,7 @@ These tests validate:
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from src.core.state_machine import StateMachine, RunState, RunOutcome, StateTransition
@@ -260,8 +260,8 @@ class TestRunReport:
             outcome=RunOutcome.SUCCESS,
             goal="Test goal",
             persona_name="test_persona",
-            start_time=datetime.utcnow(),
-            end_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
             total_steps=5,
             observations=[],
             action_results=[],
@@ -273,8 +273,8 @@ class TestRunReport:
 
     def test_report_to_dict(self):
         """Test report serialization to dict."""
-        start = datetime.utcnow()
-        end = datetime.utcnow()
+        start = datetime.now(timezone.utc)
+        end = datetime.now(timezone.utc)
 
         report = RunReport(
             run_id="test-123",
@@ -312,8 +312,8 @@ class TestRunReport:
             outcome=RunOutcome.SUCCESS,
             goal="Complete signup",
             persona_name="careful_user",
-            start_time=datetime.utcnow(),
-            end_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
             total_steps=8,
             observations=[],
             action_results=[
@@ -324,7 +324,7 @@ class TestRunReport:
 
         summary = report.to_terminal_summary()
 
-        assert "Sherlock Run Report" in summary
+        assert "sniff Run Report" in summary
         assert "test-123" in summary
         assert "SUCCESS" in summary
         assert "Complete signup" in summary

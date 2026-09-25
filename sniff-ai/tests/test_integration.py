@@ -1,5 +1,5 @@
-"""
-Integration tests for Sherlock components.
+﻿"""
+Integration tests for sniff components.
 
 Tests the integration between:
 - CLI configuration
@@ -21,8 +21,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Import all core components
-from src.core.config import SherlockConfig, PlaywrightConfig, BedrockConfig, SlackConfig
-from src.core.persona import PersonaProfile, PersonaManager
+from src.core.config import SniffConfig, PlaywrightConfig, BedrockConfig, SlackConfig
+from src.core.persona import PersonaProfile
 from src.core.models import (
     Observation,
     AgentDecision,
@@ -45,7 +45,7 @@ class TestImports:
 
     def test_core_imports(self):
         """Test core module imports."""
-        assert SherlockConfig is not None
+        assert SniffConfig is not None
         assert PersonaProfile is not None
         assert Observation is not None
         assert AgentDecision is not None
@@ -165,7 +165,7 @@ class TestConfigurationIntegration:
 
     def test_config_creation_and_validation(self):
         """Test config creation with all required fields."""
-        config = SherlockConfig(
+        config = SniffConfig(
             playwright=PlaywrightConfig(
                 headless=True,
                 default_device="iPhone 13",
@@ -178,7 +178,7 @@ class TestConfigurationIntegration:
             ),
             slack=SlackConfig(
                 webhook_url="https://hooks.slack.com/services/TEST/TEST/TEST",
-                default_channel="#sherlock-alerts",
+                default_channel="#sniff-alerts",
             ),
         )
 
@@ -189,7 +189,7 @@ class TestConfigurationIntegration:
 
     def test_config_to_from_dict(self):
         """Test config serialization."""
-        config = SherlockConfig(
+        config = SniffConfig(
             playwright=PlaywrightConfig(headless=True),
             bedrock=BedrockConfig(
                 region="us-west-2",
@@ -206,7 +206,7 @@ class TestConfigurationIntegration:
         assert config_dict["playwright"]["headless"] is True
 
         # Convert back to config
-        config2 = SherlockConfig.model_validate(config_dict)
+        config2 = SniffConfig.model_validate(config_dict)
         assert config2.playwright.headless is True
 
 
@@ -360,7 +360,7 @@ class TestEndToEndIntegration:
     async def test_mock_orchestrator_run(self):
         """Test orchestrator with mocked components."""
         # Create config
-        config = SherlockConfig(
+        config = SniffConfig(
             playwright=PlaywrightConfig(headless=True),
             bedrock=BedrockConfig(
                 region="us-west-2",
@@ -432,7 +432,7 @@ class TestEndToEndIntegration:
 def test_integration_suite_summary():
     """Summary test to ensure all components are available."""
     components = {
-        "Configuration": SherlockConfig,
+        "Configuration": SniffConfig,
         "Persona": PersonaProfile,
         "Models": Observation,
         "Validation": DecisionSanitizer,

@@ -1,6 +1,6 @@
-"""Test Supabase direct push integration.
+﻿"""Test Supabase direct push integration.
 
-This script verifies that Sherlock can connect to Supabase and upload data.
+This script verifies that sniff can connect to Supabase and upload data.
 """
 
 import os
@@ -61,7 +61,7 @@ def test_buckets():
         buckets = uploader.client.storage.list_buckets()
         bucket_names = [b.name for b in buckets]
 
-        required_buckets = ['sherlock-screenshots', 'sherlock-videos', 'sherlock-traces']
+        required_buckets = ['sniff-screenshots', 'sniff-videos', 'sniff-traces']
 
         for bucket in required_buckets:
             if bucket in bucket_names:
@@ -110,9 +110,9 @@ def test_config_loading():
     print("\nTesting config loading...")
 
     try:
-        from core.config import SherlockConfig
+        from core.config import SniffConfig
 
-        config = SherlockConfig.from_env()
+        config = SniffConfig.from_env()
 
         if not config.supabase.enabled:
             print("❌ Supabase not enabled in config")
@@ -133,7 +133,7 @@ def test_config_loading():
 def main():
     """Run all tests."""
     print("=" * 60)
-    print("Sherlock Supabase Direct Push Integration Test")
+    print("sniff Supabase Direct Push Integration Test")
     print("=" * 60)
 
     tests = [
@@ -172,7 +172,7 @@ def main():
 
     if passed == total:
         print("\n🎉 All tests passed! Supabase integration is working!")
-        print("\n✨ You're ready to run Sherlock with auto-upload to Supabase!")
+        print("\n✨ You're ready to run sniff with auto-upload to Supabase!")
         return 0
     else:
         print("\n⚠️  Some tests failed. Check the output above for details.")

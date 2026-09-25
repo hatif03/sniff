@@ -1,4 +1,4 @@
-"""Run orchestrator with state machine and guardrails.
+﻿"""Run orchestrator with state machine and guardrails.
 
 Central runtime coordinator that:
 - Maintains run state and transitions
@@ -22,7 +22,7 @@ import uuid
 
 from .models import Observation, AgentDecision, ActionResult, DiagnosisResult
 from .state_machine import StateMachine, RunState, RunOutcome
-from .config import SherlockConfig
+from .config import SniffConfig
 from .persona import PersonaProfile
 from .validation import DecisionSanitizer, create_default_sanitizer
 from ..executor.playwright_worker import PlaywrightWorker
@@ -62,14 +62,14 @@ class RunOrchestrator:
 
     def __init__(
         self,
-        config: SherlockConfig,
+        config: SniffConfig,
         agent_service: Optional[Any] = None,  # Will be provided by CLI/integration
         progress_callback: Optional[callable] = None,  # Callback for progress updates
     ):
         """Initialize orchestrator.
 
         Args:
-            config: Sherlock configuration
+            config: sniff configuration
             agent_service: Agent service instance (optional, for dependency injection)
             progress_callback: Optional callback(message: str) for progress updates
         """
@@ -877,7 +877,7 @@ class Orchestrator:
 
     def __init__(
         self,
-        config: SherlockConfig,
+        config: SniffConfig,
         run_id: str,
         goal: str,
         persona: PersonaProfile,
@@ -891,7 +891,7 @@ class Orchestrator:
         """Initialize orchestrator with run parameters.
 
         Args:
-            config: Sherlock configuration
+            config: sniff configuration
             run_id: Unique run identifier
             goal: User-defined test goal
             persona: Persona profile to use
