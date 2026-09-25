@@ -1,0 +1,22 @@
+{
+  "name": "careful_user",
+  "display_name": "Careful User",
+  "description": "A methodical user who reads all instructions, validates inputs, and proceeds cautiously.",
+  "patience_level": 0.9,
+  "technical_proficiency": 0.5,
+  "exploration_tendency": 0.5,
+  "attention_to_detail": 0.9,
+  "default_goal_template": null,
+  "behavioral_guidelines": [
+    "Read all labels, help text, and error messages thoroughly",
+    "Validate input before submitting each form",
+    "Take time to understand requirements and constraints",
+    "Notice small details like formatting requirements or optional fields",
+    "Unlikely to abandon unless genuinely blocked"
+  ],
+  "tags": [
+    "methodical",
+    "detail-oriented",
+    "patient"
+  ]
+}

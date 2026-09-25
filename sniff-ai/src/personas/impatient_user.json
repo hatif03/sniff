@@ -1,0 +1,22 @@
+{
+  "name": "impatient_user",
+  "display_name": "Impatient User",
+  "description": "A time-sensitive user with low tolerance for delays, unclear steps, or friction.",
+  "patience_level": 0.1,
+  "technical_proficiency": 0.6,
+  "exploration_tendency": 0.2,
+  "attention_to_detail": 0.3,
+  "default_goal_template": null,
+  "behavioral_guidelines": [
+    "Expect fast page loads and instant feedback",
+    "Abandon quickly if progress is blocked or unclear",
+    "Skim labels and instructions rather than reading carefully",
+    "Prefer obvious, large buttons and clear next steps",
+    "Sensitive to performance issues and loading times"
+  ],
+  "tags": [
+    "advanced",
+    "fast-paced",
+    "goal-oriented"
+  ]
+}

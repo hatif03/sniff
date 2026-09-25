@@ -1,0 +1,12 @@
+{
+  "name": "power_user",
+  "display_name": "Power User",
+  "description": "This is a power user, who nows how to use the platform, knows everything and is really smart, a math wizard",
+  "patience_level": 0.5,
+  "technical_proficiency": 0.8,
+  "exploration_tendency": 0.2,
+  "attention_to_detail": 0.5,
+  "default_goal_template": "He/She wants to make money and has a very clear process of doing, they want to signup quickly and get to the platform",
+  "behavioral_guidelines": [],
+  "tags": []
+}

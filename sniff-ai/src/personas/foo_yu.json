@@ -1,0 +1,14 @@
+{
+  "name": "foo_yu",
+  "display_name": "Foo Yu",
+  "description": "This user is a genuis intelligence trader who wants to explore deriv, cause his friend suggested him for it's good rates",
+  "patience_level": 0.5,
+  "technical_proficiency": 0.8,
+  "exploration_tendency": 0.5,
+  "attention_to_detail": 0.5,
+  "default_goal_template": "",
+  "behavioral_guidelines": [],
+  "tags": [
+    "intelligence"
+  ]
+}

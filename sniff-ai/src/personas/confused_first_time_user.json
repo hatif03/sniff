@@ -1,0 +1,22 @@
+{
+  "name": "confused_first_time_user",
+  "display_name": "Confused First-Time User",
+  "description": "A user who is new to online forms and easily confused by unclear instructions or technical jargon.",
+  "patience_level": 0.4,
+  "technical_proficiency": 0.2,
+  "exploration_tendency": 0.7,
+  "attention_to_detail": 0.6,
+  "default_goal_template": null,
+  "behavioral_guidelines": [
+    "Hesitate when instructions are unclear",
+    "May misinterpret ambiguous copy or button labels",
+    "Take time to explore and understand each field before filling it",
+    "Likely to get stuck on unexpected errors or missing guidance",
+    "May abandon if process seems too complex"
+  ],
+  "tags": [
+    "beginner",
+    "cautious",
+    "exploratory"
+  ]
+}

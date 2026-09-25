@@ -1,0 +1,79 @@
+[project]
+name = "sherlock"
+version = "0.1.0"
+description = "Autonomous mystery shopper for mobile/web signup flow testing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Abbas Ali Sariya", email = "abbasalisariya@example.com"}
+]
+maintainers = [
+    {name = "Abbas Ali Sariya", email = "abbasalisariya@example.com"}
+]
+keywords = [
+    "testing",
+    "automation",
+    "ai",
+    "signup-flow",
+    "mystery-shopper",
+    "playwright",
+    "aws-bedrock",
+    "qa",
+    "mobile-testing"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "questionary>=2.0.1",
+    "pydantic>=2.5.0",
+    "playwright>=1.40.0",
+    "boto3>=1.34.0",
+    "httpx>=0.25.0",
+    "python-dotenv>=1.0.0",
+    "Pillow>=10.0.0",
+    "supabase>=2.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+]
+all = [
+    "sherlock[dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/abbasalisariya/sherlock"
+Documentation = "https://github.com/abbasalisariya/sherlock#readme"
+Repository = "https://github.com/abbasalisariya/sherlock"
+Issues = "https://github.com/abbasalisariya/sherlock/issues"
+
+[project.scripts]
+sherlock = "src.cli.main:app"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-data]
+"src.personas" = ["*.json"]
