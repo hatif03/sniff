@@ -35,8 +35,9 @@ Why:
 - **Language**: Python
 - **CLI**: `typer` (or `click`) + interactive prompts (`questionary`/`InquirerPy`)
 - **Mobile execution**: Playwright with mobile emulation (iPhone/Android profiles)
-- **AI decisioning**: Amazon Bedrock Runtime (multimodal capable model)
-- **Agent framework (optional)**: Strands Agents (Python) for tool orchestration/RAG/memory patterns
+- **AI decisioning (vision-capable)**: Gemini via Vertex AI (multimodal, Application Default Credentials - not Bedrock)
+- **AI decisioning (text-only)**: k2-horizon via ifm.ai (OpenAI-compatible), used for goal enhancement/planning/persona reviews
+- **Fast decision tier (optional)**: Typesafe AI's Jev - see Section 7A
 - **Persistence**: local SQLite + filesystem artifacts
 - **Notifications**: Slack Incoming Webhook (rich blocks)
 
@@ -88,7 +89,7 @@ Responsibilities:
 
 This is effectively the **agent’s tool interface**.
 
-### D) `Agent Service` (Bedrock Decision Brain)
+### D) `Agent Service` (Gemini Decision Brain)
 Decision-making brain with persona + context.
 
 Responsibilities:
@@ -102,10 +103,12 @@ Boundary:
 - Agent only returns decisions.
 
 ### E) `Diagnosis Engine` (Root Cause + Severity)
-Hybrid incident triage layer.
+Fully deterministic incident triage layer (Tier 1 - see Section 7A). No
+model call of any kind; root cause, severity, and suggested fix are all
+rule trees over extracted signals (HTTP errors, timeouts, console errors).
 
 Responsibilities:
-- Combine deterministic signals + LLM interpretation.
+- Apply deterministic rules over extracted signals.
 - Classify likely root cause:
   - Backend
   - UX/Content
@@ -212,12 +215,78 @@ Important:
 
 ---
 
+## 7A) Three-Tier Decision Architecture (Deterministic / Jev / Reasoning)
+
+Added post-hackathon. There isn't much published literature on Typesafe
+AI's "Jev" model specifically (it's new), so this design is grounded in
+named patterns from two references instead: the Google Developers Blog's
+"4 Engineering Patterns Behind the Strongest AI Agents Challenge
+Submissions" and Google Cloud's "Choose a design pattern for your agentic
+AI system," plus Typesafe's own documented "Speculative Fan-Out" and
+"Confidence-Gated Routing" concepts. **Typesafe's own docs do not claim a
+three-tier architecture** - they describe a two-way split (Jev vs. full
+reasoning LLMs); the tiering below, including code as its own tier, is this
+project's synthesis, not something to attribute to Typesafe.
+
+**Tier 1 (deterministic code)** - unchanged: guardrail checks, the Diagnosis
+Engine (Section 4E), `DecisionSanitizer`. No model call, none needed.
+
+**Tier 2 (Jev, "System One")** - Jev (`src/agent/jev_client.py`) is fast
+(docs claim 70-500ms) but text/structured-input only, no vision, no free
+text generation - three typed primitives: `choice` (pick from an option
+set), `score` (position on a rubric), `noul` (binary yes/no probability).
+Because it can't see the screenshot the way Tier 3 does, it's used in three
+roles (`src/agent/tier_router.py`) rather than as a drop-in Tier 3
+replacement:
+
+| Role | Named pattern | What it does | Where |
+|---|---|---|---|
+| Goal-reached check | ReAct's "Observation" step | Backstop for the keyword pre-filter that decides if the run succeeded - text-only, fixes a real false-negative gap in the old pure-keyword check | `RunOrchestrator._is_goal_reached` |
+| Context enrichment | Multi-Agent Parallel / Speculative Fan-Out | A batch of cheap typed probes (screen type, error-visible, clutter score) computed off visible text before the Tier 3 call, folded into its prompt so it doesn't re-derive screen classification from scratch every step | `DecisionService.get_decision` |
+| Decision critique | Generator-Critic / Review-Critique | A cheap sanity check on a Tier 3 decision before execution; a low-confidence critique is routed through the *existing* repair-retry mechanism (same one used for schema-validation failures), not a new parallel retry path | `DecisionService._attempt_decision` |
+
+Every role degrades to today's Tier-1/Tier-3-only behavior the instant Jev
+is disabled (the default), unavailable, or errors - nothing changes for
+anyone without a Typesafe API key.
+
+**Not implemented - Phase 2**: a *Tiered Routing* shortcut (the Google
+blog's own name for resolving simple cases before spending tokens on the
+expensive model) that would skip the Tier 3 call entirely on obvious steps,
+building the `AgentDecision` straight from Jev's `choice()` output. This
+needs Jev to name a concrete target element, which needs a structured
+candidate-element list `Observation` doesn't expose yet (`visibleText` is
+just strings) - a real prerequisite (extending the Playwright worker's
+extraction), not a corner to cut silently. `TierRouter` is structured so
+this slots in later without a redesign.
+
+**Tier 3 (Gemini)** - unchanged in shape from the original Bedrock design,
+the existing vision call, just given better inputs (Tier 2 enrichment) and
+one more sanity check (Tier 2 critique) around it, and now backed by Gemini
+via Vertex AI instead of Bedrock (see Section 8).
+
+**Jev's real API, verified live**: `JevClient` targets the real endpoint
+(`POST https://api.typesafe.ai/v1/systemone`, confirmed against
+`docs.typesafe.ai/api.md` and a live smoke-test call) - one unified call
+batching any mix of Choice/Score/Noul questions against a shared `state`,
+not the three separate endpoints an earlier draft guessed at. `TierRouter`
+is enabled behind `TYPESAFE_ENABLED` and degrades cleanly to Tier-1/Tier-3
+behavior on any error.
+
+---
+
 ## 8) Why Agent Cloud + Worker Local
 
-### Use Bedrock for Agent Service
-- Organizers provided Bedrock resources.
-- Strong story alignment with sponsor ecosystem.
-- Centralized model calls, model swap flexibility.
+### Use Gemini + k2-horizon for Agent Service
+- Gemini (Vertex AI) is the only one of the two available providers with
+  documented multimodal/vision input - required for the per-step screenshot
+  + text navigation decision. Auth via Application Default Credentials, no
+  API key to manage.
+- k2-horizon (ifm.ai) is OpenAI-compatible, text-only, and is used for
+  goal enhancement, next-action planning, and persona reviews - none of
+  which need vision, so they're cheaper/faster on a dedicated text model
+  than sharing Gemini's vision-capable path.
+- Centralized model calls per tier, model swap flexibility (both clients
+  share the same `invoke()`/`invoke_with_json_response()` interface).
 
 ### Keep Execution Worker local
 - Reliable browser/device control.
@@ -230,7 +299,6 @@ Result:
 ### Agent Runtime Decision (v1)
 - Treat the "agent" as a bounded decision function: `Observation -> AgentDecision`.
 - Keep run control/state machine authority in `Run Orchestrator`, not in the LLM framework.
-- If using Strands, use it inside `agent/` as an implementation detail; do not let it own browser execution lifecycle.
 - Keep RAG/memory behind explicit tools so behavior remains auditable and guardrailed.
 
 ---
@@ -277,7 +345,7 @@ Result:
 ### `Sniff init`
 Interactive setup:
 - staging URL
-- Bedrock region/model
+- GCP project/region for Gemini, ifm.ai key for k2-horizon
 - Slack webhook
 - default persona/device/network
 - owner routing map
@@ -341,10 +409,11 @@ src/
     playwright_worker.py
     tool_adapter.py
   agent/
-    bedrock_client.py
+    gemini_client.py
+    k2horizon_client.py
+    jev_client.py
     decision_service.py
     prompts/
-    strands_agent.py
   diagnosis/
     classifier.py
     severity.py
@@ -408,7 +477,7 @@ After demo success:
 For a solo hackathon win:
 - Use a **Python-first CLI and runtime**.
 - Keep **Execution Worker local** and deterministic.
-- Use **Bedrock Agent Service** for persona-driven thinking, with optional **Strands Python** if it accelerates agent-tool workflows.
+- Use **Gemini + k2-horizon Agent Service** for persona-driven thinking (vision and text-only reasoning split across tiers).
 - Use **Diagnosis Engine** for clear owner-ready incident reports.
 - Nail one powerful live demo path end-to-end.
 
@@ -421,6 +490,6 @@ This architecture maximizes:
 
 ## 16) Supporting Decision Document
 
-- `STRANDS_BEDROCK_REPORT.md` is a **supporting technical decision report** for the `Agent Service` layer.
-- It informs framework/provider tradeoffs (Strands vs SDK-only), Bedrock constraints, RAG/memory integration options, and deployment caveats.
+- `STRANDS_BEDROCK_REPORT.md` is a **historical decision report** for the `Agent Service` layer from when it ran on AWS Bedrock/Strands - kept for context on that tradeoff, superseded by the Gemini + k2-horizon provider swap (Section 8).
 - It does not change control-plane ownership: the orchestrator remains the runtime authority in this architecture.
+- `MARKET_RESEARCH.md` covers the competitive landscape and customer segments referenced when prioritizing the Post-Hackathon Evolution Path (Section 14).

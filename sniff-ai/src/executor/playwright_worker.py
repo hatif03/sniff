@@ -14,13 +14,12 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from ..core.models import ActionResult, Observation
-
 
 logger = logging.getLogger(__name__)
 
@@ -59,18 +58,18 @@ class PlaywrightWorker:
 
         # Playwright objects
         self._playwright = None
-        self._browser: Optional[Browser] = None
-        self._context: Optional[BrowserContext] = None
-        self._page: Optional[Page] = None
+        self._browser: Browser | None = None
+        self._context: BrowserContext | None = None
+        self._page: Page | None = None
 
         # State tracking
         self.step_count = 0
-        self.last_action_result: Optional[ActionResult] = None
+        self.last_action_result: ActionResult | None = None
 
         # Performance tracking
-        self._navigation_start_time: Optional[float] = None
-        self._ttfb: Optional[int] = None
-        self._dom_ready: Optional[int] = None
+        self._navigation_start_time: float | None = None
+        self._ttfb: int | None = None
+        self._dom_ready: int | None = None
 
     async def initialize(self) -> None:
         """Bootstrap Playwright session with mobile emulation.
@@ -141,7 +140,7 @@ class PlaywrightWorker:
         """Monitor response timing for performance metrics."""
         # Track TTFB on first response after navigation
         if self._navigation_start_time and not self._ttfb:
-            timing = asyncio.create_task(response.request.timing())
+            asyncio.create_task(response.request.timing())
 
     def _handle_request_failed(self, request) -> None:
         """Capture failed network requests."""
@@ -504,7 +503,7 @@ class PlaywrightWorker:
         await asyncio.sleep(0.5)
         return await self.capture_observation()
 
-    async def screenshot(self, name: Optional[str] = None) -> str:
+    async def screenshot(self, name: str | None = None) -> str:
         """Capture screenshot of current page state.
 
         Args:
@@ -524,6 +523,123 @@ class PlaywrightWorker:
         logger.debug(f"Screenshot saved: {screenshot_path}")
 
         return str(screenshot_path.absolute())
+
+    async def evaluate_page_checks(self) -> dict[str, Any]:
+        """Run deterministic landing-page audit checks (colors/fonts sampling,
+        interactive-element enumeration, SEO/meta DOM queries, Core Web Vitals,
+        footer/nav link collection).
+
+        Each sub-check is independently guarded: if one throws (e.g. a hostile
+        site's CSP blocks inline scripts), that section degrades to an empty
+        default instead of failing the whole audit.
+
+        Returns:
+            Raw dict with keys: colors, fonts, interactive_elements, seo,
+            web_vitals, footer_nav_links. See src/evidence/audit_checks.py
+            for the JS source and the pure functions that turn this into
+            AuditReport sections.
+        """
+        if not self._page:
+            raise RuntimeError("Worker not initialized. Call initialize() first.")
+
+        from ..evidence.audit_checks import (
+            COLOR_FONT_SAMPLING_JS,
+            FOOTER_NAV_LINKS_JS,
+            INTERACTIVE_ELEMENTS_JS,
+            SEO_META_JS,
+            WEB_VITALS_JS,
+        )
+
+        checks: list[tuple[str, str, Any]] = [
+            ("colors_fonts", COLOR_FONT_SAMPLING_JS, {"colors": [], "fonts": []}),
+            ("interactive_elements", INTERACTIVE_ELEMENTS_JS, []),
+            ("seo", SEO_META_JS, {}),
+            ("web_vitals", WEB_VITALS_JS, {"lcp": None, "fcp": None, "cls": None}),
+            ("footer_nav_links", FOOTER_NAV_LINKS_JS, []),
+        ]
+
+        results: dict[str, Any] = {}
+        for key, script, default in checks:
+            try:
+                results[key] = await self._page.evaluate(script)
+            except Exception as e:
+                logger.warning(f"Audit check '{key}' failed, using default: {e}")
+                results[key] = default
+        return results
+
+    async def detect_modal(self) -> bool:
+        """Cheap heuristic check for a dialog/modal overlay having appeared.
+
+        Used by CTA click-testing to distinguish "opened a modal" from
+        "no observable effect" when the URL didn't change.
+        """
+        if not self._page:
+            raise RuntimeError("Worker not initialized. Call initialize() first.")
+        try:
+            return bool(
+                await self._page.evaluate(
+                    "() => !!document.querySelector('[role=\"dialog\"], dialog[open], [aria-modal=\"true\"]')"
+                )
+            )
+        except Exception as e:
+            logger.debug(f"Modal detection failed: {e}")
+            return False
+
+    async def screenshot_viewport(self, name: str | None = None) -> str:
+        """Capture a viewport-only (non-full-page) screenshot.
+
+        Args:
+            name: Optional custom screenshot name
+
+        Returns:
+            Absolute path to saved screenshot
+        """
+        if not self._page:
+            raise RuntimeError("Worker not initialized. Call initialize() first.")
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+        filename = name or f"viewport_{timestamp}.png"
+        screenshot_path = self.artifacts_dir / filename
+
+        await self._page.screenshot(path=str(screenshot_path), full_page=False)
+        logger.debug(f"Viewport screenshot saved: {screenshot_path}")
+
+        return str(screenshot_path.absolute())
+
+    async def screenshot_with_overlay(
+        self, annotations: list[dict[str, Any]], name: str | None = None
+    ) -> str:
+        """Inject a colored annotation overlay for the given candidates, capture
+        a viewport screenshot, then remove the overlay so subsequent
+        interactions (CTA click-testing) aren't affected by injected nodes.
+
+        Args:
+            annotations: list of {rect: {x,y,width,height}, color, label} dicts
+            name: Optional custom screenshot name
+
+        Returns:
+            Absolute path to saved screenshot
+        """
+        if not self._page:
+            raise RuntimeError("Worker not initialized. Call initialize() first.")
+
+        from ..evidence.screenshot_annotator import build_overlay_script
+
+        try:
+            await self._page.evaluate(build_overlay_script(annotations))
+        except Exception as e:
+            logger.warning(f"Overlay injection failed, capturing plain screenshot: {e}")
+
+        path = await self.screenshot_viewport(name=name)
+
+        try:
+            await self._page.evaluate(
+                "() => document.querySelectorAll('[data-sniff-audit-overlay]').forEach(el => el.remove())"
+            )
+        except Exception as e:
+            logger.debug(f"Overlay cleanup failed (non-fatal): {e}")
+
+        return path
 
     async def capture_observation(self) -> Observation:
         """Capture complete observation of current browser state.
@@ -706,9 +822,9 @@ class PlaywrightWorker:
                     f"input[name*='{key_word}' i]",
                     f"input[id*='{key_word}' i]",
                     f"textarea[name*='{key_word}' i]",
-                    f"input[type='email']" if 'email' in target.lower() else None,
-                    f"input[type='password']" if 'password' in target.lower() else None,
-                    f"input[type='tel']" if 'phone' in target.lower() else None,
+                    "input[type='email']" if 'email' in target.lower() else None,
+                    "input[type='password']" if 'password' in target.lower() else None,
+                    "input[type='tel']" if 'phone' in target.lower() else None,
                 ]
                 for selector in semantic_selectors:
                     if selector:
@@ -736,7 +852,7 @@ class PlaywrightWorker:
             xpath = f"//*[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{target.lower()}') and (self::button or self::a or self::span[@role='button'] or self::div[@role='button'])]"
             element = await self._page.locator(f"xpath={xpath}").first
             if await element.count() > 0:
-                logger.info(f"Found element via XPath text match")
+                logger.info("Found element via XPath text match")
                 return element
         except Exception:
             pass
@@ -746,7 +862,7 @@ class PlaywrightWorker:
             locator = self._page.locator(f"[data-testid*='{target}' i], [data-action*='{target}' i], [data-cy*='{target}' i]").first
             await locator.wait_for(state="visible", timeout=min(timeout, 2000))
             if await locator.count() > 0:
-                logger.info(f"Found element via data attribute")
+                logger.info("Found element via data attribute")
                 return locator
         except Exception:
             pass

@@ -52,7 +52,7 @@ Sniff run --goal "Complete signup" \
 
 ## Slide 3: How It Works - The Tech
 
-**Modular Architecture** (Python 3.11 + AWS Bedrock + Playwright)
+**Modular Architecture** (Python 3.11 + Gemini via Vertex AI + k2-horizon via ifm.ai + Playwright)
 
 ```
 CLI → Run Orchestrator (State Machine + Guardrails)
@@ -131,7 +131,7 @@ Sniff experiment run --name "Signup UX Audit" \
 🚀 **Next**: Partner with 2-3 beta companies, expand personas
 💡 **Vision**: Industry standard for autonomous signup testing
 
-**Why Now**: AI (Claude) + Playwright + SaaS growth = Perfect timing
+**Why Now**: AI (Gemini + k2-horizon) + Playwright + SaaS growth = Perfect timing
 
 **Try it**: [GitHub repo] | **Contact**: [Your info]
 

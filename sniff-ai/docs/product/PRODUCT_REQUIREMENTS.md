@@ -44,7 +44,7 @@ Enable teams to catch signup friction before real users are impacted by running 
 ## 5.1 Primary Goals (Hackathon MVP)
 
 - Execute one mobile signup journey autonomously.
-- Use an AI decision loop (Bedrock-backed) rather than static scripts only.
+- Use an AI decision loop (Gemini via Vertex AI for the vision-capable per-step decision, k2-horizon via ifm.ai for text-only goal enhancement/planning) rather than static scripts only.
 - Produce machine-readable diagnosis (`Backend`, `UX/Content`, `Performance`, `Integration`).
 - Trigger a real-time Slack alert with severity and evidence.
 - Provide reproducible run artifacts and reasoning timeline.
@@ -100,7 +100,7 @@ Persona setup is created with `Sniff personas add`, where minimal natural-langua
   - `Sniff alert test`
   - `Sniff demo`
 - Playwright-based mobile emulation worker
-- Bedrock-based decision service
+- Gemini/k2-horizon-based decision service
 - Diagnosis engine (hybrid rule + LLM interpretation)
 - Artifact and report generation
 - Slack webhook alerting
@@ -118,7 +118,7 @@ Persona setup is created with `Sniff personas add`, where minimal natural-langua
 ## 9.1 CLI and Configuration
 
 - FR-1: System must initialize project config through `Sniff init`.
-- FR-2: System must store Bedrock model/region, staging URL, Slack webhook, and defaults.
+- FR-2: System must store Gemini project/region/model, k2-horizon key/model, staging URL, Slack webhook, and defaults.
 - FR-3: System must support run-time overrides (`--persona`, `--device`, `--network`, `--url`).
 - FR-4: System must fail fast on missing required config.
 
@@ -142,7 +142,7 @@ Persona setup is created with `Sniff personas add`, where minimal natural-langua
 - FR-14: Worker must capture observations (URL, visible text hints, timing, errors).
 - FR-15: Worker must return structured execution results for each action.
 
-## 9.5 Agent Service (Bedrock)
+## 9.5 Agent Service (Gemini + k2-horizon)
 
 - FR-16: Agent service must receive observation + goal + persona + recent history.
 - FR-17: Agent service must return strict JSON action decisions.
@@ -186,14 +186,14 @@ This PRD maps directly to the architecture in `ARCHITECTURE.md`:
 - CLI control plane
 - Run orchestrator state machine
 - Local execution worker (tools)
-- Bedrock agent decision service
+- Gemini + k2-horizon agent decision service
 - Diagnosis engine
 - Evidence/report module
 - Slack alert module
 
 Deployment model for MVP:
 - Local runtime for CLI, orchestration, worker, diagnosis, alerting
-- Cloud Bedrock calls for AI reasoning
+- Cloud Gemini (Vertex AI) and k2-horizon (ifm.ai) calls for AI reasoning
 
 ---
 
@@ -237,7 +237,7 @@ Deployment model for MVP:
 ## 13.1 `Sniff init`
 
 - Must prompt for required environment settings.
-- Must validate Bedrock model + region configuration shape.
+- Must validate Gemini (project/region/model) and k2-horizon (key/model) configuration shape.
 - Must persist config to local project config file.
 
 ## 13.2 `Sniff personas add`
@@ -269,7 +269,7 @@ Deployment model for MVP:
 ## 14.1 First-Time Setup
 
 1. User runs `Sniff init`
-2. Provides staging URL, Bedrock details, webhook
+2. Provides staging URL, Gemini/k2-horizon details, webhook
 3. Config saved and validated
 
 ## 14.2 Persona Creation
@@ -292,7 +292,7 @@ Deployment model for MVP:
 ## 15. Edge Cases and Error Handling
 
 - Invalid webhook URL -> clear validation error
-- Bedrock timeout / malformed response -> bounded retry + fallback failure status
+- Gemini/k2-horizon timeout / malformed response -> bounded retry + fallback failure status
 - Agent loops on same screen -> stuck detection using dwell + repeated action signature
 - Missing persona profile -> suggest available profiles and exit
 - Navigation outside allowlist domain -> block and fail safely
@@ -348,7 +348,7 @@ Metrics should be available in run summary and stored with run metadata.
 ## M2: Execution Loop
 - Playwright worker tools
 - Orchestrator state machine
-- Bedrock decision integration
+- Gemini + k2-horizon decision integration
 
 ## M3: Diagnosis and Alert
 - Diagnosis classifier + severity mapping
