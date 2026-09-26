@@ -10,7 +10,7 @@ export default function ReplaySection() {
   const [terminalText, setTerminalText] = useState("");
   const [showAlert, setShowAlert] = useState(false);
 
-  const fullCommand = "$ sherlock run --persona confused_first_time_user --device iphone13 --network 3g";
+  const fullCommand = "$ sniff run --persona confused_first_time_user --device iphone13 --network 3g";
 
   useEffect(() => {
     if (!isInView) return;
@@ -38,11 +38,11 @@ export default function ReplaySection() {
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-primary mb-4">
+          <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
             See It In Action
           </h2>
-          <p className="text-lg text-muted max-w-2xl mx-auto">
-            Watch Sherlock detect a critical product-flow bug in real-time.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Watch Sniff detect a critical product-flow bug in real-time.
           </p>
         </motion.div>
 
@@ -52,13 +52,13 @@ export default function ReplaySection() {
             initial={{ opacity: 0, x: -30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.2, ease: [0.33, 1, 0.68, 1] }}
-            className="bg-primary rounded-2xl p-6 shadow-2xl overflow-hidden"
+            className="bg-foreground rounded-2xl p-6 shadow-2xl overflow-hidden"
           >
             <div className="flex items-center gap-2 mb-4">
               <div className="w-3 h-3 rounded-full bg-critical" />
               <div className="w-3 h-3 rounded-full bg-warning" />
               <div className="w-3 h-3 rounded-full bg-[#10B981]" />
-              <span className="ml-2 text-xs text-muted font-mono">sherlock-cli</span>
+              <span className="ml-2 text-xs text-muted-foreground font-mono">sniff-cli</span>
             </div>
             <div className="font-mono text-sm">
               <div className="text-[#10B981] mb-4">
@@ -70,7 +70,7 @@ export default function ReplaySection() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-2 text-muted/80"
+                  className="space-y-2 text-muted-foreground/80"
                 >
                   <div>→ Initializing persona: confused_first_time_user</div>
                   <div>→ Device: iPhone 13</div>
@@ -78,7 +78,7 @@ export default function ReplaySection() {
                   <div className="mt-4">Running product flow...</div>
                   <div className="text-warning">⚠ Button not responding after 3s</div>
                   <div className="text-critical">✗ Critical: Product flow blocked</div>
-                  <div className="text-accent">→ Generating diagnosis...</div>
+                  <div className="text-primary">→ Generating diagnosis...</div>
                   <div className="text-[#10B981]">✓ Alert sent to #eng-mobile</div>
                 </motion.div>
               )}
@@ -105,10 +105,10 @@ export default function ReplaySection() {
                       <span className="text-xl">🚨</span>
                     </div>
                     <div>
-                      <div className="font-display font-bold text-lg text-primary">
+                      <div className="font-display font-bold text-lg text-foreground">
                         Product Flow Blocked
                       </div>
-                      <div className="text-sm text-muted">2 minutes ago</div>
+                      <div className="text-sm text-muted-foreground">2 minutes ago</div>
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-critical/10 text-critical text-xs font-bold rounded-full">
@@ -118,27 +118,27 @@ export default function ReplaySection() {
 
                 <div className="space-y-4">
                   <div>
-                    <div className="text-sm font-medium text-primary mb-1">Issue</div>
-                    <div className="text-sm text-muted">
+                    <div className="text-sm font-medium text-foreground mb-1">Issue</div>
+                    <div className="text-sm text-muted-foreground">
                       Submit button unresponsive on iPhone 13 with 3G network
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-sm font-medium text-primary mb-1">Root Cause</div>
-                    <div className="text-sm text-muted">
+                    <div className="text-sm font-medium text-foreground mb-1">Root Cause</div>
+                    <div className="text-sm text-muted-foreground">
                       JavaScript event listener not attached due to slow bundle load
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-sm font-medium text-primary mb-1">Impact</div>
-                    <div className="text-sm text-muted">
+                    <div className="text-sm font-medium text-foreground mb-1">Impact</div>
+                    <div className="text-sm text-muted-foreground">
                       100% of product-flow attempts failing on slower connections
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-primary/10">
+                  <div className="pt-4 border-t border-foreground/10">
                     <button className="w-full px-4 py-3 bg-critical text-white rounded-lg font-medium hover:bg-critical/90 transition-colors">
                       View Full Diagnosis →
                     </button>

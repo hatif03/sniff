@@ -25,10 +25,10 @@ export default function ArchitectureSection() {
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-primary mb-4">
+          <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
             Technical Architecture
           </h2>
-          <p className="text-lg text-muted max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             A clean, scalable system built for production reliability.
           </p>
         </motion.div>
@@ -37,7 +37,7 @@ export default function ArchitectureSection() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={isInView ? { opacity: 1, scale: 1 } : {}}
           transition={{ duration: 0.5, delay: 0.2, ease: [0.33, 1, 0.68, 1] }}
-          className="bg-background rounded-2xl p-12 border border-primary/5 relative overflow-hidden"
+          className="bg-background rounded-2xl p-12 border border-foreground/5 relative overflow-hidden"
         >
           {/* Background grid */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(31,41,55,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(31,41,55,0.03)_1px,transparent_1px)] bg-[size:40px_40px]" />
@@ -50,8 +50,8 @@ export default function ArchitectureSection() {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="flex justify-center"
             >
-              <div className="bg-accent text-white px-8 py-4 rounded-xl font-mono text-sm font-medium shadow-lg">
-                sherlock run
+              <div className="bg-primary text-white px-8 py-4 rounded-xl font-mono text-sm font-medium shadow-lg">
+                sniff run
               </div>
             </motion.div>
 
@@ -60,7 +60,7 @@ export default function ArchitectureSection() {
               initial={{ scaleY: 0 }}
               animate={isInView ? { scaleY: 1 } : {}}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className="w-0.5 h-12 bg-gradient-to-b from-accent to-soft-accent mx-auto origin-top"
+              className="w-0.5 h-12 bg-gradient-to-b from-primary to-soft-accent mx-auto origin-top"
             />
 
             {/* Middle Layer */}
@@ -71,11 +71,11 @@ export default function ArchitectureSection() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={isInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
-                  className="bg-surface rounded-xl p-6 border-2 border-primary/10 hover:border-accent/30 transition-all shadow-sm hover:shadow-md"
+                  className="bg-surface rounded-xl p-6 border-2 border-foreground/10 hover:border-primary/30 transition-all shadow-sm hover:shadow-md"
                 >
                   <div className="text-center">
-                    <div className="font-display font-bold text-primary mb-2">{node}</div>
-                    <div className="text-xs text-muted">
+                    <div className="font-display font-bold text-foreground mb-2">{node}</div>
+                    <div className="text-xs text-muted-foreground">
                       {node === "Worker" && "Execution engine"}
                       {node === "Agent" && "Persona simulator"}
                       {node === "Diagnosis" && "AI analysis"}
@@ -90,7 +90,7 @@ export default function ArchitectureSection() {
               initial={{ scaleY: 0 }}
               animate={isInView ? { scaleY: 1 } : {}}
               transition={{ duration: 0.5, delay: 0.8 }}
-              className="w-0.5 h-12 bg-gradient-to-b from-soft-accent to-accent mx-auto origin-top"
+              className="w-0.5 h-12 bg-gradient-to-b from-soft-accent to-primary mx-auto origin-top"
             />
 
             {/* Alerting Node (Bottom) */}
@@ -100,7 +100,7 @@ export default function ArchitectureSection() {
               transition={{ duration: 0.5, delay: 0.9 }}
               className="flex justify-center"
             >
-              <div className="bg-gradient-to-r from-accent to-soft-accent text-white px-8 py-4 rounded-xl font-display font-medium shadow-lg flex items-center gap-3">
+              <div className="bg-gradient-to-r from-primary to-soft-accent text-white px-8 py-4 rounded-xl font-display font-medium shadow-lg flex items-center gap-3">
                 <span>📢</span>
                 <span>Slack Alert</span>
               </div>
@@ -117,7 +117,7 @@ export default function ArchitectureSection() {
             {["TypeScript", "AWS Bedrock", "Playwright", "Slack API"].map((tech) => (
               <span
                 key={tech}
-                className="px-4 py-2 bg-surface border border-primary/10 rounded-full text-sm text-muted font-medium"
+                className="px-4 py-2 bg-surface border border-foreground/10 rounded-full text-sm text-muted-foreground font-medium"
               >
                 {tech}
               </span>

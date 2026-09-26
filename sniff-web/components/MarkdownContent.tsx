@@ -20,14 +20,14 @@ export default function MarkdownContent({ content }: MarkdownContentProps) {
 
           if (isInline) {
             return (
-              <code className="bg-primary/10 text-accent px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+              <code className="bg-foreground/10 text-primary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
                 {children}
               </code>
             );
           }
 
           return (
-            <pre className="bg-primary text-white p-4 rounded-lg overflow-x-auto my-4">
+            <pre className="bg-foreground text-white p-4 rounded-lg overflow-x-auto my-4">
               <code className="font-mono text-sm" {...props}>
                 {children}
               </code>
@@ -40,7 +40,7 @@ export default function MarkdownContent({ content }: MarkdownContentProps) {
           return (
             <h2
               id={id}
-              className="text-2xl font-display font-bold text-primary mb-4 mt-8 pb-2 border-b border-primary/10 scroll-mt-24"
+              className="text-2xl font-display font-bold text-foreground mb-4 mt-8 pb-2 border-b border-foreground/10 scroll-mt-24"
             >
               {children}
             </h2>
@@ -48,21 +48,21 @@ export default function MarkdownContent({ content }: MarkdownContentProps) {
         },
         h3({ children }) {
           return (
-            <h3 className="text-xl font-display font-semibold text-primary mt-6 mb-3">
+            <h3 className="text-xl font-display font-semibold text-foreground mt-6 mb-3">
               {children}
             </h3>
           );
         },
         // Custom styling for paragraphs
         p({ children }) {
-          return <p className="text-muted leading-relaxed my-4">{children}</p>;
+          return <p className="text-muted-foreground leading-relaxed my-4">{children}</p>;
         },
         // Custom styling for links
         a({ href, children }) {
           return (
             <a
               href={href}
-              className="text-accent hover:text-accent/80 underline transition-colors"
+              className="text-primary hover:text-primary/80 underline transition-colors"
               target={href?.startsWith('http') ? '_blank' : undefined}
               rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
             >
@@ -72,16 +72,16 @@ export default function MarkdownContent({ content }: MarkdownContentProps) {
         },
         // Custom styling for lists
         ul({ children }) {
-          return <ul className="list-disc list-inside space-y-2 text-muted my-4">{children}</ul>;
+          return <ul className="list-disc list-inside space-y-2 text-muted-foreground my-4">{children}</ul>;
         },
         ol({ children }) {
-          return <ol className="list-decimal list-inside space-y-2 text-muted my-4">{children}</ol>;
+          return <ol className="list-decimal list-inside space-y-2 text-muted-foreground my-4">{children}</ol>;
         },
         // Custom styling for tables
         table({ children }) {
           return (
             <div className="overflow-x-auto my-6">
-              <table className="w-full border-collapse border border-primary/10">
+              <table className="w-full border-collapse border border-foreground/10">
                 {children}
               </table>
             </div>
@@ -92,14 +92,14 @@ export default function MarkdownContent({ content }: MarkdownContentProps) {
         },
         th({ children }) {
           return (
-            <th className="border border-primary/10 px-4 py-2 text-left font-semibold text-primary">
+            <th className="border border-foreground/10 px-4 py-2 text-left font-semibold text-foreground">
               {children}
             </th>
           );
         },
         td({ children }) {
           return (
-            <td className="border border-primary/10 px-4 py-2 text-muted">
+            <td className="border border-foreground/10 px-4 py-2 text-muted-foreground">
               {children}
             </td>
           );
@@ -107,14 +107,14 @@ export default function MarkdownContent({ content }: MarkdownContentProps) {
         // Custom styling for blockquotes
         blockquote({ children }) {
           return (
-            <blockquote className="border-l-4 border-accent/30 pl-4 italic text-muted my-4">
+            <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4">
               {children}
             </blockquote>
           );
         },
         // Custom styling for strong
         strong({ children }) {
-          return <strong className="font-semibold text-primary">{children}</strong>;
+          return <strong className="font-semibold text-foreground">{children}</strong>;
         },
         }}
       >

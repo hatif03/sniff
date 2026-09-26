@@ -9,7 +9,7 @@ export default function FooterCTA() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-32 px-6 bg-gradient-to-br from-primary to-primary/90 text-white relative overflow-hidden">
+    <section ref={ref} className="py-32 px-6 bg-gradient-to-br from-foreground to-foreground/90 text-white relative overflow-hidden">
       {/* Background pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
 
@@ -20,7 +20,7 @@ export default function FooterCTA() {
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
         >
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-6 leading-tight">
-            Launch Sherlock in 60 Seconds
+            Launch Sniff in 60 Seconds
           </h2>
           <p className="text-lg md:text-xl text-white/80 mb-12 max-w-2xl mx-auto leading-relaxed">
             Start running persona-driven experiments and catch product-flow bugs before your users do.
@@ -30,7 +30,7 @@ export default function FooterCTA() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 bg-accent text-white rounded-lg font-medium shadow-xl hover:shadow-2xl transition-all duration-200"
+              className="px-8 py-4 bg-primary text-white rounded-lg font-medium shadow-xl hover:shadow-2xl transition-all duration-200"
             >
               Get Started
             </motion.button>
@@ -65,7 +65,7 @@ export default function FooterCTA() {
               <div className="w-3 h-3 rounded-full bg-[#10B981]" />
             </div>
             <code className="font-mono text-sm md:text-base text-[#10B981] block text-left">
-              $ sherlock run --persona confused_first_time_user --device iphone13 --network 3g
+              $ sniff run --persona confused_first_time_user --device iphone13 --network 3g
             </code>
           </motion.div>
         </motion.div>
@@ -79,7 +79,7 @@ export default function FooterCTA() {
         className="mt-20 text-center text-white/60 text-sm relative z-10"
       >
         <p>Built with Claude, Bedrock, and ❤️ for better product experiences.</p>
-        <p className="mt-2">© 2026 Sherlock Personas. All rights reserved.</p>
+        <p className="mt-2">© 2026 Sniff. All rights reserved.</p>
       </motion.div>
     </section>
   );

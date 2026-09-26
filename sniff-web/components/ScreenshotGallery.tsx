@@ -36,7 +36,7 @@ export default function ScreenshotGallery({ runId }: { runId: string }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
-        className="text-2xl font-display font-bold text-primary mb-6"
+        className="text-2xl font-display font-bold text-foreground mb-6"
       >
         Journey Screenshots
       </motion.h3>
@@ -46,7 +46,7 @@ export default function ScreenshotGallery({ runId }: { runId: string }) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.2, ease: [0.33, 1, 0.68, 1] }}
-        className="bg-surface rounded-2xl overflow-hidden border border-primary/10 shadow-lg mb-4"
+        className="bg-surface rounded-2xl overflow-hidden border border-foreground/10 shadow-lg mb-4"
       >
         {observations[selectedStep] && (
           <div className="relative">
@@ -58,7 +58,7 @@ export default function ScreenshotGallery({ runId }: { runId: string }) {
                 className="object-contain"
               />
             </div>
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary/90 to-transparent p-6">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-foreground/90 to-transparent p-6">
               <p className="text-surface font-display font-bold text-lg">
                 Step {observations[selectedStep].step}
               </p>
@@ -81,8 +81,8 @@ export default function ScreenshotGallery({ runId }: { runId: string }) {
             onClick={() => setSelectedStep(i)}
             className={`flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden border-2 transition-all relative ${
               selectedStep === i
-                ? 'border-accent shadow-lg scale-105'
-                : 'border-primary/10 hover:border-accent/50 opacity-60 hover:opacity-100'
+                ? 'border-primary shadow-lg scale-105'
+                : 'border-foreground/10 hover:border-primary/50 opacity-60 hover:opacity-100'
             }`}
           >
             <Image

@@ -35,10 +35,10 @@ export default function ProblemSection() {
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-primary mb-4">
+          <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
             Most Teams Find Out Too Late
           </h2>
-          <p className="text-lg text-muted max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             By the time you hear from users, conversions have already dropped.
           </p>
         </motion.div>
@@ -54,16 +54,16 @@ export default function ProblemSection() {
                 delay: 0.2 + index * 0.1,
                 ease: [0.33, 1, 0.68, 1],
               }}
-              className="bg-background rounded-2xl p-8 border border-primary/5 hover:border-accent/20 transition-all duration-300 hover:shadow-lg"
+              className="bg-background rounded-2xl p-8 border border-foreground/5 hover:border-primary/20 transition-all duration-300 hover:shadow-lg"
             >
               <div className={`text-5xl font-display font-bold mb-3 ${
                 stat.color === 'critical' ? 'text-critical' :
                 stat.color === 'warning' ? 'text-warning' :
-                'text-accent'
+                'text-primary'
               }`}>
                 {stat.value}
               </div>
-              <p className="text-base text-muted leading-relaxed">{stat.label}</p>
+              <p className="text-base text-muted-foreground leading-relaxed">{stat.label}</p>
             </motion.div>
           ))}
         </div>

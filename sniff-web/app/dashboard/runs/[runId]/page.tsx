@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import RunTimeline from '@/components/RunTimeline';
 import AgentReasoningViz from '@/components/AgentReasoningViz';
 import PersonaReviewCard from '@/components/PersonaReviewCard';
@@ -45,9 +48,9 @@ export default function RunDetailsPage({ params }: { params: Promise<{ runId: st
     return (
       <main className="min-h-screen py-32 px-6 bg-background">
         <div className="max-w-6xl mx-auto space-y-8">
-          <div className="animate-pulse bg-surface rounded-xl h-32 border border-primary/10" />
-          <div className="animate-pulse bg-surface rounded-xl h-64 border border-primary/10" />
-          <div className="animate-pulse bg-surface rounded-xl h-96 border border-primary/10" />
+          <div className="animate-pulse bg-card rounded-xl h-32 ring-1 ring-foreground/10" />
+          <div className="animate-pulse bg-card rounded-xl h-64 ring-1 ring-foreground/10" />
+          <div className="animate-pulse bg-card rounded-xl h-96 ring-1 ring-foreground/10" />
         </div>
       </main>
     );
@@ -60,20 +63,20 @@ export default function RunDetailsPage({ params }: { params: Promise<{ runId: st
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-surface rounded-xl p-12 border border-primary/10 text-center"
           >
-            <h2 className="text-2xl font-display font-bold text-primary mb-4">
-              Run Not Found
-            </h2>
-            <p className="text-muted mb-6">
-              The test run you&apos;re looking for doesn&apos;t exist or hasn&apos;t been uploaded yet.
-            </p>
-            <Link
-              href="/dashboard"
-              className="inline-block px-6 py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors"
-            >
-              Back to Dashboard
-            </Link>
+            <Card size="sm" className="[--card-spacing:--spacing(12)]">
+              <CardContent className="text-center">
+                <h2 className="text-2xl font-display font-bold text-foreground mb-4">
+                  Run Not Found
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  The test run you&apos;re looking for doesn&apos;t exist or hasn&apos;t been uploaded yet.
+                </p>
+                <Button asChild>
+                  <Link href="/dashboard">Back to Dashboard</Link>
+                </Button>
+              </CardContent>
+            </Card>
           </motion.div>
         </div>
       </main>
@@ -90,30 +93,25 @@ export default function RunDetailsPage({ params }: { params: Promise<{ runId: st
         >
           <Link
             href="/dashboard"
-            className="text-sm text-muted hover:text-accent transition-colors mb-4 inline-block"
+            className="text-sm text-muted-foreground hover:text-primary transition-colors mb-4 inline-block"
           >
             ← Back to Dashboard
           </Link>
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-5xl font-display font-bold text-primary mb-4">
+              <h1 className="text-5xl font-display font-bold text-foreground mb-4">
                 {run.persona_name} Journey
               </h1>
-              <p className="text-lg text-muted">{run.goal}</p>
+              <p className="text-lg text-muted-foreground">{run.goal}</p>
             </div>
-            <span
-              className={`px-4 py-2 rounded-full text-sm font-bold ${
-                run.outcome === 'success'
-                  ? 'bg-accent/10 text-accent'
-                  : run.outcome === 'failure'
-                  ? 'bg-critical/10 text-critical'
-                  : 'bg-warning/10 text-warning'
-              }`}
+            <Badge
+              variant={run.outcome === 'success' ? 'default' : run.outcome === 'failure' ? 'destructive' : 'secondary'}
+              className="px-4 py-2 text-sm font-bold"
             >
               {run.outcome}
-            </span>
+            </Badge>
           </div>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             {new Date(run.created_at).toLocaleString()}
           </p>
         </motion.div>

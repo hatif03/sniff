@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
 import { getObservations, getActions } from '@/lib/queries';
 
 interface TimelineStep {
@@ -45,7 +46,7 @@ export default function RunTimeline({ runId }: { runId: string }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
-        className="text-2xl font-display font-bold text-primary mb-6"
+        className="text-2xl font-display font-bold text-foreground mb-6"
       >
         Journey Timeline
       </motion.h3>
@@ -55,25 +56,28 @@ export default function RunTimeline({ runId }: { runId: string }) {
             key={i}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: i * 0.1, ease: [0.33, 1, 0.68, 1] }}
-            className="flex items-center gap-4 bg-surface rounded-xl p-4 border border-primary/10 hover:border-accent/30 transition-all shadow-sm hover:shadow-md"
+            transition={{ duration: 0.5, delay: i * 0.08, ease: [0.33, 1, 0.68, 1] }}
           >
-            <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-mono text-sm font-bold ${
-                step.success
-                  ? 'bg-accent/10 text-accent border-2 border-accent/20'
-                  : 'bg-critical/10 text-critical border-2 border-critical/20'
-              }`}
-            >
-              {step.step}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-display font-semibold text-primary">{step.action || 'Navigated'}</p>
-              <p className="text-sm text-muted font-mono break-all">{step.url}</p>
-            </div>
-            {step.duration && (
-              <span className="text-sm text-muted font-mono">{step.duration}ms</span>
-            )}
+            <Card className="transition-all hover:ring-primary/30 hover:shadow-md">
+              <CardContent className="flex items-center gap-4">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-mono text-sm font-bold shrink-0 ${
+                    step.success
+                      ? 'bg-primary/10 text-primary border-2 border-primary/20'
+                      : 'bg-critical/10 text-critical border-2 border-critical/20'
+                  }`}
+                >
+                  {step.step}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-semibold text-foreground">{step.action || 'Navigated'}</p>
+                  <p className="text-sm text-muted-foreground font-mono break-all">{step.url}</p>
+                </div>
+                {step.duration && (
+                  <span className="text-sm text-muted-foreground font-mono">{step.duration}ms</span>
+                )}
+              </CardContent>
+            </Card>
           </motion.div>
         ))}
       </div>

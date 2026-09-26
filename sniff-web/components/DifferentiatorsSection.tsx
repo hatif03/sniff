@@ -9,7 +9,7 @@ const differentiators = [
     title: "Persona-Driven Behavior",
     description: "Real user patterns, not scripted tests. Confused first-timers to power users.",
     icon: "🎭",
-    gradient: "from-accent/10 to-soft-accent/10",
+    gradient: "from-primary/10 to-soft-accent/10",
   },
   {
     title: "Root-Cause Intelligence",
@@ -21,7 +21,7 @@ const differentiators = [
     title: "Bedrock-Powered Decisions",
     description: "Claude analyzes context and makes smart decisions about severity and routing.",
     icon: "⚡",
-    gradient: "from-accent/10 to-accent/5",
+    gradient: "from-primary/10 to-primary/5",
   },
   {
     title: "Slack Escalation with Evidence",
@@ -44,10 +44,10 @@ export default function DifferentiatorsSection() {
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-primary mb-4">
+          <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
             Why Judges Will Love It
           </h2>
-          <p className="text-lg text-muted max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Built for the real world, powered by cutting-edge AI.
           </p>
         </motion.div>
@@ -64,15 +64,15 @@ export default function DifferentiatorsSection() {
                 ease: [0.33, 1, 0.68, 1],
               }}
               whileHover={{ y: -8, transition: { duration: 0.2 } }}
-              className={`bg-gradient-to-br ${item.gradient} rounded-2xl p-8 border border-primary/5 hover:border-accent/20 transition-all duration-300 hover:shadow-xl cursor-pointer group`}
+              className={`bg-gradient-to-br ${item.gradient} rounded-2xl p-8 border border-foreground/5 hover:border-primary/20 transition-all duration-300 hover:shadow-xl cursor-pointer group`}
             >
               <div className="text-4xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
                 {item.icon}
               </div>
-              <h3 className="text-xl font-display font-bold text-primary mb-3">
+              <h3 className="text-xl font-display font-bold text-foreground mb-3">
                 {item.title}
               </h3>
-              <p className="text-muted leading-relaxed">{item.description}</p>
+              <p className="text-muted-foreground leading-relaxed">{item.description}</p>
             </motion.div>
           ))}
         </div>

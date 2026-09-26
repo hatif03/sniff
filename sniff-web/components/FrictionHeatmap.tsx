@@ -34,7 +34,7 @@ export default function FrictionHeatmap() {
         initial={{ opacity: 0, y: 20 }}
         animate={isInView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
-        className="text-2xl font-display font-bold text-primary mb-6"
+        className="text-2xl font-display font-bold text-foreground mb-6"
       >
         Top Friction Points
       </motion.h3>
@@ -49,14 +49,14 @@ export default function FrictionHeatmap() {
               initial={{ opacity: 0, x: -20 }}
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.5, delay: i * 0.05, ease: [0.33, 1, 0.68, 1] }}
-              className="bg-surface rounded-xl p-4 border border-primary/10 hover:border-accent/30 transition-all shadow-sm hover:shadow-md"
+              className="bg-surface rounded-xl p-4 border border-foreground/10 hover:border-primary/30 transition-all shadow-sm hover:shadow-md"
             >
               <div className="flex items-center gap-4">
                 <div className="flex-1">
-                  <p className="text-sm font-display font-semibold text-primary mb-1">
+                  <p className="text-sm font-display font-semibold text-foreground mb-1">
                     {item.friction_point}
                   </p>
-                  <p className="text-xs text-muted">{item.persona_name}</p>
+                  <p className="text-xs text-muted-foreground">{item.persona_name}</p>
                 </div>
                 <div className="w-32 bg-background rounded-full h-3 overflow-hidden">
                   <motion.div
@@ -68,11 +68,11 @@ export default function FrictionHeatmap() {
                         ? 'bg-gradient-to-r from-critical to-critical/70'
                         : intensity === 'warning'
                         ? 'bg-gradient-to-r from-warning to-warning/70'
-                        : 'bg-gradient-to-r from-soft-accent to-accent'
+                        : 'bg-gradient-to-r from-soft-accent to-primary'
                     }`}
                   />
                 </div>
-                <span className="text-sm font-mono font-bold text-primary min-w-[2rem] text-right">
+                <span className="text-sm font-mono font-bold text-foreground min-w-[2rem] text-right">
                   {item.occurrence_count}
                 </span>
               </div>

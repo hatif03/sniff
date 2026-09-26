@@ -5,8 +5,8 @@ import { Metadata } from 'next';
 import MarkdownContent from '@/components/MarkdownContent';
 
 export const metadata: Metadata = {
-  title: "CLI Documentation - Sherlock Personas",
-  description: "Complete guide to using the Sherlock CLI for persona-driven signup testing.",
+  title: "CLI Documentation - Sniff",
+  description: "Complete guide to using the Sniff CLI for persona-driven signup testing.",
 };
 
 // Read the markdown file at build time
@@ -36,19 +36,19 @@ export default function DocsPage() {
   return (
     <main className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-surface border-b border-primary/10 sticky top-0 z-50 backdrop-blur-sm bg-surface/95">
+      <header className="bg-surface border-b border-foreground/10 sticky top-0 z-50 backdrop-blur-sm bg-surface/95">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link href="/" className="text-2xl font-display font-bold text-primary hover:text-accent transition-colors">
-                Sherlock
+              <Link href="/" className="text-2xl font-display font-bold text-foreground hover:text-primary transition-colors">
+                Sniff
               </Link>
-              <span className="text-muted">/</span>
-              <span className="text-lg font-medium text-muted">Documentation</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-lg font-medium text-muted-foreground">Documentation</span>
             </div>
             <Link
               href="/"
-              className="px-4 py-2 text-sm font-medium text-muted hover:text-primary transition-colors"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               ← Back to Home
             </Link>
@@ -61,7 +61,7 @@ export default function DocsPage() {
           {/* Sidebar Table of Contents */}
           <aside className="lg:col-span-1">
             <div className="sticky top-24">
-              <h2 className="text-sm font-bold text-primary uppercase tracking-wide mb-4">
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wide mb-4">
                 On This Page
               </h2>
               <nav className="space-y-2">
@@ -69,7 +69,7 @@ export default function DocsPage() {
                   <a
                     key={item.id}
                     href={`#${item.id}`}
-                    className="block text-sm text-muted hover:text-accent transition-colors py-1"
+                    className="block text-sm text-muted-foreground hover:text-primary transition-colors py-1"
                   >
                     {item.title}
                   </a>
@@ -81,11 +81,11 @@ export default function DocsPage() {
           {/* Main Content */}
           <article className="lg:col-span-3">
             <div className="mb-8">
-              <h1 className="text-4xl font-display font-bold text-primary mb-4">
-                Sherlock CLI Documentation
+              <h1 className="text-4xl font-display font-bold text-foreground mb-4">
+                Sniff CLI Documentation
               </h1>
-              <p className="text-lg text-muted">
-                Everything you need to know to run persona-driven signup tests with Sherlock.
+              <p className="text-lg text-muted-foreground">
+                Everything you need to know to run persona-driven signup tests with Sniff.
               </p>
             </div>
 
@@ -93,20 +93,20 @@ export default function DocsPage() {
             <MarkdownContent content={content} />
 
             {/* Footer CTA */}
-            <div className="mt-16 p-8 bg-gradient-to-br from-accent/10 to-soft-accent/10 rounded-2xl border border-accent/20">
-              <h3 className="text-2xl font-display font-bold text-primary mb-3">
+            <div className="mt-16 p-8 bg-gradient-to-br from-primary/10 to-soft-accent/10 rounded-2xl border border-primary/20">
+              <h3 className="text-2xl font-display font-bold text-foreground mb-3">
                 Ready to Get Started?
               </h3>
-              <p className="text-muted mb-6">
-                Install Sherlock CLI and run your first persona-driven test in under 60 seconds.
+              <p className="text-muted-foreground mb-6">
+                Install Sniff CLI and run your first persona-driven test in under 60 seconds.
               </p>
-              <div className="bg-primary text-white p-4 rounded-lg font-mono text-sm mb-4">
-                $ pip install sherlock-personas<br/>
-                $ sherlock run --persona confused_first_time_user
+              <div className="bg-foreground text-white p-4 rounded-lg font-mono text-sm mb-4">
+                $ pip install sniff<br/>
+                $ sniff run --persona confused_first_time_user
               </div>
               <Link
                 href="/"
-                className="inline-block px-6 py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors"
+                className="inline-block px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
               >
                 Back to Home
               </Link>

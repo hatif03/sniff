@@ -8,7 +8,7 @@ const steps = [
   {
     number: "01",
     title: "Simulate User",
-    description: "Sherlock Personas act like real users across devices and network conditions.",
+    description: "Sniff acts like a real user across devices and network conditions.",
     icon: "👤",
   },
   {
@@ -44,17 +44,17 @@ export default function HowItWorksSection() {
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
           className="text-center mb-20"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-primary mb-4">
+          <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
             How It Works
           </h2>
-          <p className="text-lg text-muted max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Four simple steps from persona to production-ready insights.
           </p>
         </motion.div>
 
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-accent/20 via-accent/40 to-accent/20" />
+          <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/20 via-primary/40 to-primary/20" />
 
           <div className="space-y-16">
             {steps.map((step, index) => (
@@ -72,20 +72,20 @@ export default function HowItWorksSection() {
                 }`}
               >
                 {/* Timeline node */}
-                <div className="absolute left-8 md:left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-accent flex items-center justify-center text-2xl shadow-lg z-10">
+                <div className="absolute left-8 md:left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl shadow-lg z-10">
                   {step.icon}
                 </div>
 
                 {/* Content card */}
                 <div className={`flex-1 ${index % 2 === 0 ? 'md:pr-24' : 'md:pl-24'} pl-24 md:pl-0 md:pr-0`}>
-                  <div className={`bg-surface rounded-2xl p-8 border border-primary/5 shadow-sm hover:shadow-md transition-all duration-300 ${
+                  <div className={`bg-surface rounded-2xl p-8 border border-foreground/5 shadow-sm hover:shadow-md transition-all duration-300 ${
                     index % 2 === 0 ? 'md:ml-0 md:mr-auto md:text-right' : 'md:ml-auto md:mr-0'
                   } max-w-md`}>
-                    <div className="text-sm font-mono text-accent mb-2">{step.number}</div>
-                    <h3 className="text-2xl font-display font-bold text-primary mb-3">
+                    <div className="text-sm font-mono text-primary mb-2">{step.number}</div>
+                    <h3 className="text-2xl font-display font-bold text-foreground mb-3">
                       {step.title}
                     </h3>
-                    <p className="text-muted leading-relaxed">{step.description}</p>
+                    <p className="text-muted-foreground leading-relaxed">{step.description}</p>
                   </div>
                 </div>
               </motion.div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
+import { cn } from "@/lib/utils";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -22,10 +23,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sherlock Personas — AI Signup Experiments With Instant Team Alerts",
+  title: "Sniff — AI Signup Experiments With Instant Team Alerts",
   description: "Persona-driven mobile/web signup experiments with diagnosis and instant team alerts.",
   openGraph: {
-    title: "Sherlock Personas — AI Signup Experiments With Instant Team Alerts",
+    title: "Sniff — AI Signup Experiments With Instant Team Alerts",
     description: "Persona-driven mobile/web signup experiments with diagnosis and instant team alerts.",
     type: "website",
   },
@@ -37,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={cn(spaceGrotesk.variable, inter.variable, jetbrainsMono.variable, "font-sans")}>
       <body>
         <SmoothScroll />
         {children}
