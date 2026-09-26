@@ -4,6 +4,8 @@ Endpoints:
 - POST /runs - start a single-persona run in the background, returns run_id immediately
 - GET /runs/{run_id} - poll run status/result
 - POST /experiments - start a multi-persona experiment in the background
+- POST/GET/PATCH/DELETE /schedules - recurring run/audit definitions (requires Supabase)
+- POST /internal/scheduler/tick - ticked by an external Cloud Scheduler job, not the frontend
 - GET /status - liveness check, no auth
 
 Phase 1 scope (see docs/product/SAAS_ROADMAP.md):
@@ -28,7 +30,7 @@ from ..core.experiment_models import ExperimentConfig
 from ..core.experiment_orchestrator import ExperimentOrchestrator
 from ..core.models import DiagnosisResult
 from ..core.orchestrator import RunOrchestrator
-from ..integrations.supabase_client import create_supabase_uploader
+from ..integrations.supabase_client import create_schedule_store, create_supabase_uploader
 from .schemas import (
     AuditRequest,
     AuditResponse,
@@ -40,6 +42,10 @@ from .schemas import (
     RunRequest,
     RunResponse,
     RunStatusResponse,
+    ScheduleRequest,
+    ScheduleResponse,
+    ScheduleUpdateRequest,
+    TickResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -236,6 +242,17 @@ async def _execute_audit(audit_id: str, req: AuditRequest) -> None:
         )
         AUDIT_STORE[audit_id].update(status="completed", report=report, error=None)
 
+        uploader = create_supabase_uploader(config)
+        if uploader:
+            upload_result = uploader.upload_audit(
+                audit_id=audit_id,
+                url=req.url,
+                persona=req.persona,
+                report=report,
+            )
+            if not upload_result.get("success"):
+                logger.warning(f"Supabase upload failed for audit {audit_id}: {upload_result.get('error')}")
+
     except Exception as e:
         logger.error(f"Audit {audit_id} failed: {e}", exc_info=True)
         AUDIT_STORE[audit_id].update(status="failed", error=str(e))
@@ -303,3 +320,132 @@ def create_experiment(req: ExperimentRequest, background_tasks: BackgroundTasks)
     background_tasks.add_task(_execute_experiment, orchestrator, experiment)
 
     return ExperimentResponse(experiment_id=experiment.experiment_id, status="queued")
+
+
+# -- Schedules: recurring runs/audits -----------------------------------
+#
+# Persisted in Supabase (ScheduleStore), not an in-process scheduler - this
+# service autoscales to multiple Cloud Run instances, and an in-process
+# scheduler would independently fire the same job on every instance. An
+# external Cloud Scheduler job ticks POST /internal/scheduler/tick on a
+# fixed cadence instead; see ScheduleStore.claim_due_schedule for the
+# atomic-claim logic that makes concurrent/overlapping ticks safe.
+
+
+def _require_schedule_store() -> Any:
+    store = create_schedule_store(config)
+    if store is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Schedules require Supabase to be configured (SUPABASE_ENABLED=true) - there is no other persistent home for schedule definitions.",
+        )
+    return store
+
+
+@app.post("/schedules", response_model=ScheduleResponse, dependencies=[Depends(require_auth)])
+def create_schedule(req: ScheduleRequest) -> ScheduleResponse:
+    """Create a recurring run/audit definition."""
+    if req.mode not in ("run", "audit"):
+        raise HTTPException(status_code=400, detail="mode must be 'run' or 'audit'")
+    if req.mode == "run" and not req.goal:
+        raise HTTPException(status_code=400, detail="goal is required when mode='run'")
+
+    store = _require_schedule_store()
+    schedule_id = f"sched_{uuid4().hex[:12]}"
+    now = datetime.utcnow()
+    row = store.create_schedule(
+        schedule_id,
+        name=req.name,
+        mode=req.mode,
+        url=req.url,
+        goal=req.goal,
+        persona=req.persona,
+        device=req.device,
+        network=req.network,
+        interval_minutes=req.interval_minutes,
+        enabled=True,
+        next_run_at=now.isoformat(),
+    )
+    return ScheduleResponse(**row)
+
+
+@app.get("/schedules", response_model=list[ScheduleResponse], dependencies=[Depends(require_auth)])
+def list_schedules() -> list[ScheduleResponse]:
+    store = _require_schedule_store()
+    return [ScheduleResponse(**row) for row in store.list_schedules()]
+
+
+@app.patch("/schedules/{schedule_id}", response_model=ScheduleResponse, dependencies=[Depends(require_auth)])
+def update_schedule(schedule_id: str, req: ScheduleUpdateRequest) -> ScheduleResponse:
+    store = _require_schedule_store()
+    row = store.update_schedule(
+        schedule_id,
+        name=req.name,
+        enabled=req.enabled,
+        interval_minutes=req.interval_minutes,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Unknown schedule_id: {schedule_id}")
+    return ScheduleResponse(**row)
+
+
+@app.delete("/schedules/{schedule_id}", dependencies=[Depends(require_auth)])
+def delete_schedule(schedule_id: str) -> dict:
+    store = _require_schedule_store()
+    if not store.delete_schedule(schedule_id):
+        raise HTTPException(status_code=404, detail=f"Unknown schedule_id: {schedule_id}")
+    return {"deleted": schedule_id}
+
+
+def _schedule_still_busy(last_run_id: str | None, mode: str) -> bool:
+    """True if this schedule's last run/audit is still queued/running -
+    guards against a slow run piling up duplicate executions if it outlasts
+    its own interval."""
+    if not last_run_id:
+        return False
+    store = RUN_STORE if mode == "run" else AUDIT_STORE
+    entry = store.get(last_run_id)
+    return entry is not None and entry.get("status") in ("queued", "running")
+
+
+@app.post("/internal/scheduler/tick", response_model=TickResponse, dependencies=[Depends(require_auth)])
+def scheduler_tick(background_tasks: BackgroundTasks) -> TickResponse:
+    """Hit by an external Cloud Scheduler job on a fixed cadence (not called
+    by the frontend). Finds due schedules, atomically claims each one, and
+    enqueues its run/audit via the same background-task path POST /runs and
+    POST /audits already use."""
+    store = _require_schedule_store()
+    now = datetime.utcnow()
+
+    triggered: list[str] = []
+    skipped_busy: list[str] = []
+
+    for schedule_id in store.get_due_schedule_ids(now):
+        row = store.get_schedule(schedule_id)
+        if row is None:
+            continue
+        if _schedule_still_busy(row.get("last_run_id"), row["mode"]):
+            skipped_busy.append(schedule_id)
+            continue
+        if not store.claim_due_schedule(schedule_id, row["interval_minutes"], now):
+            # Another tick claimed it first (overlapping tick calls) - skip.
+            continue
+
+        if row["mode"] == "run":
+            timestamp = now.strftime("%Y%m%d_%H%M%S")
+            run_id = f"run_{timestamp}_{uuid4().hex[:8]}"
+            RUN_STORE[run_id] = {"status": "queued", "outcome": None, "diagnosis": None, "supabase_url": None, "error": None}
+            req = RunRequest(goal=row["goal"], url=row["url"], persona=row["persona"] or "confused_first_time_user", device=row.get("device"), network=row.get("network"))
+            background_tasks.add_task(_execute_run, run_id, req)
+            store.record_last_run(schedule_id, run_id)
+        else:
+            timestamp = now.strftime("%Y%m%d_%H%M%S")
+            audit_id = f"audit_{timestamp}_{uuid4().hex[:8]}"
+            AUDIT_STORE[audit_id] = {"status": "queued", "report": None, "error": None}
+            audit_req = AuditRequest(url=row["url"], persona=row.get("persona"))
+            background_tasks.add_task(_execute_audit, audit_id, audit_req)
+            store.record_last_run(schedule_id, audit_id)
+
+        triggered.append(schedule_id)
+
+    return TickResponse(ticked_at=now.isoformat(), triggered=triggered, skipped_busy=skipped_busy)

@@ -84,3 +84,45 @@ class AuditStatusResponse(BaseModel):
     status: str
     report: AuditReport | None = None
     error: str | None = None
+
+
+class ScheduleRequest(BaseModel):
+    """Body for POST /schedules."""
+    name: str = Field(..., description="Human-readable label")
+    mode: str = Field(..., description="'run' or 'audit'")
+    url: str
+    goal: str | None = Field(default=None, description="Required when mode='run', ignored for 'audit'")
+    persona: str | None = None
+    device: str | None = None
+    network: str | None = None
+    interval_minutes: int = Field(..., ge=5, description="Minimum 5 minutes - matches the tick cadence")
+
+
+class ScheduleUpdateRequest(BaseModel):
+    """Body for PATCH /schedules/{schedule_id} - every field optional, only provided ones change."""
+    name: str | None = None
+    enabled: bool | None = None
+    interval_minutes: int | None = Field(default=None, ge=5)
+
+
+class ScheduleResponse(BaseModel):
+    schedule_id: str
+    name: str
+    mode: str
+    url: str
+    goal: str | None = None
+    persona: str | None = None
+    device: str | None = None
+    network: str | None = None
+    interval_minutes: int
+    enabled: bool
+    next_run_at: str
+    last_run_id: str | None = None
+    last_triggered_at: str | None = None
+
+
+class TickResponse(BaseModel):
+    """Response for POST /internal/scheduler/tick."""
+    ticked_at: str
+    triggered: list[str] = Field(default_factory=list, description="schedule_ids that fired this tick")
+    skipped_busy: list[str] = Field(default_factory=list, description="schedule_ids skipped - previous run still in flight")

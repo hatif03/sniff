@@ -22,6 +22,12 @@ Use a **modular monolith** with a CLI-first product:
 - Clear internal modules (agent, worker, diagnosis, alerting).
 - No distributed microservices in hackathon v1.
 
+> **Current status**: this was the hackathon-era decision. The CLI (Section
+> 10) still works and remains a secondary/developer-facing tool, but the web
+> dashboard (`sniff-web`) is now the primary way users trigger and watch
+> runs/audits, via a FastAPI layer in front of the same modular monolith -
+> see `docs/product/SAAS_ROADMAP.md`.
+
 Why:
 - Faster to build/debug alone.
 - Fewer moving parts and fewer demo-time failures.
@@ -271,6 +277,18 @@ batching any mix of Choice/Score/Noul questions against a shared `state`,
 not the three separate endpoints an earlier draft guessed at. `TierRouter`
 is enabled behind `TYPESAFE_ENABLED` and degrades cleanly to Tier-1/Tier-3
 behavior on any error.
+
+---
+
+## 7B) Web-First API and Persistence Layer
+
+The product's primary interface is the web dashboard (`sniff-web`), not the CLI - this section documents how a browser actually triggers and watches a run/audit, and where the data ends up.
+
+**Backend (`sniff-ai/src/api/main.py`)**: a FastAPI app exposing `POST /runs`, `POST /audits`, `POST /experiments`, `GET /runs/{run_id}`, `GET /audits/{audit_id}`, `GET /audits/{audit_id}/images/{filename}`, and `GET /status` (liveness, no auth - deliberately not `/healthz` or `/`, both reserved paths on Cloud Run's default `*.run.app` domain). Every other route is gated by a single shared Bearer token (`SNIFF_API_TOKEN`) - Phase 1 scope, not real per-user auth (see `SAAS_ROADMAP.md` Section 1). Runs/audits execute as FastAPI `BackgroundTasks` against an in-process dict (`RUN_STORE`/`AUDIT_STORE`) that tracks *live* status while a run/audit is in flight - this in-process store is lost on process restart by design, which is fine because it only ever needs to survive the seconds-to-minutes a single run takes, not act as the system of record.
+
+**Frontend proxy (`sniff-web/app/api/backend/**`)**: Next.js Route Handlers that forward to the FastAPI backend server-side, attaching `SNIFF_API_TOKEN` there - the browser never sees the secret, only calls same-origin paths. `/dashboard/new-run` posts a run or audit through this proxy and polls for live status.
+
+**Persistence (Supabase/Postgres)**: once a run or audit *completes*, its full result is uploaded to Supabase (`SupabaseUploader.upload_run`/`upload_audit` in `src/integrations/supabase_client.py`) - `runs`, `observations`, `actions`, `diagnoses`, `agent_reasoning`, `persona_reviews`, and `audits` tables, each with a public-read RLS policy (`USING (true)`). This is the actual system of record for anything that's finished: the dashboard's run/audit lists query these tables directly from the browser via the Supabase anon key, not through the FastAPI backend. Public-read is deliberate for this phase (no auth exists yet, everyone can see every run/audit) - see `SAAS_ROADMAP.md` Section 1 for what real per-user auth (`auth.uid()`-scoped RLS) looks like later.
 
 ---
 

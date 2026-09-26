@@ -158,6 +158,8 @@ class AuditOrchestrator:
             rewrites=k2_result.get("rewrites") or [],
             images=images,
             visitor_persona=gemini_result["visitor_persona"],
+            core_web_vitals=raw_checks.get("web_vitals") or None,
+            seo_checks=raw_checks.get("seo") or None,
         )
 
     # -- LLM synthesis -----------------------------------------------------

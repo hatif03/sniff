@@ -381,3 +381,144 @@ def test_get_audit_image_rejects_unknown_audit(client):
 def test_get_audit_image_requires_auth(client):
     response = client.get("/audits/audit_never_existed/images/annotated.png")
     assert response.status_code == 401
+
+
+class FakeScheduleStore:
+    """In-memory stand-in for ScheduleStore, mirroring its public interface
+    (including claim_due_schedule's atomic-or-not semantics) so /schedules
+    and /internal/scheduler/tick can be exercised without a real Supabase
+    project. The atomic-claim guarantee itself is unit-tested against a
+    mocked postgrest client in test_schedule_store.py."""
+
+    def __init__(self):
+        self.rows: dict[str, dict] = {}
+
+    def list_schedules(self):
+        return list(self.rows.values())
+
+    def get_schedule(self, schedule_id):
+        return self.rows.get(schedule_id)
+
+    def create_schedule(self, schedule_id, **fields):
+        row = {"schedule_id": schedule_id, "last_run_id": None, "last_triggered_at": None, **fields}
+        self.rows[schedule_id] = row
+        return row
+
+    def update_schedule(self, schedule_id, **fields):
+        row = self.rows.get(schedule_id)
+        if row is None:
+            return None
+        row.update({k: v for k, v in fields.items() if v is not None})
+        return row
+
+    def delete_schedule(self, schedule_id):
+        return self.rows.pop(schedule_id, None) is not None
+
+    def get_due_schedule_ids(self, now):
+        from datetime import datetime as _dt
+
+        return [
+            sid
+            for sid, row in self.rows.items()
+            if row["enabled"] and _dt.fromisoformat(row["next_run_at"]) <= now
+        ]
+
+    def claim_due_schedule(self, schedule_id, interval_minutes, now):
+        from datetime import timedelta as _td
+
+        row = self.rows.get(schedule_id)
+        if row is None or not row["enabled"]:
+            return False
+        from datetime import datetime as _dt
+
+        if _dt.fromisoformat(row["next_run_at"]) > now:
+            return False  # already claimed by a prior call in this same test
+        row["next_run_at"] = (now + _td(minutes=interval_minutes)).isoformat()
+        row["last_triggered_at"] = now.isoformat()
+        return True
+
+    def record_last_run(self, schedule_id, run_or_audit_id):
+        if schedule_id in self.rows:
+            self.rows[schedule_id]["last_run_id"] = run_or_audit_id
+
+
+def test_create_schedule_requires_auth(client):
+    response = client.post("/schedules", json={"name": "x", "mode": "run", "url": "https://x", "goal": "g", "interval_minutes": 30})
+    assert response.status_code == 401
+
+
+def test_create_schedule_without_supabase_returns_503(client, monkeypatch):
+    monkeypatch.setattr(api_main, "create_schedule_store", lambda cfg: None)
+    response = client.post(
+        "/schedules",
+        json={"name": "x", "mode": "run", "url": "https://x", "goal": "g", "interval_minutes": 30},
+        headers=auth_headers(),
+    )
+    assert response.status_code == 503
+
+
+def test_create_schedule_rejects_run_mode_without_goal(client, monkeypatch):
+    monkeypatch.setattr(api_main, "create_schedule_store", lambda cfg: FakeScheduleStore())
+    response = client.post(
+        "/schedules",
+        json={"name": "x", "mode": "run", "url": "https://x", "interval_minutes": 30},
+        headers=auth_headers(),
+    )
+    assert response.status_code == 400
+
+
+def test_create_list_update_delete_schedule(client, monkeypatch):
+    store = FakeScheduleStore()
+    monkeypatch.setattr(api_main, "create_schedule_store", lambda cfg: store)
+
+    created = client.post(
+        "/schedules",
+        json={"name": "Daily signup check", "mode": "run", "url": "https://x", "goal": "sign up", "interval_minutes": 30},
+        headers=auth_headers(),
+    )
+    assert created.status_code == 200
+    schedule_id = created.json()["schedule_id"]
+
+    listed = client.get("/schedules", headers=auth_headers())
+    assert listed.status_code == 200
+    assert [s["schedule_id"] for s in listed.json()] == [schedule_id]
+
+    updated = client.patch(f"/schedules/{schedule_id}", json={"enabled": False}, headers=auth_headers())
+    assert updated.status_code == 200
+    assert updated.json()["enabled"] is False
+
+    deleted = client.delete(f"/schedules/{schedule_id}", headers=auth_headers())
+    assert deleted.status_code == 200
+    assert client.get("/schedules", headers=auth_headers()).json() == []
+
+
+def test_scheduler_tick_triggers_due_schedule_and_skips_busy_one(client, monkeypatch):
+    store = FakeScheduleStore()
+    monkeypatch.setattr(api_main, "create_schedule_store", lambda cfg: store)
+    monkeypatch.setattr(api_main, "RunOrchestrator", FakeRunOrchestrator)
+
+    past = "2020-01-01T00:00:00"
+    store.create_schedule(
+        "sched_due", name="due", mode="run", url="https://x", goal="g", persona=None, device=None,
+        network=None, interval_minutes=30, enabled=True, next_run_at=past,
+    )
+    store.create_schedule(
+        "sched_busy", name="busy", mode="run", url="https://x", goal="g", persona=None, device=None,
+        network=None, interval_minutes=30, enabled=True, next_run_at=past,
+    )
+    api_main.RUN_STORE["run_already_running"] = {"status": "running", "outcome": None, "diagnosis": None, "supabase_url": None, "error": None}
+    store.rows["sched_busy"]["last_run_id"] = "run_already_running"
+
+    response = client.post("/internal/scheduler/tick", headers=auth_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["triggered"] == ["sched_due"]
+    assert body["skipped_busy"] == ["sched_busy"]
+    # The due schedule's next_run_at must have advanced, not stayed in the past.
+    assert store.rows["sched_due"]["next_run_at"] > past
+
+
+def test_scheduler_tick_requires_auth(client):
+    response = client.post("/internal/scheduler/tick")
+    assert response.status_code == 401

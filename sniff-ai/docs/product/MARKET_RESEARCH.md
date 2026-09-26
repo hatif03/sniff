@@ -42,18 +42,16 @@ Overall market context: SaaS-testing-tooling is sized around $4B and
 growing at roughly 14% CAGR per aggregated industry estimates (directional,
 not traced to one primary source - treat as context, not a precise figure).
 
-## Feature backlog (not built this pass)
+## Feature backlog
 
 Each item below is a real gap relative to the competitive landscape, listed
-with rationale and a rough effort note. None of these were implemented in
-this pass - the priority was getting the rename, dependency refresh, and
-three-tier decision architecture (see `ARCHITECTURE.md` Section 7A) right
-first, rather than diluting that work across a dozen small features.
+with rationale and a rough effort note.
 
-| Feature | Rationale | Rough effort |
+| Feature | Rationale | Status |
 |---|---|---|
-| Scheduled/continuous runs | `apscheduler`, `fastapi`, and `uvicorn` are already dependencies (anticipated, unused) - a daemon that re-runs a goal on a schedule and diffs against the last result | Medium - mostly wiring already-installed deps |
-| Baseline/regression comparison | Compare a run against the previous run for the same goal to flag new failures, not just failures in isolation | Medium - needs a run-history store, which Supabase integration already provides |
-| Journey-replay UI | Step-by-step visual playback of a run in `sniff-web`, closest analog to what ColdVisit and session-replay tools show | Larger - needs a dashboard view over stored screenshots/trace data |
-| "Sniff Score" | A single 0-100 UX-health number per run, trended over time, for a fast at-a-glance status | Small-medium - a scoring function over existing `DiagnosisResult`/step data |
-| CI/CD GitHub Action | Run Sniff against a PR preview URL as a merge gate, the same wedge ColdVisit uses | Medium-large - needs a packaged action, exit-code contract, and a preview-URL discovery step |
+| Scheduled/continuous runs | Re-run a goal/audit on a schedule | **Built (session 15)** - `schedules` table + `POST /internal/scheduler/tick`, ticked by an external Cloud Scheduler job (not in-process `apscheduler`, which would double-fire across Cloud Run's autoscaled instances) |
+| Audit score history / trend | A score per URL, trended over time, with click-through to the regression - the CRO/audit-tooling category's weakest-served pattern per live research (session 15) | **Built (session 15)** - dashboard "Trends" tab |
+| Reconnected aggregate analytics | Friction heatmap, persona comparison, agent confidence metrics, run outcome/root-cause trends - all previously built or captured but never surfaced | **Built (session 15)** |
+| Baseline/regression comparison | Compare a run against the previous run for the same goal to flag new failures, not just failures in isolation | Not built - needs a "find previous run for this goal" query against the run history the Supabase integration already provides |
+| Journey-replay UI | Step-by-step visual playback of a run in `sniff-web`, closest analog to what ColdVisit and session-replay tools show | Not built - needs a dashboard view over stored screenshots/trace data |
+| CI/CD GitHub Action | Run Sniff against a PR preview URL as a merge gate, the same wedge ColdVisit uses | Not built - needs a packaged action, exit-code contract, and a preview-URL discovery step |

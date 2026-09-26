@@ -1,5 +1,9 @@
 -- Supabase Database Schema for Sniff Mystery Shopper
 -- This schema supports beautiful graph/timeline visualizations on the web dashboard
+--
+-- Note: earlier drafts of this file used inline `INDEX name (...)` clauses
+-- inside CREATE TABLE, which is MySQL syntax and is not valid PostgreSQL -
+-- fixed here to separate CREATE INDEX statements after each table.
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -23,19 +27,16 @@ CREATE TABLE runs (
     starting_url TEXT,
     final_url TEXT,
     trace_url TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-
-    -- Indexes for efficient querying
-    INDEX idx_runs_run_id (run_id),
-    INDEX idx_runs_created_at (created_at DESC),
-    INDEX idx_runs_outcome (outcome),
-    INDEX idx_runs_persona (persona_name)
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable Row Level Security
+CREATE INDEX idx_runs_run_id ON runs (run_id);
+CREATE INDEX idx_runs_created_at ON runs (created_at DESC);
+CREATE INDEX idx_runs_outcome ON runs (outcome);
+CREATE INDEX idx_runs_persona ON runs (persona_name);
+
 ALTER TABLE runs ENABLE ROW LEVEL SECURITY;
 
--- Policy: Allow public read access
 CREATE POLICY "Public runs are viewable by everyone"
     ON runs FOR SELECT
     USING (true);
@@ -55,12 +56,11 @@ CREATE TABLE observations (
     timing JSONB,
     console_errors TEXT[],
     network_events JSONB[],
-    last_action_result JSONB,
-
-    -- Composite index for efficient step queries
-    INDEX idx_observations_run_step (run_id, step),
-    INDEX idx_observations_timestamp (timestamp)
+    last_action_result JSONB
 );
+
+CREATE INDEX idx_observations_run_step ON observations (run_id, step);
+CREATE INDEX idx_observations_timestamp ON observations (timestamp);
 
 ALTER TABLE observations ENABLE ROW LEVEL SECURITY;
 
@@ -83,11 +83,11 @@ CREATE TABLE actions (
     error TEXT,
     duration_ms INTEGER NOT NULL,
     details JSONB,
-    timestamp TIMESTAMPTZ NOT NULL,
-
-    INDEX idx_actions_run_step (run_id, step),
-    INDEX idx_actions_success (run_id, success)
+    timestamp TIMESTAMPTZ NOT NULL
 );
+
+CREATE INDEX idx_actions_run_step ON actions (run_id, step);
+CREATE INDEX idx_actions_success ON actions (run_id, success);
 
 ALTER TABLE actions ENABLE ROW LEVEL SECURITY;
 
@@ -108,11 +108,11 @@ CREATE TABLE diagnoses (
     likely_owner TEXT NOT NULL,
     repro_steps TEXT[],
     suggested_fix TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-
-    INDEX idx_diagnoses_severity (severity),
-    INDEX idx_diagnoses_root_cause (root_cause)
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX idx_diagnoses_severity ON diagnoses (severity);
+CREATE INDEX idx_diagnoses_root_cause ON diagnoses (root_cause);
 
 ALTER TABLE diagnoses ENABLE ROW LEVEL SECURITY;
 
@@ -136,11 +136,11 @@ CREATE TABLE agent_reasoning (
     confidence NUMERIC NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
     attempt INTEGER NOT NULL DEFAULT 1,
     repaired BOOLEAN NOT NULL DEFAULT FALSE,
-    is_fallback BOOLEAN NOT NULL DEFAULT FALSE,
-
-    INDEX idx_reasoning_run_step (run_id, step),
-    INDEX idx_reasoning_confidence (confidence)
+    is_fallback BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+CREATE INDEX idx_reasoning_run_step ON agent_reasoning (run_id, step);
+CREATE INDEX idx_reasoning_confidence ON agent_reasoning (confidence);
 
 ALTER TABLE agent_reasoning ENABLE ROW LEVEL SECURITY;
 
@@ -165,17 +165,83 @@ CREATE TABLE persona_reviews (
     narrative TEXT NOT NULL,
     recommendations TEXT[],
     timestamp TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-
-    INDEX idx_reviews_sentiment (overall_sentiment),
-    INDEX idx_reviews_rating (experience_rating),
-    INDEX idx_reviews_abandonment (abandonment_likelihood)
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX idx_reviews_sentiment ON persona_reviews (overall_sentiment);
+CREATE INDEX idx_reviews_rating ON persona_reviews (experience_rating);
+CREATE INDEX idx_reviews_abandonment ON persona_reviews (abandonment_likelihood);
 
 ALTER TABLE persona_reviews ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Public reviews are viewable by everyone"
     ON persona_reviews FOR SELECT
+    USING (true);
+
+-- =============================================================================
+-- AUDITS TABLE
+-- Landing-page conversion audit results (public-read, matches runs' pattern)
+-- =============================================================================
+CREATE TABLE audits (
+    id BIGSERIAL PRIMARY KEY,
+    audit_id TEXT UNIQUE NOT NULL,
+    url TEXT NOT NULL,
+    persona TEXT,
+    overall_score NUMERIC,
+    label TEXT,
+    verdict TEXT,
+    -- Pulled out of report_json as real, queryable/indexable columns rather
+    -- than left buried in JSONB, so Core Web Vitals trend queries (grouping
+    -- across many audits for the same url) don't need JSON extraction.
+    lcp NUMERIC,
+    fcp NUMERIC,
+    cls NUMERIC,
+    report_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_audits_audit_id ON audits (audit_id);
+CREATE INDEX idx_audits_created_at ON audits (created_at DESC);
+CREATE INDEX idx_audits_url ON audits (url);
+
+ALTER TABLE audits ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public audits are viewable by everyone"
+    ON audits FOR SELECT
+    USING (true);
+
+-- =============================================================================
+-- SCHEDULES TABLE
+-- Recurring runs/audits, ticked by an external Cloud Scheduler job hitting
+-- POST /internal/scheduler/tick (see src/api/main.py) - not an in-process
+-- scheduler, since the backend autoscales to multiple Cloud Run instances
+-- and an in-process scheduler would fire the same job on every instance.
+-- =============================================================================
+CREATE TABLE schedules (
+    id BIGSERIAL PRIMARY KEY,
+    schedule_id TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    mode TEXT NOT NULL CHECK (mode IN ('run', 'audit')),
+    url TEXT NOT NULL,
+    goal TEXT,
+    persona TEXT,
+    device TEXT,
+    network TEXT,
+    interval_minutes INTEGER NOT NULL CHECK (interval_minutes >= 5),
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    next_run_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_run_id TEXT,
+    last_triggered_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_schedules_schedule_id ON schedules (schedule_id);
+CREATE INDEX idx_schedules_due ON schedules (enabled, next_run_at);
+
+ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public schedules are viewable by everyone"
+    ON schedules FOR SELECT
     USING (true);
 
 -- =============================================================================
@@ -290,6 +356,8 @@ COMMENT ON TABLE actions IS 'Action execution results for step-by-step playback'
 COMMENT ON TABLE diagnoses IS 'Root cause analysis for failed runs';
 COMMENT ON TABLE agent_reasoning IS 'Agent decision-making transparency log';
 COMMENT ON TABLE persona_reviews IS 'Persona experience reviews for UX insights';
+COMMENT ON TABLE audits IS 'Landing-page conversion audit records, full report stored as JSONB';
+COMMENT ON TABLE schedules IS 'Recurring run/audit definitions, ticked by an external Cloud Scheduler job';
 
 COMMENT ON VIEW run_summaries IS 'Denormalized view for dashboard run list';
 COMMENT ON VIEW persona_metrics IS 'Aggregated persona performance metrics';

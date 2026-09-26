@@ -11,7 +11,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 
 try:
     from supabase import create_client, Client
@@ -184,6 +184,69 @@ class SupabaseUploader:
             return {
                 "success": False,
                 "run_id": run_id,
+                "error": str(e),
+            }
+
+    def upload_audit(
+        self,
+        audit_id: str,
+        url: str,
+        persona: Optional[str],
+        report: Any,
+    ) -> dict[str, Any]:
+        """Upload a completed landing-page audit to Supabase.
+
+        The full report is stored as JSONB (report.images are local filesystem
+        paths, not re-hosted to Supabase Storage - screenshots are already
+        served via the existing GET /audits/{audit_id}/images/{filename}
+        endpoint, so there's nothing to upload here beyond the row itself).
+
+        Args:
+            audit_id: Unique audit identifier
+            url: The audited URL
+            persona: Persona used, if any
+            report: The AuditReport pydantic model
+
+        Returns:
+            Dictionary with upload status
+        """
+        logger.info(f"Uploading audit {audit_id} to Supabase...")
+
+        try:
+            report_dict = report.model_dump(mode="json")
+            web_vitals = report_dict.get("core_web_vitals") or {}
+
+            audit_data = {
+                "audit_id": audit_id,
+                "url": url,
+                "persona": persona,
+                "overall_score": report_dict.get("overall_score"),
+                "label": report_dict.get("label"),
+                "verdict": report_dict.get("verdict"),
+                # Pulled out of report_json as real columns (not just JSONB)
+                # so Trends views can aggregate/filter on them directly rather
+                # than extracting from JSON on every query.
+                "lcp": web_vitals.get("lcp"),
+                "fcp": web_vitals.get("fcp"),
+                "cls": web_vitals.get("cls"),
+                "report_json": report_dict,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+
+            self.client.table("audits").insert(audit_data).execute()
+            logger.info(f"Inserted audit record: {audit_id}")
+
+            return {
+                "success": True,
+                "audit_id": audit_id,
+                "public_url": f"{self.supabase_url.rstrip('/')}/audits/{audit_id}",
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to upload audit {audit_id}: {e}", exc_info=True)
+            return {
+                "success": False,
+                "audit_id": audit_id,
                 "error": str(e),
             }
 
@@ -544,4 +607,105 @@ def create_supabase_uploader(config) -> Optional[SupabaseUploader]:
 
     except Exception as e:
         logger.warning(f"Could not create Supabase uploader: {e}")
+        return None
+
+
+class ScheduleStore:
+    """CRUD + atomic tick-claim for the `schedules` table.
+
+    Schedules must live in a central store, not an in-process scheduler:
+    the FastAPI backend autoscales to multiple Cloud Run instances (confirmed
+    live: maxScale=3), and an in-process scheduler would independently fire
+    the same job on every instance. Instead, an external Cloud Scheduler job
+    hits POST /internal/scheduler/tick on a fixed cadence, and this class's
+    `claim_due_schedule` makes picking up a due schedule safe even if two
+    tick calls somehow overlap.
+    """
+
+    def __init__(self, supabase_url: str, supabase_key: str):
+        if not HAS_SUPABASE:
+            raise RuntimeError("supabase-py is not installed. Install with: pip install supabase")
+        self.client: Client = create_client(supabase_url, supabase_key)
+
+    def list_schedules(self) -> list[dict]:
+        result = self.client.table("schedules").select("*").order("created_at", desc=True).execute()
+        return result.data or []
+
+    def get_schedule(self, schedule_id: str) -> Optional[dict]:
+        result = self.client.table("schedules").select("*").eq("schedule_id", schedule_id).execute()
+        return result.data[0] if result.data else None
+
+    def create_schedule(self, schedule_id: str, **fields: Any) -> dict:
+        data = {"schedule_id": schedule_id, **fields}
+        result = self.client.table("schedules").insert(data).execute()
+        return result.data[0]
+
+    def update_schedule(self, schedule_id: str, **fields: Any) -> Optional[dict]:
+        updates = {k: v for k, v in fields.items() if v is not None}
+        if not updates:
+            return self.get_schedule(schedule_id)
+        result = self.client.table("schedules").update(updates).eq("schedule_id", schedule_id).execute()
+        return result.data[0] if result.data else None
+
+    def delete_schedule(self, schedule_id: str) -> bool:
+        result = self.client.table("schedules").delete().eq("schedule_id", schedule_id).execute()
+        return bool(result.data)
+
+    def get_due_schedule_ids(self, now: datetime) -> list[str]:
+        """Read-only: which schedules look due right now. Actually picking one
+        up still requires claim_due_schedule to succeed (this list can go
+        stale between the read and the claim under concurrency - that's fine,
+        the claim is what's authoritative)."""
+        result = (
+            self.client.table("schedules")
+            .select("schedule_id")
+            .eq("enabled", True)
+            .lte("next_run_at", now.isoformat())
+            .execute()
+        )
+        return [row["schedule_id"] for row in (result.data or [])]
+
+    def claim_due_schedule(self, schedule_id: str, interval_minutes: int, now: datetime) -> bool:
+        """Atomically claim a due schedule for execution.
+
+        The UPDATE's own WHERE clause re-checks `next_run_at <= now()`
+        (not just the earlier SELECT) - if a concurrent tick already claimed
+        this row, its next_run_at has already moved into the future, so this
+        UPDATE's WHERE clause matches zero rows and postgrest returns an
+        empty `data` list. Whichever caller's UPDATE actually affects the row
+        wins the claim; Postgres serializes concurrent UPDATEs to the same
+        row, so there's no race window between the check and the write.
+
+        next_run_at advances from *now*, not from the old next_run_at, so a
+        schedule that missed a tick (e.g. the backend was down) resumes on
+        its normal cadence instead of rapid-firing to catch up.
+        """
+        new_next_run_at = (now + timedelta(minutes=interval_minutes)).isoformat()
+        result = (
+            self.client.table("schedules")
+            .update({"next_run_at": new_next_run_at, "last_triggered_at": now.isoformat()})
+            .eq("schedule_id", schedule_id)
+            .eq("enabled", True)
+            .lte("next_run_at", now.isoformat())
+            .execute()
+        )
+        return bool(result.data)
+
+    def record_last_run(self, schedule_id: str, run_or_audit_id: str) -> None:
+        self.client.table("schedules").update({"last_run_id": run_or_audit_id}).eq(
+            "schedule_id", schedule_id
+        ).execute()
+
+
+def create_schedule_store(config) -> Optional[ScheduleStore]:
+    """Create a ScheduleStore from configuration, or None if Supabase isn't
+    configured - schedules have no other persistent home, so the feature is
+    simply unavailable without it (matches create_supabase_uploader's
+    disabled-by-default pattern)."""
+    if not hasattr(config, "supabase") or not config.supabase.enabled:
+        return None
+    try:
+        return ScheduleStore(supabase_url=config.supabase.url, supabase_key=config.supabase.key)
+    except Exception as e:
+        logger.warning(f"Could not create ScheduleStore: {e}")
         return None

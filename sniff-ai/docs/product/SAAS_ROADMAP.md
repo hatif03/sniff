@@ -12,10 +12,12 @@ Replace the Phase-1 shared bearer-token gate with Supabase Auth (already an
 installed, unused-for-auth dependency in `sniff-web`):
 - Email/password or magic-link sign-in via `supabase.auth.signInWithOtp`/`signInWithPassword`.
 - Every table the API writes to (`runs`, `observations`, `actions`,
-  `diagnoses`, `agent_reasoning`, `persona_reviews`) gets a `user_id`
-  column and a Row Level Security policy scoping reads/writes to
-  `auth.uid() = user_id` - today those tables have no RLS at all, so
-  anyone with the (necessarily client-side) anon key can read every run.
+  `diagnoses`, `agent_reasoning`, `persona_reviews`, `audits`) gets a
+  `user_id` column and its existing public-read RLS policy (`USING (true)`,
+  intentionally public for this pass - see `ARCHITECTURE.md` Section 7B)
+  replaced with one scoping reads/writes to `auth.uid() = user_id` - today
+  every row is readable by anyone with the (necessarily client-side) anon
+  key, which is by design for now, not an oversight.
 - The FastAPI backend verifies the Supabase JWT on every request
   (`supabase.auth.get_user(token)` or local JWT verification against
   Supabase's JWKS) instead of the shared secret.

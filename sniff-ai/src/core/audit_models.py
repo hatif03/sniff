@@ -9,7 +9,7 @@ Field ownership (who fills each section) is documented on AuditOrchestrator,
 not here - this module only defines the shape.
 """
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -111,6 +111,29 @@ class RewriteItem(BaseModel):
     replacement: str
 
 
+class CoreWebVitals(BaseModel):
+    """Raw Core Web Vitals, captured live via PerformanceObserver during the
+    audit (src/evidence/audit_checks.py WEB_VITALS_JS). Previously only fed
+    into the k2-horizon prompt as writing context and then discarded - never
+    reached the stored report or the UI. All Optional/None-able since some
+    pages never fire an LCP/FCP entry (e.g. no paint before navigation away)."""
+    lcp: Optional[float] = Field(None, description="Largest Contentful Paint, milliseconds")
+    fcp: Optional[float] = Field(None, description="First Contentful Paint, milliseconds")
+    cls: Optional[float] = Field(None, description="Cumulative Layout Shift, unitless")
+
+
+class SeoChecks(BaseModel):
+    """Raw SEO/meta facts, captured via DOM queries (SEO_META_JS). Same
+    discarded-after-synthesis history as CoreWebVitals above."""
+    title: Optional[str] = None
+    title_length: Optional[int] = None
+    meta_description: Optional[str] = None
+    meta_description_length: Optional[int] = None
+    h1_count: Optional[int] = None
+    img_alt_count: Optional[int] = None
+    img_alt_pct: Optional[int] = None
+
+
 class ImagePaths(BaseModel):
     above_fold: str = Field(..., description="Local file path to the viewport-only screenshot")
     full_page: str = Field(..., description="Local file path to the full-page screenshot")
@@ -141,3 +164,10 @@ class AuditReport(BaseModel):
     rewrites: list[RewriteItem] = Field(default_factory=list)
     images: ImagePaths
     visitor_persona: str = Field(..., description="One synthesized persona description framing the whole audit")
+
+    core_web_vitals: Optional[CoreWebVitals] = Field(
+        None, description="Raw LCP/FCP/CLS - Optional so audits stored before this field existed still deserialize"
+    )
+    seo_checks: Optional[SeoChecks] = Field(
+        None, description="Raw SEO/meta facts - Optional for the same backward-compatibility reason"
+    )
