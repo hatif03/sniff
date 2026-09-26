@@ -199,20 +199,21 @@ class PersonaProfile(BaseModel):
 
         return modifiers if modifiers else ["  • Balanced, moderate approach to navigation"]
 
-    def to_llm_expanded_prompt(self, bedrock_client=None) -> str:
-        """Generate LLM-expanded behavioral prompt using Bedrock.
+    def to_llm_expanded_prompt(self, llm_client=None) -> str:
+        """Generate LLM-expanded behavioral prompt.
 
         Uses an LLM to create a rich, detailed behavioral prompt based on persona traits.
-        Falls back to to_prompt_context() if bedrock_client is not provided.
+        Falls back to to_prompt_context() if llm_client is not provided.
 
         Args:
-            bedrock_client: Optional BedrockClient instance for LLM expansion
+            llm_client: Optional text LLM client (e.g. K2HorizonClient) exposing
+                invoke(), used for LLM expansion
 
         Returns:
             Expanded persona prompt with detailed behavioral instructions
         """
-        if not bedrock_client:
-            logger.debug("No Bedrock client provided, using basic prompt context")
+        if not llm_client:
+            logger.debug("No LLM client provided, using basic prompt context")
             return self.to_prompt_context()
 
         try:
@@ -238,8 +239,8 @@ Generate a rich, detailed behavioral prompt that an AI agent should follow to si
 Format as a clear, actionable behavioral guide that directly influences agent decisions.
 Keep it concise but comprehensive (200-300 words)."""
 
-            # Call Bedrock for expansion
-            response = bedrock_client.invoke(
+            # Call the LLM for expansion
+            response = llm_client.invoke(
                 system_prompt="You are a behavioral psychology expert specializing in UX research personas.",
                 user_message=expansion_prompt,
                 max_tokens=1000
