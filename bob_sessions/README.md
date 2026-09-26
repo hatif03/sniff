@@ -18,16 +18,17 @@ Each subfolder represents one distinct Bob session (a focused unit of work). Ins
 |---|---|---|---|---|
 | [00](./00-project-setup/) | Project Setup & Security | ✅ Complete | Plan | `.gitignore`, `.bobignore`, `CONTRIBUTING.md`, `docs/adr/` |
 | [01](./01-planning-and-market-research/) | Planning & Market Research | ✅ Complete | Plan | `sniff-expansion-plan.md`, competitive analysis, all ADRs |
-| [02](./02-rename-sherlock-to-sniff/) | Rename: sherlock → sniff | ✅ Complete | Agent | All source, config, docs, env vars renamed |
-| [03](./03-dependency-updates/) | Dependency Updates + Tailwind v4 | 🔄 In Progress | Agent | `pyproject.toml`, `package.json`, `globals.css`, Tailwind v4 migration |
-| [04](./04-jev-client-setup/) | Typesafe AI Jev Setup | ⬜ Pending | Agent | `jev_client.py`, skill definitions, `SniffConfig.typesafe` |
-| [05](./05-three-tier-architecture/) | Three-Tier Intelligence Architecture | ⬜ Pending | Agent | `tier_router.py`, `TieredDecisionService`, per-tier metrics |
+| [02](./02-project-rename/) | Project Rename: original internal name → sniff | ✅ Complete | Agent | All source, config, docs, env vars renamed |
+| [03](./03-dependency-updates/) | Dependency Updates + Tailwind v4 | ✅ Complete | Agent | `pyproject.toml`, `package.json`, `globals.css`, Tailwind v4 migration |
+| [04](./04-jev-client-setup/) | Typesafe AI Jev Setup | ✅ Complete | Agent | `jev_client.py` (real `/v1/systemone` API), `SniffConfig.typesafe` |
+| [05](./05-three-tier-architecture/) | Three-Tier Intelligence Architecture | ✅ Complete | Agent | `tier_router.py`, three Jev roles inside `DecisionService` |
 | [06](./06-scheduled-runs/) | Scheduled Continuous Runs | ⬜ Pending | Agent | `src/scheduler/`, `sniff daemon`, APScheduler daemon |
 | [07](./07-regression-detection/) | Baseline Regression Detection | ⬜ Pending | Agent | `comparator.py`, `RunComparator`, `sniff compare` |
 | [08](./08-journey-replay-ui/) | Journey Replay UI | ⬜ Pending | Agent | `/runs/[id]/replay`, `ReplayViewer`, mobile device frame |
 | [09](./09-sniff-score/) | Sniff Score | ⬜ Pending | Agent | `scorer.py`, `SniffScore`, Slack emoji bar |
 | [10](./10-cicd-integration/) | CI/CD GitHub Actions | ⬜ Pending | Agent | `sniff-action/`, `action.yml`, `--exit-on-severity` |
-| [11](./11-architecture-docs/) | Architecture Docs Update | ⬜ Pending | Agent | Updated `ARCHITECTURE.md`, `SNIFF_CLI_GUIDE.md` |
+| [11](./11-architecture-docs/) | Architecture Docs Update | ✅ Complete | Agent | Updated `ARCHITECTURE.md`, `SNIFF_CLI_GUIDE.md` (done as part of Sessions 05 & 12) |
+| [12](./12-provider-swap-and-saas-foundation/) | Provider Swap + SaaS Foundation | ✅ Complete (Phase 1) | Agent | Gemini/k2-horizon clients, FastAPI backend, shadcn UI redesign, `SAAS_ROADMAP.md` |
 
 ## How to Read These Sessions
 

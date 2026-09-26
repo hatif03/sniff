@@ -2,10 +2,10 @@
 
 ## Top-Level Overview
 
-**Goal**: Evolve the project from its current state (internally named "sherlock") into a polished, market-ready product called **Sniff**. This involves a full rename, market positioning, architectural evolution toward a three-tier intelligence model (deterministic → Jev decision model → reasoning LLM), integration of Typesafe AI's Jev skill system, package modernization, and identification of feature gaps relative to the competitive landscape.
+**Goal**: Evolve the project from its current state (using its original internal name) into a polished, market-ready product called **Sniff**. This involves a full rename, market positioning, architectural evolution toward a three-tier intelligence model (deterministic → Jev decision model → reasoning LLM), integration of Typesafe AI's Jev skill system, package modernization, and identification of feature gaps relative to the competitive landscape.
 
 **Scope**:
-1. Project rename — "sherlock" → "sniff" everywhere
+1. Project rename — replacing the project's original internal name with "sniff" everywhere
 2. Market research findings embedded as product direction
 3. Dependency updates across Python (sniff-ai) and Node (sniff-web), including Tailwind v4 migration
 4. Architecture evolution: three-tier intelligence (Deterministic / Jev / Reasoning)
@@ -91,40 +91,40 @@ From their docs and positioning:
 
 ---
 
-### Sub-Task 1 — Full Project Rename: "sherlock" → "sniff"
+### Sub-Task 1 — Full Project Rename: Original Internal Name → "sniff"
 
 **Status**: [x] done
 
-**Intent**: The project is internally called "sherlock" in every configuration file, package metadata, class names, CLI entry points, environment variables, Slack bot name, and documentation. This sub-task renames all occurrences to "sniff" to match the public brand.
+**Intent**: The project is internally called by its original internal name in every configuration file, package metadata, class names, CLI entry points, environment variables, Slack bot name, and documentation. This sub-task renames all occurrences to "sniff" to match the public brand.
 
 **Expected Outcomes**:
 - `pyproject.toml` name = `sniff`, description updated, entry point = `sniff`
 - `sniff-web/package.json` name = `sniff-web`
-- All Python class names updated: `SherlockConfig` → `SniffConfig`, `SlackAlert` bot name = "Sniff Alert Bot", etc.
-- All CLI commands: `sherlock` → `sniff`
-- Environment variables: `SHERLOCK_*` → `SNIFF_*`
+- All Python class names updated: main config class renamed to `SniffConfig`, `SlackAlert` bot name = "Sniff Alert Bot", etc.
+- All CLI commands renamed to `sniff`
+- Environment variables renamed to the `SNIFF_*` prefix
 - Slack bot name, artifact path defaults, DB path updated
 - All documentation files (README, guides) updated
 - `src/` module import paths unchanged (internal `src.*` references stay)
 - `.env.example` variable names updated
-- `sherlock.json` config file → `sniff.json`
+- Config file renamed to `sniff.json`
 
 **Todo List**:
 1. Update `sniff-ai/pyproject.toml`: name, description, entry point (`sniff = "src.cli.main:app"`)
 2. Update `sniff-web/package.json`: name field
-3. Rename `src/core/config.py`: `SherlockConfig` → `SniffConfig`, all `SHERLOCK_*` env var reads → `SNIFF_*`
-4. Rename throughout source: `SherlockConfig` references in all files that import it
-5. Update `.env.example`: all `SHERLOCK_*` → `SNIFF_*`, `SHERLOCK_ENV` → `SNIFF_ENV`, etc.
+3. Rename `src/core/config.py`: main config class renamed to `SniffConfig`, all env var reads renamed to the `SNIFF_*` prefix
+4. Rename throughout source: references to the config class in all files that import it
+5. Update `.env.example`: all env vars renamed to the `SNIFF_*` prefix (e.g. `SNIFF_ENV`), etc.
 6. Update `src/alerts/slack.py`: bot_name default = "Sniff Alert Bot"
 7. Update `src/cli/main.py` and all command files: help text, app name
-8. Update all Markdown documentation: replace "Sherlock" with "Sniff", update CLI examples
-9. Update `SHERLOCK_CLI_GUIDE.md` → `SNIFF_CLI_GUIDE.md`
-10. Update config JSON default filename references (`sherlock.json` → `sniff.json`)
-11. Run grep to verify no remaining "sherlock" or "Sherlock" references (except test fixtures or intentional historical notes)
+8. Update all Markdown documentation: replace the project's original internal name with "Sniff", update CLI examples
+9. Rename CLI guide to `SNIFF_CLI_GUIDE.md`
+10. Update config JSON default filename references (renamed to `sniff.json`)
+11. Run grep to verify no remaining references to the project's original internal name (except test fixtures or intentional historical notes)
 
 **Relevant Context**:
 - `sniff-ai/pyproject.toml` — package metadata
-- `sniff-ai/src/core/config.py` — `SherlockConfig` class, env var names
+- `sniff-ai/src/core/config.py` — main config class (`SniffConfig`), env var names
 - `sniff-ai/src/alerts/slack.py` — bot_name default
 - `sniff-ai/src/cli/main.py` — CLI app name and help text
 - `sniff-ai/.env.example` — all env variable names
@@ -451,20 +451,20 @@ Final: clamp(score, 0, 100)
 **Expected Outcomes**:
 - `ARCHITECTURE.md` updated with three-tier diagram and routing rules
 - `README.md` updated: new name, new features, updated CLI examples
-- `SNIFF_CLI_GUIDE.md` created from renamed `SHERLOCK_CLI_GUIDE.md` with all new commands
+- `SNIFF_CLI_GUIDE.md` created from the renamed CLI guide file with all new commands
 - Competitive positioning section added to README
 
 **Todo List**:
 1. Update `sniff-ai/docs/product/ARCHITECTURE.md` with three-tier diagram (ASCII art + description)
 2. Update `sniff-ai/README.md`: name, features list, CLI examples
-3. Rename `SHERLOCK_CLI_GUIDE.md` → `SNIFF_CLI_GUIDE.md` and update all commands
+3. Rename the CLI guide file to `SNIFF_CLI_GUIDE.md` and update all commands
 4. Add competitive positioning section to README
 5. Update `sniff-web/README.md` with updated project name and web features
 
 **Relevant Context**:
 - `sniff-ai/docs/product/ARCHITECTURE.md`
 - `sniff-ai/README.md`
-- `sniff-ai/SHERLOCK_CLI_GUIDE.md`
+- `sniff-ai/SNIFF_CLI_GUIDE.md`
 
 ---
 
@@ -475,7 +475,7 @@ Final: clamp(score, 0, 100)
 **Intent**: Ensure no credentials or sensitive data can accidentally leak into version control. Maintain all Bob-related agent files properly. This sub-task runs alongside all others as a cross-cutting concern.
 
 **Expected Outcomes**:
-- `.gitignore` at repo root covers: `.env`, `*.env`, `sherlock.json`, `sniff.json`, `artifacts/`, `*.pem`, `*.key`, AWS credential files, `__pycache__/`, `.uv/`, `node_modules/`
+- `.gitignore` at repo root covers: `.env`, `*.env`, `sniff.json`, `artifacts/`, `*.pem`, `*.key`, AWS credential files, `__pycache__/`, `.uv/`, `node_modules/`
 - `.bobignore` at repo root covers the same secrets + tells Bob not to index credential files
 - `sniff-expansion-plan.md` kept in repo root (Bob context artifact)
 - All `docs/adr/` files tracked in git (they are documentation)
@@ -492,7 +492,7 @@ Final: clamp(score, 0, 100)
 **Relevant Context**:
 - Repo root `d:\sniff`
 - `sniff-ai/.env.example` — reference for what secrets look like
-- `sniff-ai/sniff.json` / `sherlock.json` — may contain API keys if user ran `sniff init`
+- `sniff-ai/sniff.json` — may contain API keys if user ran `sniff init`
 
 ---
 

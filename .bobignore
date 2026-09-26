@@ -16,7 +16,6 @@
 .env.*
 *.env
 sniff.json
-sherlock.json
 .aws/
 aws-credentials.json
 aws_credentials.json

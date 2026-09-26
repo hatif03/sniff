@@ -1,4 +1,4 @@
--- Supabase RLS Policies for Sherlock
+-- Supabase RLS Policies for Sniff
 -- Run this in Supabase SQL Editor to allow uploads
 
 -- =============================================================================
@@ -77,39 +77,39 @@ USING (true);
 
 -- Allow uploads to screenshots bucket
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('sherlock-screenshots', 'sherlock-screenshots', true)
+VALUES ('sniff-screenshots', 'sniff-screenshots', true)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY "Allow uploads to screenshots" ON storage.objects
 FOR INSERT TO anon, authenticated
-WITH CHECK (bucket_id = 'sherlock-screenshots');
+WITH CHECK (bucket_id = 'sniff-screenshots');
 
 CREATE POLICY "Allow public access to screenshots" ON storage.objects
 FOR SELECT TO anon, authenticated
-USING (bucket_id = 'sherlock-screenshots');
+USING (bucket_id = 'sniff-screenshots');
 
 -- Allow uploads to videos bucket
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('sherlock-videos', 'sherlock-videos', true)
+VALUES ('sniff-videos', 'sniff-videos', true)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY "Allow uploads to videos" ON storage.objects
 FOR INSERT TO anon, authenticated
-WITH CHECK (bucket_id = 'sherlock-videos');
+WITH CHECK (bucket_id = 'sniff-videos');
 
 CREATE POLICY "Allow public access to videos" ON storage.objects
 FOR SELECT TO anon, authenticated
-USING (bucket_id = 'sherlock-videos');
+USING (bucket_id = 'sniff-videos');
 
 -- Allow uploads to traces bucket
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('sherlock-traces', 'sherlock-traces', true)
+VALUES ('sniff-traces', 'sniff-traces', true)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY "Allow uploads to traces" ON storage.objects
 FOR INSERT TO anon, authenticated
-WITH CHECK (bucket_id = 'sherlock-traces');
+WITH CHECK (bucket_id = 'sniff-traces');
 
 CREATE POLICY "Allow public access to traces" ON storage.objects
 FOR SELECT TO anon, authenticated
-USING (bucket_id = 'sherlock-traces');
+USING (bucket_id = 'sniff-traces');

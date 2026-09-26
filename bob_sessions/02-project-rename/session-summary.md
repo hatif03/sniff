@@ -1,4 +1,4 @@
-# Session 02: Rename sherlock → sniff
+# Session 02: Rename the Project's Original Internal Name to Sniff
 
 **Session Type:** Agent Mode  
 **Status:** ✅ Complete  
@@ -9,7 +9,7 @@
 
 ## Objectives
 
-Rename every internal "sherlock/Sherlock/SHERLOCK" reference to "sniff/Sniff/SNIFF" across the entire monorepo, matching the public brand name.
+Rename every reference to the project's original internal name (in any casing) to "sniff/Sniff/SNIFF" across the entire monorepo, matching the public brand name.
 
 ---
 
@@ -21,14 +21,14 @@ All files in `sniff-ai/src/` and `sniff-ai/tests/`:
 
 | Pattern Changed | Before | After |
 |---|---|---|
-| Main config class | `SherlockConfig` | `SniffConfig` |
-| All env var reads | `os.getenv('SHERLOCK_ENV', ...)` | `os.getenv('SNIFF_ENV', ...)` |
-| DB path default | `./data/sherlock.db` | `./data/sniff.db` |
-| Config file default | `./data/sherlock.json` | `./data/sniff.json` |
-| Supabase buckets | `sherlock-screenshots` | `sniff-screenshots` |
-| Slack bot name | `"Sherlock Alert Bot"` | `"Sniff Alert Bot"` |
-| All docstrings/comments | "Sherlock" | "Sniff" |
-| CLI command text | `sherlock run ...` | `sniff run ...` |
+| Main config class | *(previous codename)* | `SniffConfig` |
+| All env var reads | *(previous codename prefix)* | `os.getenv('SNIFF_ENV', ...)` |
+| DB path default | *(previous codename)* | `./data/sniff.db` |
+| Config file default | *(previous codename)* | `./data/sniff.json` |
+| Supabase buckets | *(previous codename prefix)* | `sniff-screenshots` |
+| Slack bot name | *(previous codename)* | `"Sniff Alert Bot"` |
+| All docstrings/comments | *(previous codename)* | "Sniff" |
+| CLI command text | *(previous codename)* | `sniff run ...` |
 
 ### Config & Package Files
 
@@ -36,8 +36,8 @@ All files in `sniff-ai/src/` and `sniff-ai/tests/`:
 |---|---|
 | `sniff-ai/pyproject.toml` | `name = "sniff"`, entry point `sniff = "src.cli.main:app"`, description updated, keywords updated, URLs updated |
 | `sniff-web/package.json` | `name = "sniff-web"` |
-| `sniff-ai/.env.example` | All `SHERLOCK_*` → `SNIFF_*`; Typesafe AI section added; AWS profile comment updated |
-| `sniff-ai/SHERLOCK_CLI_GUIDE.md` | **Renamed** to `SNIFF_CLI_GUIDE.md` |
+| `sniff-ai/.env.example` | All vars renamed to the `SNIFF_*` prefix; Typesafe AI section added; AWS profile comment updated |
+| CLI guide file | **Renamed** to `SNIFF_CLI_GUIDE.md` |
 
 ### Markdown Documentation (17 files)
 
@@ -78,7 +78,7 @@ Since the rename session touched `.env.example` anyway, the Typesafe AI config v
 
 ## Verification
 
-**Method**: PowerShell `Select-String` grep for remaining "sherlock/Sherlock/SHERLOCK" in all `.py` files after changes.
+**Method**: PowerShell `Select-String` grep for remaining occurrences of the project's original internal name (in any casing) in all `.py` files after changes.
 
 **Result**: **0 remaining occurrences** in Python source files or pyproject.toml.
 

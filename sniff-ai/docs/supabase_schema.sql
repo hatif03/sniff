@@ -1,4 +1,4 @@
--- Supabase Database Schema for Sherlock Mystery Shopper
+-- Supabase Database Schema for Sniff Mystery Shopper
 -- This schema supports beautiful graph/timeline visualizations on the web dashboard
 
 -- Enable UUID extension
@@ -253,9 +253,9 @@ GROUP BY ar.run_id;
 -- STORAGE BUCKETS (Create via Supabase dashboard or API)
 -- =============================================================================
 
--- sherlock-screenshots (public)
--- sherlock-videos (public)
--- sherlock-traces (public)
+-- sniff-screenshots (public)
+-- sniff-videos (public)
+-- sniff-traces (public)
 
 -- =============================================================================
 -- FUNCTIONS FOR DASHBOARD

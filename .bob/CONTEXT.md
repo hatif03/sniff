@@ -4,9 +4,9 @@
 
 **Sniff** is an autonomous quality assurance system that simulates real user behaviour to continuously test signup and onboarding experiences across mobile and web platforms.
 
-- **Python backend** (`sniff-ai/`): Playwright browser automation + AWS Bedrock Claude + Typesafe AI Jev + APScheduler
-- **Next.js frontend** (`sniff-web/`): Dashboard, journey replay UI, Supabase integration
-- **GitHub Actions plugin** (`sniff-action/`): CI/CD integration
+- **Python backend** (`sniff-ai/`): Playwright browser automation + Gemini (Vertex AI, vision) + k2-horizon (ifm.ai, text) + Typesafe AI Jev + a FastAPI layer (`src/api/`) so runs can be triggered from the web, not just the CLI
+- **Next.js frontend** (`sniff-web/`): Dashboard, run-trigger flow, Supabase integration
+- **GitHub Actions plugin** (`sniff-action/`): not built yet - backlog item, see `docs/product/MARKET_RESEARCH.md`
 
 ## Active Expansion Plan
 
@@ -14,10 +14,12 @@ See [`sniff-expansion-plan.md`](../sniff-expansion-plan.md) for the full roadmap
 
 ## Key Architecture
 
-Three-tier intelligence model (see [ADR-001](../docs/adr/ADR-001-three-tier-architecture.md)):
-- **Tier 1 — Deterministic**: Pure Python rules (signal extraction, guardrails)
-- **Tier 2 — Jev (System One)**: Typesafe AI for fast navigation decisions
-- **Tier 3 — Claude (System Two)**: AWS Bedrock for deep reasoning and diagnosis
+Three-tier intelligence model (see `docs/product/ARCHITECTURE.md` Section 7A -
+this is this project's own synthesis, not a framing Typesafe or Google
+publish themselves):
+- **Tier 1 — Deterministic**: Pure Python rules (signal extraction, guardrails, `DiagnosisClassifier`)
+- **Tier 2 — Jev (System One)**: Typesafe AI, three roles inside `DecisionService` (goal-check backstop, context enrichment, decision critique) - not a standalone routing dispatcher
+- **Tier 3 — Reasoning**: Gemini (Vertex AI) for vision-dependent navigation, k2-horizon (ifm.ai) for text-only goal enhancement/planning/persona review
 
 ## Key Files
 
@@ -25,14 +27,19 @@ Three-tier intelligence model (see [ADR-001](../docs/adr/ADR-001-three-tier-arch
 |---|---|
 | `sniff-ai/src/core/config.py` | `SniffConfig` — all configuration |
 | `sniff-ai/src/core/orchestrator.py` | `RunOrchestrator` — state machine |
-| `sniff-ai/src/agent/decision_service.py` | `TieredDecisionService` — AI routing |
-| `sniff-ai/src/agent/jev_client.py` | `JevClient` — Typesafe AI wrapper |
-| `sniff-ai/src/agent/tier_router.py` | `TierRouter` — decision routing |
+| `sniff-ai/src/agent/decision_service.py` | `DecisionService` — AI decisions, Jev-aware when `tier_router` is passed in |
+| `sniff-ai/src/agent/gemini_client.py` | `GeminiClient` — Tier 3 vision-capable reasoning |
+| `sniff-ai/src/agent/k2horizon_client.py` | `K2HorizonClient` — Tier 3 text-only reasoning |
+| `sniff-ai/src/agent/jev_client.py` | `JevClient` — Typesafe AI wrapper (`/v1/systemone`) |
+| `sniff-ai/src/agent/tier_router.py` | `TierRouter` — the three Jev roles |
+| `sniff-ai/src/api/main.py` | FastAPI app — trigger/poll runs from the web |
 | `sniff-ai/src/executor/playwright_worker.py` | `PlaywrightWorker` — browser automation |
-| `sniff-ai/src/diagnosis/classifier.py` | `DiagnosisClassifier` — root cause analysis |
+| `sniff-ai/src/diagnosis/classifier.py` | `DiagnosisClassifier` — root cause analysis (Tier 1, fully deterministic) |
 | `sniff-ai/src/evidence/report_builder.py` | `ReportBuilder` + `RunReport` |
-| `sniff-ai/src/evidence/scorer.py` | `SniffScore` — UX health score |
 | `sniff-ai/src/cli/main.py` | CLI entry point (`sniff` command) |
+
+Note: a "Sniff Score" (single UX-health number) is a backlog item, not built -
+see `docs/product/MARKET_RESEARCH.md`.
 
 ## Coding Standards
 
@@ -56,14 +63,15 @@ Each session folder contains `prompt.md` (exact prompt used) and `session-summar
 |---|---|---|
 | [00](../bob_sessions/00-project-setup/) | Security + Bob files | ✅ Complete |
 | [01](../bob_sessions/01-planning-and-market-research/) | Planning + market research | ✅ Complete |
-| [02](../bob_sessions/02-rename-sherlock-to-sniff/) | Rename sherlock → sniff | ✅ Complete |
-| [03](../bob_sessions/03-dependency-updates/) | Dependency updates + Tailwind v4 | 🔄 In Progress |
-| [04](../bob_sessions/04-jev-client-setup/) | Typesafe AI Jev client | ⬜ Pending |
-| [05](../bob_sessions/05-three-tier-architecture/) | Three-tier architecture | ⬜ Pending |
+| [02](../bob_sessions/02-project-rename/) | Rename original internal name → sniff | ✅ Complete |
+| [03](../bob_sessions/03-dependency-updates/) | Dependency updates + Tailwind v4 | ✅ Complete |
+| [04](../bob_sessions/04-jev-client-setup/) | Typesafe AI Jev client (real API) | ✅ Complete |
+| [05](../bob_sessions/05-three-tier-architecture/) | Three-tier architecture | ✅ Complete |
 | [06](../bob_sessions/06-scheduled-runs/) | Scheduled runs daemon | ⬜ Pending |
 | [07](../bob_sessions/07-regression-detection/) | Regression detection | ⬜ Pending |
 | [08](../bob_sessions/08-journey-replay-ui/) | Journey replay UI | ⬜ Pending |
 | [09](../bob_sessions/09-sniff-score/) | Sniff Score | ⬜ Pending |
 | [10](../bob_sessions/10-cicd-integration/) | CI/CD GitHub Actions | ⬜ Pending |
-| [11](../bob_sessions/11-architecture-docs/) | Architecture docs update | ⬜ Pending |
+| [11](../bob_sessions/11-architecture-docs/) | Architecture docs update | ✅ Complete |
+| [12](../bob_sessions/12-provider-swap-and-saas-foundation/) | Provider swap + SaaS foundation | ✅ Complete (Phase 1) |
 

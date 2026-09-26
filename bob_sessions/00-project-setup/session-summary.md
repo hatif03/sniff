@@ -39,7 +39,7 @@
 
 - ✅ No hardcoded secrets found in any tracked source file
 - ✅ No `.env` files committed
-- ✅ No `sniff.json` / `sherlock.json` files found
+- ✅ No `sniff.json` files found
 - ✅ All credential patterns excluded by `.gitignore`
 
 ### Key Decisions Made
@@ -53,4 +53,4 @@
 ## Next Steps
 
 → Session 01: Planning & Market Research
-→ Session 02: Rename sherlock → sniff
+→ Session 02: Rename the project's original internal name → sniff

@@ -19,14 +19,14 @@
 
 ## Codebase Audit Findings
 
-The existing project was fully functional but had the internal name **"sherlock"** everywhere — package name, class names, env vars, CLI entry point, Slack bot name, Supabase bucket names, and all documentation. The public brand "Sniff" was only used in the folder name (`sniff-web/`, `sniff-ai/`).
+The existing project was fully functional but had its original internal name everywhere — package name, class names, env vars, CLI entry point, Slack bot name, Supabase bucket names, and all documentation. The public brand "Sniff" was only used in the folder name (`sniff-web/`, `sniff-ai/`).
 
 **Architecture found:**
 - Python modular monolith (`sniff-ai/`) with Playwright + AWS Bedrock Claude
 - Single-tier AI: every navigation decision went to Claude (expensive, slow)
 - State machine orchestrator with clean agent/executor separation
 - Next.js dashboard (`sniff-web/`) with Supabase storage
-- Typer CLI with 9 commands (`sherlock run`, `sherlock init`, etc.)
+- Typer CLI with 9 commands (using the project's original internal name, e.g. `sniff run`, `sniff init`, etc.)
 - Comprehensive test suite: 67 tests (all passing once path was fixed)
 
 ---
@@ -138,5 +138,5 @@ None — all scope items from the original prompt were addressed and planned. Th
 
 ## Next Steps
 
-→ Session 02: Full rename (sherlock → sniff)  
+→ Session 02: Full rename (original internal name → sniff)  
 → Session 03: Dependency updates + Tailwind v4 migration
