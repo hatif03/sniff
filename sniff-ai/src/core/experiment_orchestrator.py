@@ -5,23 +5,21 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Any
 from uuid import uuid4
 
 from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 
+from .config import SniffConfig
 from .experiment_models import (
     ExperimentConfig,
-    ExperimentRun,
-    ExperimentResult,
-    PersonaComparison,
     ExperimentInsights,
+    ExperimentResult,
+    ExperimentRun,
 )
 from .orchestrator import RunOrchestrator
-from .config import SniffConfig
-from ..evidence.report_builder import ReportBuilder
 
 console = Console()
 
@@ -34,16 +32,23 @@ class ExperimentOrchestrator:
         self.experiments_dir = Path("experiments")
         self.experiments_dir.mkdir(exist_ok=True)
 
+        # Full per-persona run data (RunReport + reasoning/persona-review),
+        # keyed by persona name, populated as _run_single_persona completes.
+        # ExperimentRun only keeps summary fields, so callers that need the
+        # full result (e.g. src/api/main.py uploading each persona's run to
+        # Supabase after the experiment finishes) read it from here.
+        self.reports: dict[str, dict[str, Any]] = {}
+
     def create_experiment(
         self,
         name: str,
         goal: str,
-        personas: List[str],
-        description: Optional[str] = None,
-        url: Optional[str] = None,
-        device: Optional[str] = None,
-        network: Optional[str] = None,
-        max_steps: Optional[int] = None,
+        personas: list[str],
+        description: str | None = None,
+        url: str | None = None,
+        device: str | None = None,
+        network: str | None = None,
+        max_steps: int | None = None,
         headless: bool = True,
         parallel: bool = True,
     ) -> ExperimentConfig:
@@ -78,7 +83,7 @@ class ExperimentOrchestrator:
         console.print(f"Personas: {', '.join(experiment.personas)}")
         console.print(f"Mode: {'Parallel' if experiment.parallel else 'Sequential'}\n")
 
-        runs: List[ExperimentRun] = []
+        runs: list[ExperimentRun] = []
         start_time = datetime.utcnow()
 
         if experiment.parallel:
@@ -101,7 +106,7 @@ class ExperimentOrchestrator:
 
     async def _run_sequential(
         self, experiment: ExperimentConfig
-    ) -> List[ExperimentRun]:
+    ) -> list[ExperimentRun]:
         """Run personas sequentially."""
         runs = []
 
@@ -127,10 +132,10 @@ class ExperimentOrchestrator:
 
     async def _run_parallel(
         self, experiment: ExperimentConfig
-    ) -> List[ExperimentRun]:
+    ) -> list[ExperimentRun]:
         """Run personas in parallel with live progress display."""
-        from rich.table import Table
         from rich.live import Live
+        from rich.table import Table
 
         # Track progress for each persona
         persona_status = {persona: {"status": "Starting...", "step": 0} for persona in experiment.personas}
@@ -185,7 +190,7 @@ class ExperimentOrchestrator:
                         # Check if done with a very short timeout
                         await asyncio.wait_for(asyncio.shield(gather_task), timeout=0.25)
                         done = True
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         # Not done yet, continue updating
                         continue
                 return await gather_task
@@ -224,15 +229,24 @@ class ExperimentOrchestrator:
 
             agent_service = None
             try:
-                # Try to create agent service (may fail if Bedrock not configured)
+                # Try to create agent service (may fail if Gemini/Vertex AI not configured)
                 agent_service = create_agent_service(self.config)
             except Exception as e:
                 logger.warning(f"Could not create agent service for {persona}: {e}")
                 logger.warning("Run will fail without AI agent")
 
+            # Experiment sub-runs skip their own auto Supabase upload -
+            # RunOrchestrator otherwise uploads unconditionally in its `run()`
+            # finally block whenever config.supabase.enabled is True, which
+            # would double-upload every persona once the API/caller also
+            # uploads each persona's full result explicitly (see self.reports
+            # below and src/api/main.py's experiment upload step).
+            run_config = self.config.model_copy(deep=True)
+            run_config.supabase.enabled = False
+
             # Create orchestrator for this run with agent service and progress callback
             orchestrator = RunOrchestrator(
-                self.config,
+                run_config,
                 agent_service=agent_service,
                 progress_callback=progress_callback
             )
@@ -249,6 +263,12 @@ class ExperimentOrchestrator:
                 persona_name=persona,
                 device_name=experiment.device,
             )
+
+            self.reports[persona] = {
+                "report": report,
+                "reasoning_timeline": orchestrator.reasoning_timeline,
+                "persona_review": orchestrator.persona_review,
+            }
 
             experiment_run.completed_at = datetime.utcnow()
             experiment_run.duration_seconds = (
@@ -273,7 +293,7 @@ class ExperimentOrchestrator:
     def _aggregate_results(
         self,
         experiment: ExperimentConfig,
-        runs: List[ExperimentRun],
+        runs: list[ExperimentRun],
         start_time: datetime,
         end_time: datetime,
         total_duration: float,
@@ -309,7 +329,7 @@ class ExperimentOrchestrator:
         return result
 
     def _generate_insights(
-        self, experiment: ExperimentConfig, runs: List[ExperimentRun]
+        self, experiment: ExperimentConfig, runs: list[ExperimentRun]
     ) -> ExperimentInsights:
         """Generate insights from experiment results."""
         insights = ExperimentInsights(experiment_id=experiment.experiment_id)
@@ -334,7 +354,7 @@ class ExperimentOrchestrator:
 
         return insights
 
-    def _generate_recommendations(self, runs: List[ExperimentRun]) -> List[str]:
+    def _generate_recommendations(self, runs: list[ExperimentRun]) -> list[str]:
         """Generate recommendations based on experiment results."""
         recommendations = []
 
@@ -384,17 +404,17 @@ class ExperimentOrchestrator:
         with open(result_path, "w") as f:
             json.dump(result.model_dump(mode="json"), f, indent=2, default=str)
 
-    def load_experiment(self, experiment_id: str) -> Optional[ExperimentResult]:
+    def load_experiment(self, experiment_id: str) -> ExperimentResult | None:
         """Load experiment results from disk."""
         result_path = self.experiments_dir / experiment_id / "result.json"
         if not result_path.exists():
             return None
 
-        with open(result_path, "r") as f:
+        with open(result_path) as f:
             data = json.load(f)
             return ExperimentResult(**data)
 
-    def list_experiments(self) -> List[ExperimentResult]:
+    def list_experiments(self) -> list[ExperimentResult]:
         """List all experiments."""
         experiments = []
 
