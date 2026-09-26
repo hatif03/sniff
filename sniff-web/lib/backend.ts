@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
  */
 export async function backendFetch(
   path: string,
-  init: { method: "GET" | "POST"; body?: string }
+  init: { method: "GET" | "POST" | "PATCH" | "DELETE"; body?: string }
 ): Promise<NextResponse> {
   const baseUrl = process.env.BACKEND_URL;
   const token = process.env.SNIFF_API_TOKEN;

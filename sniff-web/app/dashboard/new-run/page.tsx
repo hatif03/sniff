@@ -19,7 +19,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { addAuditToHistory, type AuditStatusResponse } from '@/lib/audits';
+import { ContainerNarrow } from '@/components/ui/container';
+import { Display2, Body } from '@/components/ui/typography';
+import type { AuditStatusResponse } from '@/lib/audits';
 
 const QUICK_START_TEMPLATES = [
   {
@@ -447,7 +449,6 @@ function AuditForm() {
 
       const initial: AuditStatusResponse = { audit_id: data.audit_id, status: data.status ?? 'queued' };
       setAudit(initial);
-      addAuditToHistory({ audit_id: initial.audit_id, url, created_at: new Date().toISOString() });
 
       elapsedTimer.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
       pollTimer.current = setInterval(() => pollAudit(initial.audit_id), POLL_INTERVAL_MS);
@@ -595,8 +596,8 @@ export default function NewRunPage() {
   }, []);
 
   return (
-    <main className="min-h-screen py-32 px-6 bg-background">
-      <div className="max-w-3xl mx-auto">
+    <main className="min-h-screen py-32 bg-background">
+      <ContainerNarrow>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -609,10 +610,10 @@ export default function NewRunPage() {
           >
             ← Back to Dashboard
           </Link>
-          <h1 className="text-4xl font-display font-bold text-foreground mb-3">New Test Run</h1>
-          <p className="text-lg text-muted-foreground">
+          <Display2 as="h1" className="text-foreground mb-3">New Test Run</Display2>
+          <Body className="text-lg text-muted-foreground">
             Trigger a persona-driven test run against a live URL and watch it work.
-          </p>
+          </Body>
         </motion.div>
 
         <motion.div
@@ -633,7 +634,7 @@ export default function NewRunPage() {
             </TabsContent>
           </Tabs>
         </motion.div>
-      </div>
+      </ContainerNarrow>
     </main>
   );
 }

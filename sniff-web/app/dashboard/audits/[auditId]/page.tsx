@@ -22,6 +22,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { Container, ContainerNarrow } from '@/components/ui/container';
+import { Display2, Heading3 } from '@/components/ui/typography';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { AuditScreenshot } from '@/components/AuditScreenshot';
 import type { AuditReport, AuditStatus, AuditStatusResponse, Sentiment } from '@/lib/audits';
@@ -110,16 +112,54 @@ function GrowthMiniCard({ title, score, findings }: { title: string; score: numb
 
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-card rounded-xl p-4 border border-foreground/10 text-center">
-      <p className="text-2xl font-display font-bold text-foreground">
-        <AnimatedNumber value={value} />
-      </p>
-      <p className="text-xs text-muted-foreground mt-1">{label}</p>
-    </div>
+    <Card className="text-center">
+      <CardContent>
+        <p className="text-2xl font-display font-bold text-foreground">
+          <AnimatedNumber value={value} />
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">{label}</p>
+      </CardContent>
+    </Card>
   );
 }
 
 const dimensionChartConfig = { score: { label: 'Score' } } satisfies ChartConfig;
+
+// Real published Core Web Vitals thresholds (ms for lcp/fcp, unitless for cls).
+const VITAL_THRESHOLDS = {
+  lcp: [2500, 4000],
+  fcp: [1800, 3000],
+  cls: [0.1, 0.25],
+} as const;
+
+type VitalBand = 'good' | 'warning' | 'critical';
+
+function vitalBand(metric: keyof typeof VITAL_THRESHOLDS, value: number): VitalBand {
+  const [goodMax, niMax] = VITAL_THRESHOLDS[metric];
+  if (value < goodMax) return 'good';
+  if (value < niMax) return 'warning';
+  return 'critical';
+}
+
+const VITAL_BAND_LABEL: Record<VitalBand, string> = {
+  good: 'Good',
+  warning: 'Needs improvement',
+  critical: 'Poor',
+};
+
+const VITAL_BAND_TEXT_CLASS: Record<VitalBand, string> = {
+  good: 'text-chart-good',
+  warning: 'text-chart-warning',
+  critical: 'text-chart-critical',
+};
+
+function VitalBadge({ band }: { band: VitalBand }) {
+  return (
+    <Badge variant="outline" className={`${VITAL_BAND_TEXT_CLASS[band]} border-current`}>
+      {VITAL_BAND_LABEL[band]}
+    </Badge>
+  );
+}
 
 function ReportView({ auditId, report }: { auditId: string; report: AuditReport }) {
   const overallBand = scoreBand(report.overall_score);
@@ -133,7 +173,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
   }));
 
   return (
-    <div className="max-w-6xl mx-auto space-y-14">
+    <Container className="space-y-14">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -146,7 +186,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
         >
           ← Back to Dashboard
         </Link>
-        <h1 className="text-4xl font-display font-bold text-foreground mb-2">Landing Page Audit</h1>
+        <Display2 as="h1" className="mb-2">Landing Page Audit</Display2>
         <p className="text-sm text-muted-foreground font-mono">
           Audited from the perspective of: <span className="text-foreground">{report.visitor_persona}</span>
         </p>
@@ -208,7 +248,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
 
       {/* 5-dimension scores */}
       <section>
-        <h2 className="text-2xl font-display font-bold text-foreground mb-6">Scorecard</h2>
+        <Heading3 as="h2" className="mb-6">Scorecard</Heading3>
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -268,7 +308,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
 
       {/* Screenshots */}
       <section>
-        <h2 className="text-2xl font-display font-bold text-foreground mb-6">Screenshots</h2>
+        <Heading3 as="h2" className="mb-6">Screenshots</Heading3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2 bg-surface rounded-2xl overflow-hidden border border-foreground/10 shadow-lg">
             <AuditScreenshot
@@ -315,7 +355,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
 
       {/* Story timeline */}
       <section>
-        <h2 className="text-2xl font-display font-bold text-foreground mb-2">First-Time Visitor Walkthrough</h2>
+        <Heading3 as="h2" className="mb-2">First-Time Visitor Walkthrough</Heading3>
         <p className="text-sm text-muted-foreground mb-6">Step by step, what a first-time visitor actually experienced.</p>
         <div className="space-y-4">
           {report.story.map((step, i) => {
@@ -352,8 +392,8 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
 
       {/* Browsing evidence */}
       <section>
-        <h2 className="text-2xl font-display font-bold text-foreground mb-6">Browsing Evidence</h2>
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <Heading3 as="h2" className="mb-6">Browsing Evidence</Heading3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
           <StatTile label="Interactive elements" value={report.browsing_evidence.total_interactive_elements} />
           <StatTile label="Safe CTA candidates" value={report.browsing_evidence.safe_cta_candidates} />
           <StatTile label="Actually tested" value={report.browsing_evidence.tested_count} />
@@ -416,7 +456,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
 
       {/* Fixes */}
       <section>
-        <h2 className="text-2xl font-display font-bold text-foreground mb-6">Fixes</h2>
+        <Heading3 as="h2" className="mb-6">Fixes</Heading3>
         <div className="space-y-4">
           <FixCard {...report.primary_fix} prominent />
           {report.next_fixes.map((f, i) => (
@@ -428,7 +468,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
       {/* Rewrites */}
       {report.rewrites.length > 0 && (
         <section>
-          <h2 className="text-2xl font-display font-bold text-foreground mb-6">Rewrites</h2>
+          <Heading3 as="h2" className="mb-6">Rewrites</Heading3>
           <div className="space-y-4">
             {report.rewrites.map((r, i) => (
               <Card key={i}>
@@ -450,7 +490,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
 
       {/* Growth sub-report */}
       <section>
-        <h2 className="text-2xl font-display font-bold text-foreground mb-6">Growth Report</h2>
+        <Heading3 as="h2" className="mb-6">Growth Report</Heading3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <GrowthMiniCard title="SEO" score={report.growth.seo.score} findings={report.growth.seo.findings} />
           <GrowthMiniCard title="Visual Design" score={report.growth.visual_design.score} findings={report.growth.visual_design.findings} />
@@ -458,7 +498,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
         </div>
         {report.growth.strategic_options.length > 0 && (
           <>
-            <h3 className="text-lg font-display font-semibold text-foreground mb-4">Where to go from here</h3>
+            <Heading3 className="mb-4">Where to go from here</Heading3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {report.growth.strategic_options.map((o, i) => (
                 <Card key={i}>
@@ -473,6 +513,86 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
           </>
         )}
       </section>
+
+      {/* Performance & SEO - both nullable on audits from before this data was captured */}
+      {(report.core_web_vitals || report.seo_checks) && (
+        <section>
+          <Heading3 as="h2" className="mb-6">Performance & SEO</Heading3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {report.core_web_vitals && (
+              <Card>
+                <CardContent className="space-y-3">
+                  <p className="font-display font-semibold text-foreground">Core Web Vitals</p>
+                  <div className="space-y-2">
+                    {([
+                      ['lcp', 'LCP', report.core_web_vitals.lcp, (v: number) => `${(v / 1000).toFixed(1)}s`],
+                      ['fcp', 'FCP', report.core_web_vitals.fcp, (v: number) => `${(v / 1000).toFixed(1)}s`],
+                      ['cls', 'CLS', report.core_web_vitals.cls, (v: number) => v.toFixed(2)],
+                    ] as const).map(([metric, label, value, format]) =>
+                      value === null ? null : (
+                        <div key={metric} className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-foreground">{format(value)}</span>
+                            <VitalBadge band={vitalBand(metric, value)} />
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {report.seo_checks && (
+              <Card>
+                <CardContent className="space-y-3">
+                  <p className="font-display font-semibold text-foreground">SEO Checks</p>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Title: </span>
+                      <span className="text-foreground">{report.seo_checks.title ?? '—'}</span>
+                      {report.seo_checks.title_length !== null && (
+                        <span className="text-xs text-muted-foreground"> ({report.seo_checks.title_length} chars)</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Meta description: </span>
+                      {report.seo_checks.meta_description ? (
+                        <>
+                          <span className="text-foreground">{report.seo_checks.meta_description}</span>
+                          {report.seo_checks.meta_description_length !== null && (
+                            <span className="text-xs text-muted-foreground"> ({report.seo_checks.meta_description_length} chars)</span>
+                          )}
+                        </>
+                      ) : (
+                        <Badge variant="destructive">Missing</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">H1 tags: </span>
+                      <span className="text-foreground font-mono">{report.seo_checks.h1_count ?? '—'}</span>
+                      {report.seo_checks.h1_count !== null && report.seo_checks.h1_count !== 1 && (
+                        <Badge variant="destructive">
+                          {report.seo_checks.h1_count === 0 ? 'Missing H1' : 'Multiple H1s'}
+                        </Badge>
+                      )}
+                    </div>
+                    {report.seo_checks.img_alt_pct !== null && (
+                      <div>
+                        <span className="text-muted-foreground">Image alt-text coverage: </span>
+                        <span className="text-foreground font-mono">{report.seo_checks.img_alt_pct}%</span>
+                        {report.seo_checks.img_alt_count !== null && (
+                          <span className="text-xs text-muted-foreground"> ({report.seo_checks.img_alt_count} images)</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Visual teaser - compact footer aside */}
       <section className="border-t border-foreground/10 pt-8 pb-4">
@@ -493,7 +613,7 @@ function ReportView({ auditId, report }: { auditId: string; report: AuditReport 
           </div>
         </div>
       </section>
-    </div>
+    </Container>
   );
 }
 
@@ -566,7 +686,7 @@ export default function AuditReportPage({ params }: { params: Promise<{ auditId:
       {showReport ? (
         <ReportView auditId={auditId} report={data.report as AuditReport} />
       ) : (
-        <div className="max-w-3xl mx-auto space-y-6">
+        <ContainerNarrow className="space-y-6">
           <Link
             href="/dashboard"
             className="text-sm text-muted-foreground hover:text-primary transition-colors inline-block"
@@ -583,7 +703,7 @@ export default function AuditReportPage({ params }: { params: Promise<{ auditId:
               <Link href="/dashboard/new-run">Try another audit</Link>
             </Button>
           )}
-        </div>
+        </ContainerNarrow>
       )}
     </main>
   );

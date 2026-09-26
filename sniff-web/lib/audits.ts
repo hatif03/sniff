@@ -98,6 +98,22 @@ export interface ImagePaths {
   annotated: string;
 }
 
+export interface CoreWebVitals {
+  lcp: number | null;
+  fcp: number | null;
+  cls: number | null;
+}
+
+export interface SeoChecks {
+  title: string | null;
+  title_length: number | null;
+  meta_description: string | null;
+  meta_description_length: number | null;
+  h1_count: number | null;
+  img_alt_count: number | null;
+  img_alt_pct: number | null;
+}
+
 export interface AuditReport {
   overall_score: number;
   label: string;
@@ -118,6 +134,8 @@ export interface AuditReport {
   rewrites: RewriteItem[];
   images: ImagePaths;
   visitor_persona: string;
+  core_web_vitals: CoreWebVitals | null;
+  seo_checks: SeoChecks | null;
 }
 
 export type AuditStatus = "queued" | "running" | "completed" | "failed";
@@ -140,46 +158,4 @@ export interface AuditStatusResponse {
 export function auditImageSrc(auditId: string, localPath: string): string {
   const filename = localPath.split(/[/\\]/).pop() || localPath;
   return `/api/backend/audits/${encodeURIComponent(auditId)}/images/${encodeURIComponent(filename)}`;
-}
-
-// ---- Client-side audit history (localStorage) ----
-//
-// ponytail: the backend has no GET /audits list-all endpoint (confirmed by
-// reading src/api/main.py - only POST /audits and GET /audits/{id} exist),
-// so there is no real persisted "all audits" list to page through. This is a
-// deliberate workaround, not a real list: it only remembers audit_ids this
-// browser has triggered, in localStorage. Replace with a real backend list
-// endpoint + query if/when one exists.
-
-const HISTORY_KEY = "sniff_audit_history";
-const HISTORY_LIMIT = 20;
-
-export interface AuditHistoryEntry {
-  audit_id: string;
-  url: string;
-  created_at: string;
-}
-
-export function getAuditHistory(): AuditHistoryEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-export function addAuditToHistory(entry: AuditHistoryEntry): void {
-  if (typeof window === "undefined") return;
-  try {
-    const existing = getAuditHistory().filter((e) => e.audit_id !== entry.audit_id);
-    const next = [entry, ...existing].slice(0, HISTORY_LIMIT);
-    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-  } catch {
-    // localStorage unavailable (private mode, quota, etc) - history is
-    // best-effort only, never block the audit itself on it.
-  }
 }
