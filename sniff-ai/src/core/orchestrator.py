@@ -15,21 +15,22 @@ Architecture boundaries:
 
 import asyncio
 import logging
-from pathlib import Path
-from typing import Optional, Any
-from datetime import datetime
 import uuid
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from .models import Observation, AgentDecision, ActionResult, DiagnosisResult
-from .state_machine import StateMachine, RunState, RunOutcome
-from .config import SniffConfig
-from .persona import PersonaProfile
-from .validation import DecisionSanitizer, create_default_sanitizer
-from ..executor.playwright_worker import PlaywrightWorker
-from ..diagnosis.classifier import DiagnosisClassifier, create_default_classifier
-from ..alerts.slack import SlackAlert, create_slack_alert
-from ..evidence.report_builder import ReportBuilder, RunReport, create_report_builder
 from ..agent.persona_reviewer import PersonaReviewer, create_persona_reviewer
+from ..alerts.slack import create_slack_alert
+from ..diagnosis.classifier import create_default_classifier
+from ..evidence.report_builder import RunReport, create_report_builder
+from ..executor.playwright_worker import PlaywrightWorker
+from .config import SniffConfig
+from .models import ActionResult, AgentDecision, DiagnosisResult, Observation
+from .persona import PersonaProfile
+from .state_machine import RunOutcome, RunState, StateMachine
+from .validation import create_default_sanitizer
 
 # Optional Supabase integration
 try:
@@ -63,8 +64,8 @@ class RunOrchestrator:
     def __init__(
         self,
         config: SniffConfig,
-        agent_service: Optional[Any] = None,  # Will be provided by CLI/integration
-        progress_callback: Optional[callable] = None,  # Callback for progress updates
+        agent_service: Any | None = None,  # Will be provided by CLI/integration
+        progress_callback: Callable | None = None,  # Callback for progress updates
     ):
         """Initialize orchestrator.
 
@@ -80,6 +81,11 @@ class RunOrchestrator:
         # Initialize components
         self.sanitizer = create_default_sanitizer()
         self.diagnosis_classifier = create_default_classifier()
+
+        # Tier 2 (Jev) router - disabled (no-op) unless config.typesafe.enabled,
+        # so goal-reached detection below behaves exactly as before by default.
+        from ..agent.tier_router import create_tier_router
+        self.tier_router = create_tier_router(config)
         self.slack_alert = create_slack_alert(
             webhook_url=config.slack.webhook_url,
             bot_name=config.slack.bot_name,
@@ -88,75 +94,71 @@ class RunOrchestrator:
             artifacts_base_path=Path(config.artifacts_path)
         )
 
-        # Initialize persona reviewer (optional, may fail if Bedrock not configured)
-        self.persona_reviewer: Optional[PersonaReviewer] = None
+        # Initialize persona reviewer (optional, may fail if k2-horizon not configured)
+        self.persona_reviewer: PersonaReviewer | None = None
         try:
             self.persona_reviewer = create_persona_reviewer(config)
         except Exception as e:
             logger.warning(f"Could not create persona reviewer: {e}")
 
         # Initialize Supabase uploader (optional)
-        self.supabase_uploader: Optional[Any] = None
+        self.supabase_uploader: Any | None = None
         if HAS_SUPABASE and create_supabase_uploader:
             try:
                 self.supabase_uploader = create_supabase_uploader(config)
             except Exception as e:
                 logger.warning(f"Could not create Supabase uploader: {e}")
 
-        # Initialize website analyzer, goal enhancer, and planner
-        from ..agent.website_analyzer import create_website_analyzer
+        # Initialize website analyzer, goal enhancer, and planner. Goal
+        # enhancement/planning are text-only (no vision needed), so they get
+        # their own k2-horizon client rather than reusing DecisionService's
+        # vision-capable Gemini client.
         from ..agent.goal_enhancer import create_goal_enhancer
+        from ..agent.k2horizon_client import create_k2horizon_client
         from ..agent.planner import create_planner
+        from ..agent.website_analyzer import create_website_analyzer
 
         self.website_analyzer = create_website_analyzer()
-        self.goal_enhancer: Optional[Any] = None
-        self.planner: Optional[Any] = None
-        if self.agent_service:
-            # DecisionService uses 'client' attribute for BedrockClient
-            bedrock_client = getattr(self.agent_service, 'client', None) or getattr(self.agent_service, 'bedrock_client', None)
-            if bedrock_client:
-                try:
-                    self.goal_enhancer = create_goal_enhancer(bedrock_client)
-                    logger.info("Goal enhancer initialized successfully")
-                except Exception as e:
-                    logger.warning(f"Could not create goal enhancer: {e}")
-
-                try:
-                    self.planner = create_planner(bedrock_client)
-                    logger.info("Planner initialized successfully")
-                except Exception as e:
-                    logger.warning(f"Could not create planner: {e}")
+        self.goal_enhancer: Any | None = None
+        self.planner: Any | None = None
+        try:
+            text_client = create_k2horizon_client(config)
+            self.goal_enhancer = create_goal_enhancer(text_client)
+            self.planner = create_planner(text_client)
+            logger.info("Goal enhancer and planner initialized (k2-horizon)")
+        except Exception as e:
+            logger.warning(f"Could not create goal enhancer/planner: {e}")
 
         # Run state
-        self.run_id: Optional[str] = None
-        self.state_machine: Optional[StateMachine] = None
-        self.worker: Optional[PlaywrightWorker] = None
+        self.run_id: str | None = None
+        self.state_machine: StateMachine | None = None
+        self.worker: PlaywrightWorker | None = None
 
         # Run data
         self.observations: list[Observation] = []
         self.action_results: list[ActionResult] = []
-        self.diagnosis: Optional[DiagnosisResult] = None
-        self.report: Optional[RunReport] = None
+        self.diagnosis: DiagnosisResult | None = None
+        self.report: RunReport | None = None
         self.reasoning_timeline: list[dict] = []
-        self.persona_review: Optional[dict] = None
-        self.supabase_upload_result: Optional[dict] = None  # Store Supabase URLs for Slack alert
+        self.persona_review: dict | None = None
+        self.supabase_upload_result: dict | None = None  # Store Supabase URLs for Slack alert
 
         # Run parameters
-        self.goal: Optional[str] = None
-        self.enhanced_goal: Optional[str] = None  # Context-enhanced version of goal
-        self.goal_type: Optional[Any] = None  # GoalType (exploratory/action/unknown)
-        self.persona: Optional[PersonaProfile] = None
-        self.start_url: Optional[str] = None
+        self.goal: str | None = None
+        self.enhanced_goal: str | None = None  # Context-enhanced version of goal
+        self.goal_type: Any | None = None  # GoalType (exploratory/action/unknown)
+        self.persona: PersonaProfile | None = None
+        self.start_url: str | None = None
 
         # Timing
-        self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
 
         # Guardrail tracking
         self.step_count = 0
         self.intent_retry_count = 0
-        self.current_url_dwell_start: Optional[datetime] = None
-        self.last_url: Optional[str] = None
+        self.current_url_dwell_start: datetime | None = None
+        self.last_url: str | None = None
 
     def _report_progress(self, message: str):
         """Report progress update to callback if available."""
@@ -171,7 +173,8 @@ class RunOrchestrator:
         goal: str,
         start_url: str,
         persona_name: str,
-        device_name: Optional[str] = None,
+        device_name: str | None = None,
+        run_id: str | None = None,
     ) -> RunReport:
         """Execute autonomous run with full state machine.
 
@@ -180,6 +183,8 @@ class RunOrchestrator:
             start_url: Starting URL for navigation
             persona_name: Name of persona to use
             device_name: Device to emulate (default from config)
+            run_id: Pre-assigned run ID (e.g. one already handed back to an
+                API caller to poll). Generated the usual way if omitted.
 
         Returns:
             RunReport with results and artifacts
@@ -188,10 +193,13 @@ class RunOrchestrator:
             GuardrailViolation: If guardrails are exceeded
         """
         # Initialize run
-        # Generate human-readable run ID: run_YYYYMMDD_HHMMSS_<short-uuid>
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        short_uuid = str(uuid.uuid4())[:8]  # First 8 chars for readability
-        self.run_id = f"run_{timestamp}_{short_uuid}"
+        if run_id:
+            self.run_id = run_id
+        else:
+            # Generate human-readable run ID: run_YYYYMMDD_HHMMSS_<short-uuid>
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            short_uuid = str(uuid.uuid4())[:8]  # First 8 chars for readability
+            self.run_id = f"run_{timestamp}_{short_uuid}"
         self.goal = goal
         self.start_url = start_url
         self.start_time = datetime.utcnow()
@@ -769,25 +777,39 @@ class RunOrchestrator:
     async def _is_goal_reached(self) -> bool:
         """Check if run goal is reached.
 
+        Tier 1 (deterministic): a strong keyword match on the visible text is
+        trusted immediately, same as before Jev existed - no network call.
+
+        Tier 2 (Jev): when the keyword signal is weak/absent, the ReAct-style
+        "Observation" interpreter in TierRouter.check_goal_reached asks Jev
+        directly (text-only: goal + visible text). This is a real
+        correctness fix over pure keyword matching, which false-negatives on
+        any success page that doesn't literally say "success"/"welcome"/etc.
+
+        Falls back to the keyword result, unchanged, whenever Jev is
+        disabled, unavailable, or not confident.
+
         Returns:
             True if goal reached, False otherwise
-
-        Note: This is a placeholder. Actual implementation may use agent service.
         """
-        # This is a simplified check - actual implementation may use agent service
-        # to evaluate goal completion based on current state
-
         if not self.observations:
             return False
 
-        # Check if we've reached a success state (e.g., confirmation page)
         current_obs = self.observations[-1]
         success_indicators = [
             'success', 'complete', 'confirmation', 'thank you', 'welcome'
         ]
-
         visible_text_lower = ' '.join(current_obs.visibleText).lower()
-        return any(indicator in visible_text_lower for indicator in success_indicators)
+        keyword_hit = any(indicator in visible_text_lower for indicator in success_indicators)
+
+        result = self.tier_router.check_goal_reached(
+            goal=self.enhanced_goal or self.goal or "",
+            visible_text=current_obs.visibleText,
+            keyword_hit=keyword_hit,
+        )
+        if result.source == "jev":
+            logger.info(f"Goal-reached decided by Jev (Tier 2): {result.reached}")
+        return result.reached
 
     def _is_stuck(self) -> bool:
         """Check if execution is stuck.
@@ -869,10 +891,12 @@ class RunOrchestrator:
         return "Unknown stuck condition"
 
 
-class Orchestrator:
+class SyncOrchestrator:
     """Synchronous wrapper for RunOrchestrator.
 
-    Provides the interface expected by the CLI run command.
+    Provides the interface expected by the CLI run command. The FastAPI
+    backend (src/api/main.py) calls RunOrchestrator directly instead - it's
+    already async, so it has no need for this wrapper's asyncio.run(...).
     """
 
     def __init__(
@@ -886,7 +910,7 @@ class Orchestrator:
         network: str,
         headless: bool,
         max_steps: int,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Callable | None = None,
     ):
         """Initialize orchestrator with run parameters.
 
@@ -928,7 +952,7 @@ class Orchestrator:
 
         agent_service = None
         try:
-            # Try to create agent service (may fail if Bedrock not configured)
+            # Try to create agent service (may fail if Gemini/Vertex AI not configured)
             agent_service = create_agent_service(self.config)
         except Exception as e:
             logger.warning(f"Could not create agent service: {e}")
@@ -941,7 +965,6 @@ class Orchestrator:
         )
 
         # Run the async execution
-        import asyncio
 
         try:
             # Run the orchestrator

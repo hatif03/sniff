@@ -1,4 +1,4 @@
-"""Decision prompt templates for Bedrock agent.
+"""Decision prompt templates for the Tier 3 reasoning agent (Gemini).
 
 Provides prompt construction for converting observations into agent decisions.
 Ensures goal-driven behavior with persona-aware exploration.
@@ -271,10 +271,30 @@ Scenario: Truly stuck - tried 3+ different approaches, no progress
     return base_prompt
 
 
+def _format_jev_signals(jev_signals: Optional[dict]) -> list[str]:
+    """Render Tier-2 (Jev) pre-computed screen signals as prompt lines.
+
+    These are cheap, parallel, text-only probes computed before this prompt
+    is built (see TierRouter.enrich_context) - they pre-digest the screen so
+    the reasoning model doesn't have to re-derive screen classification from
+    scratch every step. Absent (None) whenever Jev is disabled/unavailable.
+    """
+    if not jev_signals:
+        return []
+    return [
+        "\nPre-computed signals (fast model, verify against the screenshot):",
+        f"- Screen type: {jev_signals.get('screen_type')} "
+        f"(confidence {jev_signals.get('screen_type_confidence', 0):.2f})",
+        f"- Visible error/blocking message: {jev_signals.get('has_error')}",
+        f"- Clutter/ambiguity score (1-5): {jev_signals.get('clutter_score')}",
+    ]
+
+
 def build_user_message(
     goal: str,
     observation: dict,
-    recent_history: Optional[list[dict]] = None
+    recent_history: Optional[list[dict]] = None,
+    jev_signals: Optional[dict] = None,
 ) -> str:
     """Build user message with goal, observation, and history.
 
@@ -282,6 +302,7 @@ def build_user_message(
         goal: User's signup goal (e.g., "Complete signup with document upload")
         observation: Current Observation dict from worker
         recent_history: Optional list of recent decisions and results
+        jev_signals: Optional Tier-2 pre-computed screen signals (see TierRouter.enrich_context)
 
     Returns:
         User message string
@@ -330,6 +351,8 @@ def build_user_message(
             result = entry.get('result', 'unknown')
             message_parts.append(f"{i}. {action} on '{target}' -> {result}")
 
+    message_parts.extend(_format_jev_signals(jev_signals))
+
     message_parts.append("\nReturn your next action decision as JSON (no additional text):")
 
     return "\n".join(message_parts)
@@ -340,7 +363,8 @@ def build_user_message_with_vision(
     observation: dict,
     screenshot_base64: str,
     recent_history: Optional[list[dict]] = None,
-    format_style: str = "openai"
+    format_style: str = "openai",
+    jev_signals: Optional[dict] = None,
 ) -> list[dict]:
     """Build user message with screenshot image for vision models.
 
@@ -350,6 +374,7 @@ def build_user_message_with_vision(
         screenshot_base64: Base64-encoded screenshot image
         recent_history: Optional list of recent decisions and results
         format_style: Vision format style ("openai" or "anthropic")
+        jev_signals: Optional Tier-2 pre-computed screen signals (see TierRouter.enrich_context)
 
     Returns:
         Message content list with text and image
@@ -429,6 +454,7 @@ def build_user_message_with_vision(
     text_parts.append("- If previous attempts failed, try SEMANTICALLY SIMILAR alternatives")
     text_parts.append("- Don't repeat the same target - explore other options that match the goal")
     text_parts.append("- If stuck between social and email signup, scroll to find 'Continue with email' option")
+    text_parts.extend(_format_jev_signals(jev_signals))
     text_parts.append("\nReturn your decision as JSON (no additional text):")
 
     text_content = "\n".join(text_parts)

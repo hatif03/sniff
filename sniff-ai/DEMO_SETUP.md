@@ -5,8 +5,8 @@ This guide helps you quickly set up Sniff for a demo or presentation.
 ## Prerequisites
 
 - Python 3.11+
-- AWS account with Bedrock access
-- AWS credentials (Access Key ID and Secret Access Key)
+- A Google Cloud project with the Vertex AI API enabled (for Gemini)
+- An ifm.ai API key (for k2-horizon)
 
 ## Quick Setup (5 minutes)
 
@@ -23,68 +23,42 @@ pip install Sniff
 playwright install
 ```
 
-### Step 2: Configure AWS Credentials
+### Step 2: Configure Gemini and k2-horizon
 
-Choose one of the following methods:
-
-#### Method A: AWS Profile (Recommended)
+Gemini (Vertex AI) auth is via Application Default Credentials, not an API key:
 
 ```bash
-# Configure AWS CLI
-aws configure --profile Sniff
-
-# When prompted, enter:
-# - AWS Access Key ID: [Your key]
-# - AWS Secret Access Key: [Your secret]
-# - Default region: us-west-2
-# - Default output format: json
+gcloud auth application-default login
+gcloud config set project <your-project-id>
+gcloud services enable aiplatform.googleapis.com
 ```
+
+See `GCLOUD_SETUP.md` for the full walkthrough.
 
 Create `.env` file:
 ```bash
-AWS_PROFILE=Sniff
-AWS_DEFAULT_REGION=us-west-2
-BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
-BEDROCK_REGION=us-west-2
-SHERLOCK_ALLOWED_DOMAINS=staging.example.com,deriv.com
+GEMINI_PROJECT_ID=<your-project-id>
+GEMINI_REGION=us-central1
+IFM_API_KEY=<your-ifm-api-key>
+SNIFF_ALLOWED_DOMAINS=staging.example.com,deriv.com
 ```
 
-#### Method B: Environment Variables
+See `.env.example` for the full list of variables (model IDs, timeouts, temperature, etc.) and their defaults.
 
-Set environment variables directly:
-```bash
-export AWS_ACCESS_KEY_ID=AKIA...
-export AWS_SECRET_ACCESS_KEY=...
-export AWS_DEFAULT_REGION=us-west-2
-export BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
-export BEDROCK_REGION=us-west-2
-export SHERLOCK_ALLOWED_DOMAINS=staging.example.com,deriv.com
-```
-
-#### Method C: .env File with Credentials
-
-Create `.env` file in your working directory:
-```bash
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=...
-AWS_DEFAULT_REGION=us-west-2
-BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
-BEDROCK_REGION=us-west-2
-SHERLOCK_ALLOWED_DOMAINS=staging.example.com,deriv.com
-```
-
-**WARNING: Never commit this file to git!**
+**WARNING: Never commit `.env` to git!**
 
 ### Step 3: Verify Setup
 
 ```bash
-# Test AWS/Bedrock connectivity
+# Test Gemini/k2-horizon connectivity
 Sniff preflight
 
 # Expected output:
-# ✓ AWS credentials configured
-# ✓ Bedrock access verified
-# ✓ Model nvidia.nemotron-nano-12b-v2 available
+# ✓ Environment Variables
+# ✓ Google Cloud Credentials (ADC valid)
+# ✓ Network Connectivity
+# ✓ Gemini Invocation
+# ✓ k2-horizon Invocation
 ```
 
 ### Step 4: Run Demo Test
@@ -151,33 +125,32 @@ Sniff report run_20260207_134429_45c8c7ec
 
 ## Troubleshooting
 
-### AWS Credentials Not Found
+### Google Cloud Credentials Not Found
 
 ```bash
-# Check AWS configuration
-aws sts get-caller-identity --profile Sniff
+# Check ADC is set up
+gcloud auth application-default print-access-token
 
 # If this fails, reconfigure:
-aws configure --profile Sniff
+gcloud auth application-default login
 ```
 
-### Bedrock Access Denied
+### Gemini Access Denied / Vertex AI Not Enabled
 
-Ensure your AWS account has:
-1. Bedrock service enabled in your region
-2. Model access granted (nvidia.nemotron-nano-12b-v2)
-3. Appropriate IAM permissions
+Ensure your GCP project has:
+1. Billing enabled
+2. The Vertex AI API enabled: `gcloud services enable aiplatform.googleapis.com`
+3. `GEMINI_PROJECT_ID` in `.env` matching your active project (`gcloud config get-value project`)
 
-Check model access:
-```bash
-aws bedrock list-foundation-models --region us-west-2 --query 'modelSummaries[?modelId==`nvidia.nemotron-nano-12b-v2`]'
-```
+### k2-horizon Errors
+
+Check `IFM_API_KEY` is set in `.env` and valid at https://platform.ifm.ai/api-keys.
 
 ### Domain Not Allowed
 
 Add domains to `.env`:
 ```bash
-SHERLOCK_ALLOWED_DOMAINS=staging.example.com,deriv.com,your-domain.com
+SNIFF_ALLOWED_DOMAINS=staging.example.com,deriv.com,your-domain.com
 ```
 
 ## Clean Demo Environment
@@ -207,7 +180,7 @@ Sniff run --goal "Your demo goal"
 
 Before your demo:
 
-- [ ] AWS credentials configured and tested (`Sniff preflight`)
+- [ ] Gemini/k2-horizon configured and tested (`Sniff preflight`)
 - [ ] Playwright browsers installed (`playwright install`)
 - [ ] .env file configured with allowed domains
 - [ ] Test run completed successfully (rehearsal)
@@ -239,8 +212,8 @@ Sniff alert test
 
 If you encounter issues during setup:
 1. Check `Sniff preflight` output
-2. Verify AWS credentials: `aws sts get-caller-identity`
-3. Check model access in Bedrock console
+2. Verify Google Cloud ADC: `gcloud auth application-default print-access-token`
+3. Verify `IFM_API_KEY` at https://platform.ifm.ai/api-keys
 4. Review logs in artifacts directory
 
 ---

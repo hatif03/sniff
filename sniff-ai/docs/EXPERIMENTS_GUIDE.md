@@ -565,7 +565,7 @@ A: Yes, press Ctrl+C. Completed runs will be saved.
 A: Create a new experiment with only the failed personas using `--persona` flags.
 
 **Q: Do experiments affect billing?**
-A: Each persona run uses Bedrock API calls. More personas = higher cost.
+A: Each persona run makes Gemini (Vertex AI) and k2-horizon (ifm.ai) API calls. More personas = higher cost.
 
 ---
 

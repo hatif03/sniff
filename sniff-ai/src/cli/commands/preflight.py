@@ -1,31 +1,27 @@
-﻿"""
-Preflight validation command for sniff AWS/Bedrock setup
+"""
+Preflight validation command for sniff's Gemini/k2-horizon/Jev setup
 
 Validates:
 - Environment variables configuration
-- AWS credentials validity
-- Bedrock service access
-- Model availability and access
-- Network connectivity to Bedrock endpoints
-- Model invocation capability
+- Google Cloud Application Default Credentials (for Gemini/Vertex AI)
+- Gemini model invocation (Tier 3 vision-capable reasoning)
+- k2-horizon model invocation (Tier 3 text-only reasoning)
+- Jev/Typesafe invocation, if enabled (Tier 2 fast decision model)
+- Network connectivity to the relevant API endpoints
 
 Usage:
     sniff preflight
     sniff preflight --verbose
 """
 
-import os
-import sys
-import json
 import socket
-from typing import List, Tuple
+import sys
 from pathlib import Path
-import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
+
 import typer
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from ...core.config import SniffConfig
 
@@ -34,12 +30,12 @@ app = typer.Typer()
 
 
 class PreflightCheck:
-    """Preflight validation for AWS Bedrock setup"""
+    """Preflight validation for sniff's LLM provider setup (Gemini, k2-horizon, Jev)"""
 
     def __init__(self, config: SniffConfig, verbose: bool = False):
         self.config = config
-        self.checks: List[Tuple[str, bool, str]] = []
-        self.warnings: List[str] = []
+        self.checks: list[tuple[str, bool, str]] = []
+        self.warnings: list[str] = []
         self.verbose = verbose
 
     def add_check(self, name: str, passed: bool, details: str = ""):
@@ -59,12 +55,11 @@ class PreflightCheck:
         """Check required configuration from config file and environment"""
         missing = []
 
-        # Check Bedrock configuration
-        if not self.config.bedrock.model_id:
-            missing.append("BEDROCK_MODEL_ID")
+        if not self.config.gemini.project_id:
+            missing.append("GEMINI_PROJECT_ID")
 
-        if not self.config.bedrock.region:
-            missing.append("AWS_REGION")
+        if not self.config.k2horizon.api_key:
+            missing.append("IFM_API_KEY")
 
         if missing:
             self.add_check(
@@ -74,292 +69,167 @@ class PreflightCheck:
             )
             return False
 
-        # Check if credentials are configured
-        has_profile = bool(os.getenv("AWS_PROFILE"))
-        has_keys = bool(os.getenv("AWS_ACCESS_KEY_ID"))
-
-        if not has_profile and not has_keys:
-            self.add_warning(
-                "No AWS credentials found in environment. Relying on instance metadata or default profile."
-            )
-
         self.add_check(
             "Environment Variables",
             True,
-            f"Model: {self.config.bedrock.model_id}, Region: {self.config.bedrock.region}"
+            f"Gemini: {self.config.gemini.model_id} ({self.config.gemini.region}), "
+            f"k2-horizon: {self.config.k2horizon.model_id}"
         )
         return True
 
-    def check_aws_credentials(self) -> bool:
-        """Verify AWS credentials are valid"""
+    def check_google_adc(self) -> bool:
+        """Verify Google Cloud Application Default Credentials are valid"""
         try:
-            sts = boto3.client('sts')
-            identity = sts.get_caller_identity()
-
+            import google.auth
+            credentials, project = google.auth.default()
             self.add_check(
-                "AWS Credentials",
+                "Google Cloud Credentials",
                 True,
-                f"Account: {identity['Account']}, User: {identity['Arn'].split('/')[-1]}"
+                f"ADC valid (project: {project or self.config.gemini.project_id})"
             )
             return True
-        except NoCredentialsError:
+        except Exception as e:
             self.add_check(
-                "AWS Credentials",
+                "Google Cloud Credentials",
                 False,
-                "No credentials configured. Set AWS_PROFILE or AWS_ACCESS_KEY_ID"
+                f"ADC not available: {e}. Run 'gcloud auth application-default login'"
             )
             return False
-        except ClientError as e:
-            error_code = e.response.get('Error', {}).get('Code', '')
-            if error_code == 'ExpiredToken':
-                self.add_check(
-                    "AWS Credentials",
-                    False,
-                    "Credentials expired. Run 'aws sso login' or refresh your credentials"
-                )
-            else:
-                self.add_check("AWS Credentials", False, f"Invalid: {e}")
-            return False
 
-    def check_bedrock_access(self) -> bool:
-        """Verify Bedrock service access"""
+    def check_gemini_invocation(self) -> bool:
+        """Test actual Gemini (Vertex AI) invocation"""
         try:
-            region = self.config.bedrock.region
-            bedrock = boto3.client('bedrock', region_name=region)
+            from ...agent.gemini_client import GeminiClient
+            from ...agent.llm_errors import LLMInvocationError
 
-            # List models to verify access
-            response = bedrock.list_foundation_models()
-            model_count = len(response.get('modelSummaries', []))
-
+            client = GeminiClient(
+                project_id=self.config.gemini.project_id,
+                region=self.config.gemini.region,
+                model_id=self.config.gemini.model_id,
+                fallback_model_id=self.config.gemini.fallback_model_id,
+                timeout_seconds=15,
+            )
+            response = client.invoke(
+                system_prompt="Reply with exactly one word.",
+                user_message="Respond with 'OK' if you can read this.",
+                max_tokens=10,
+            )
             self.add_check(
-                "Bedrock Service Access",
+                "Gemini Invocation",
                 True,
-                f"Access granted in {region}. {model_count} models available."
+                f"Successfully invoked {self.config.gemini.model_id} in {self.config.gemini.region}"
             )
+            if self.verbose:
+                console.print(f"[dim]Model response: {response[:100]}[/dim]")
             return True
-        except ClientError as e:
-            error_code = e.response.get('Error', {}).get('Code', '')
-            if error_code == 'AccessDeniedException':
-                self.add_check(
-                    "Bedrock Service Access",
-                    False,
-                    "Access denied. Check IAM permissions (bedrock:ListFoundationModels)"
-                )
-            else:
-                self.add_check("Bedrock Service Access", False, f"Error: {e}")
+        except LLMInvocationError as e:
+            self.add_check("Gemini Invocation", False, f"Error: {e}")
+            return False
+        except Exception as e:
+            self.add_check(
+                "Gemini Invocation",
+                False,
+                f"Could not reach Gemini in {self.config.gemini.region}: {e}. "
+                f"Try GEMINI_REGION=us-central1 or GEMINI_MODEL_ID={self.config.gemini.fallback_model_id}"
+            )
             return False
 
-    def check_model_access(self) -> bool:
-        """Verify specific model access"""
+    def check_k2horizon_invocation(self) -> bool:
+        """Test actual k2-horizon invocation"""
         try:
-            region = self.config.bedrock.region
-            model_id = self.config.bedrock.model_id
+            from ...agent.k2horizon_client import create_k2horizon_client
+            from ...agent.llm_errors import LLMInvocationError
 
-            if not model_id:
-                self.add_check("Model Access", False, "BEDROCK_MODEL_ID not set")
-                return False
-
-            bedrock = boto3.client('bedrock', region_name=region)
-
-            # Check if model is available
-            response = bedrock.list_foundation_models()
-            available_models = [m['modelId'] for m in response.get('modelSummaries', [])]
-
-            if model_id in available_models:
-                self.add_check(
-                    "Model Access",
-                    True,
-                    f"Model {model_id} is available"
-                )
-                return True
-            else:
-                self.add_check(
-                    "Model Access",
-                    False,
-                    f"Model {model_id} not available. Enable in Bedrock console → Model access"
-                )
-                return False
-
-        except ClientError as e:
-            self.add_check("Model Access", False, f"Error: {e}")
+            client = create_k2horizon_client(self.config)
+            response = client.invoke(
+                system_prompt="Reply with exactly one word.",
+                user_message="Respond with 'OK' if you can read this.",
+                max_tokens=10,
+            )
+            self.add_check(
+                "k2-horizon Invocation",
+                True,
+                f"Successfully invoked {self.config.k2horizon.model_id}"
+            )
+            if self.verbose:
+                console.print(f"[dim]Model response: {response[:100]}[/dim]")
+            return True
+        except LLMInvocationError as e:
+            self.add_check("k2-horizon Invocation", False, f"Error: {e}")
+            return False
+        except Exception as e:
+            self.add_check("k2-horizon Invocation", False, f"Unexpected error: {e}")
             return False
 
-    def check_fallback_model(self) -> bool:
-        """Check fallback model availability (optional)"""
-        fallback_model = self.config.bedrock.fallback_model_id
-        if not fallback_model:
-            self.add_warning("BEDROCK_MODEL_FALLBACK not configured (optional)")
+    def check_jev(self) -> bool:
+        """Check Jev (Typesafe AI) - optional Tier 2, only checked if enabled"""
+        if not self.config.typesafe.enabled:
+            self.add_warning("Jev (Tier 2) disabled - TYPESAFE_ENABLED=false. Skipping.")
             return True
 
+        if not self.config.typesafe.api_key:
+            self.add_check("Jev Invocation", False, "TYPESAFE_ENABLED=true but TYPESAFE_API_KEY not set")
+            return False
+
         try:
-            region = self.config.bedrock.region
-            bedrock = boto3.client('bedrock', region_name=region)
+            from ...agent.jev_client import JevClient, JevInvocationError
 
-            response = bedrock.list_foundation_models()
-            available_models = [m['modelId'] for m in response.get('modelSummaries', [])]
-
-            if fallback_model in available_models:
-                self.add_check(
-                    "Fallback Model",
-                    True,
-                    f"Fallback model {fallback_model} is available"
-                )
-                return True
-            else:
-                self.add_warning(
-                    f"Fallback model {fallback_model} not available. Update BEDROCK_MODEL_FALLBACK"
-                )
-                return True  # Not a critical failure
-
-        except ClientError as e:
-            self.add_warning(f"Could not verify fallback model: {e}")
-            return True  # Not a critical failure
+            client = JevClient(
+                api_key=self.config.typesafe.api_key,
+                base_url=self.config.typesafe.base_url,
+                model_id=self.config.typesafe.model_id,
+                timeout_seconds=10,
+            )
+            client.noul("Is this a test question?", context="Preflight check")
+            self.add_check("Jev Invocation", True, "Successfully invoked Jev (Tier 2)")
+            return True
+        except JevInvocationError as e:
+            self.add_check("Jev Invocation", False, f"Error: {e}")
+            return False
+        except Exception as e:
+            self.add_check("Jev Invocation", False, f"Unexpected error: {e}")
+            return False
 
     def check_network_connectivity(self) -> bool:
-        """Check network connectivity to Bedrock endpoints"""
-        try:
-            region = self.config.bedrock.region
-            endpoints = [
-                f"bedrock-runtime.{region}.amazonaws.com",
-                f"bedrock.{region}.amazonaws.com",
-            ]
+        """Check network connectivity to Gemini/k2-horizon endpoints"""
+        endpoints = [
+            f"{self.config.gemini.region}-aiplatform.googleapis.com",
+            "api.ifm.ai",
+        ]
+        unresolved = []
+        for endpoint in endpoints:
+            try:
+                socket.gethostbyname(endpoint)
+            except socket.gaierror:
+                unresolved.append(endpoint)
 
-            for endpoint in endpoints:
-                try:
-                    socket.gethostbyname(endpoint)
-                except socket.gaierror:
-                    self.add_check(
-                        "Network Connectivity",
-                        False,
-                        f"Cannot resolve {endpoint}. Check network/DNS/firewall."
-                    )
-                    return False
-
-            self.add_check(
-                "Network Connectivity",
-                True,
-                f"Can resolve Bedrock endpoints in {region}"
-            )
-            return True
-        except Exception as e:
+        if unresolved:
             self.add_check(
                 "Network Connectivity",
                 False,
-                f"Network check failed: {e}"
+                f"Cannot resolve: {', '.join(unresolved)}. Check network/DNS/firewall."
             )
             return False
 
-    def check_model_invocation(self) -> bool:
-        """Test actual model invocation"""
-        try:
-            region = self.config.bedrock.region
-            model_id = self.config.bedrock.model_id
-
-            if not model_id:
-                self.add_check("Model Invocation", False, "BEDROCK_MODEL_ID not set")
-                return False
-
-            bedrock_runtime = boto3.client('bedrock-runtime', region_name=region)
-
-            # Simple test invocation
-            body = json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 50,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "Respond with 'OK' if you can read this."
-                    }
-                ]
-            })
-
-            response = bedrock_runtime.invoke_model(
-                modelId=model_id,
-                body=body
-            )
-
-            # Parse response
-            response_body = json.loads(response['body'].read())
-            response_text = response_body.get('content', [{}])[0].get('text', '')
-
-            self.add_check(
-                "Model Invocation",
-                True,
-                f"Successfully invoked {model_id.split('.')[-1]}"
-            )
-            if self.verbose and response_text:
-                console.print(f"[dim]Model response: {response_text[:100]}...[/dim]")
-            return True
-
-        except ClientError as e:
-            error_code = e.response.get('Error', {}).get('Code', '')
-            error_msg = e.response.get('Error', {}).get('Message', '')
-            if error_code == 'ResourceNotFoundException':
-                self.add_check(
-                    "Model Invocation",
-                    False,
-                    "Model not found. Verify model ID and region match."
-                )
-            elif error_code == 'AccessDeniedException':
-                self.add_check(
-                    "Model Invocation",
-                    False,
-                    "Access denied. Check IAM permissions for bedrock:InvokeModel"
-                )
-            elif error_code == 'ThrottlingException':
-                self.add_check(
-                    "Model Invocation",
-                    False,
-                    "Throttled. Rate limit exceeded or insufficient quota."
-                )
-            elif error_code == 'ValidationException':
-                # Check if it's the inference profile requirement
-                if 'inference profile' in error_msg.lower():
-                    self.add_warning(
-                        f"Model {model_id} requires an inference profile ARN for invocation. "
-                        "This is expected for some models. The agent will use the correct ARN at runtime."
-                    )
-                    self.add_check(
-                        "Model Invocation",
-                        True,
-                        f"Model requires inference profile (will be handled automatically)"
-                    )
-                    return True
-                else:
-                    self.add_check(
-                        "Model Invocation",
-                        False,
-                        f"Validation error: {error_msg[:100]}"
-                    )
-            else:
-                self.add_check("Model Invocation", False, f"Error: {error_code} - {error_msg[:50]}")
-
-            if self.verbose:
-                console.print(f"[dim]Full error: {e}[/dim]")
-            return False
-        except Exception as e:
-            self.add_check("Model Invocation", False, f"Unexpected error: {e}")
-            return False
+        self.add_check("Network Connectivity", True, "Can resolve Gemini and k2-horizon endpoints")
+        return True
 
     def run_all_checks(self) -> bool:
         """Run all preflight checks"""
         console.print("\n[bold blue]Running sniff Preflight Checks...[/bold blue]\n")
 
-        # Run checks in order
         checks_methods = [
             self.check_environment_variables,
-            self.check_aws_credentials,
-            self.check_bedrock_access,
-            self.check_model_access,
-            self.check_fallback_model,
+            self.check_google_adc,
             self.check_network_connectivity,
-            self.check_model_invocation,
+            self.check_gemini_invocation,
+            self.check_k2horizon_invocation,
+            self.check_jev,
         ]
 
         for check_method in checks_methods:
             check_method()
 
-        # Display results
         self.display_results()
 
         # Return overall success (warnings don't count as failures)
@@ -368,7 +238,6 @@ class PreflightCheck:
     def display_results(self):
         """Display check results in a table"""
         if not self.verbose:
-            # Only show summary table in non-verbose mode
             table = Table(title="Preflight Check Results")
             table.add_column("Check", style="cyan", no_wrap=True)
             table.add_column("Status", style="magenta")
@@ -385,13 +254,11 @@ class PreflightCheck:
 
             console.print(table)
 
-        # Display warnings
         if self.warnings:
             console.print("\n[bold yellow]Warnings:[/bold yellow]")
             for warning in self.warnings:
                 console.print(f"  ⚠️  {warning}")
 
-        # Summary
         total = len(self.checks)
         passed = sum(1 for _, p, _ in self.checks if p)
         failed = total - passed
@@ -412,10 +279,10 @@ class PreflightCheck:
                     f"[bold red]❌ {failed} check(s) failed ({passed}/{total} passed)[/bold red]\n"
                     "[red]Fix the issues above before running sniff[/red]\n\n"
                     "[yellow]Troubleshooting:[/yellow]\n"
-                    "  • Check docs/plan/AWS_BEDROCK_PREREQUISITES.md\n"
-                    "  • Verify .env file has correct values\n"
-                    "  • Run 'aws sts get-caller-identity' to test credentials\n"
-                    "  • Enable model access in Bedrock console",
+                    "  • Verify .env file has GEMINI_PROJECT_ID and IFM_API_KEY set\n"
+                    "  • Run 'gcloud auth application-default login' for Gemini/Vertex AI\n"
+                    "  • Run 'gcloud services enable aiplatform.googleapis.com' if Vertex AI isn't enabled\n"
+                    "  • Verify the ifm.ai API key at https://platform.ifm.ai/api-keys",
                     title="Failed",
                     border_style="red"
                 )
@@ -438,22 +305,21 @@ def main(
     ),
 ):
     """
-    Run preflight checks to validate AWS and Bedrock configuration.
+    Run preflight checks to validate the Gemini/k2-horizon/Jev setup.
 
     Verifies:
     - Configuration from sniff.json and .env
-    - AWS credentials (via AWS CLI, SSO, or environment)
-    - Bedrock service access (IAM permissions)
-    - Model availability and access enablement
-    - Network connectivity to Bedrock endpoints
-    - Model invocation capability (end-to-end test)
+    - Google Cloud Application Default Credentials (for Gemini/Vertex AI)
+    - Gemini model invocation (Tier 3 vision-capable reasoning, end-to-end test)
+    - k2-horizon model invocation (Tier 3 text-only reasoning, end-to-end test)
+    - Jev/Typesafe invocation, if enabled (Tier 2 fast decision model)
+    - Network connectivity to the relevant API endpoints
 
     Examples:
         sniff preflight
         sniff preflight --verbose
     """
 
-    # Load configuration (this automatically loads .env file too)
     try:
         config = SniffConfig.load(Path(config_path))
         if verbose:

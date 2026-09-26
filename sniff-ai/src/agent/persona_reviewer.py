@@ -5,12 +5,11 @@ analyzing the user experience, friction points, and overall journey quality.
 """
 
 import logging
-from typing import Optional
 from datetime import datetime
+from typing import Any
 
-from ..core.models import Observation, ActionResult, DiagnosisResult
+from ..core.models import ActionResult, DiagnosisResult, Observation
 from ..core.persona import PersonaProfile
-from .bedrock_client import BedrockClient
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +21,14 @@ class PersonaReviewer:
     were providing feedback on their experience.
     """
 
-    def __init__(self, bedrock_client: Optional[BedrockClient] = None):
+    def __init__(self, llm_client: Any):
         """Initialize persona reviewer.
 
         Args:
-            bedrock_client: Bedrock client instance (creates default if None)
+            llm_client: Tier 3 text reasoning client (K2HorizonClient by
+                default - no vision needed for a post-run text review).
         """
-        self.client = bedrock_client or BedrockClient()
+        self.client = llm_client
 
     def generate_review(
         self,
@@ -36,7 +36,7 @@ class PersonaReviewer:
         goal: str,
         observations: list[Observation],
         action_results: list[ActionResult],
-        diagnosis: Optional[DiagnosisResult],
+        diagnosis: DiagnosisResult | None,
         outcome: str,
         duration_seconds: float,
     ) -> dict:
@@ -143,7 +143,7 @@ Be honest, specific, and speak in character as {persona.display_name}. Reference
         goal: str,
         observations: list[Observation],
         action_results: list[ActionResult],
-        diagnosis: Optional[DiagnosisResult],
+        diagnosis: DiagnosisResult | None,
         outcome: str,
         duration_seconds: float,
     ) -> str:
@@ -230,15 +230,9 @@ def create_persona_reviewer(config) -> PersonaReviewer:
         config: SniffConfig instance
 
     Returns:
-        PersonaReviewer instance
+        PersonaReviewer instance, backed by k2-horizon (text-only, no
+        vision needed for a post-run narrative review).
     """
-    from .bedrock_client import BedrockClient
+    from .k2horizon_client import create_k2horizon_client
 
-    bedrock_client = BedrockClient(
-        model_id=config.bedrock.model_id,
-        region=config.bedrock.region,
-        timeout_seconds=config.bedrock.timeout_seconds,
-        max_retries=config.bedrock.max_retries,
-    )
-
-    return PersonaReviewer(bedrock_client=bedrock_client)
+    return PersonaReviewer(llm_client=create_k2horizon_client(config))

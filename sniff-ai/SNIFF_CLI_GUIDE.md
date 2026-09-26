@@ -26,7 +26,7 @@ Date: February 7, 2026
 Sniff is an autonomous testing system that simulates real users navigating mobile and web signup flows. It uses AI-driven decision-making to detect friction points, diagnose root causes, and escalate issues via Slack alerts.
 
 **Key Features:**
-- 🤖 AI-powered autonomous navigation using AWS Bedrock
+- 🤖 AI-powered autonomous navigation using Gemini (Vertex AI) and k2-horizon (ifm.ai)
 - 📱 Mobile device emulation with Playwright
 - 🎭 Configurable user personas (confused, impatient, careful)
 - 🔍 Automatic failure diagnosis with P0-P3 severity classification
@@ -40,7 +40,8 @@ Sniff is an autonomous testing system that simulates real users navigating mobil
 ### Prerequisites
 
 - Python 3.11+
-- AWS account with Bedrock access
+- A Google Cloud project with the Vertex AI API enabled (for Gemini)
+- An ifm.ai API key (for k2-horizon)
 - Playwright browser binaries
 
 ### Install Sniff
@@ -77,8 +78,8 @@ Sniff init
 ```
 
 This interactive wizard will configure:
-- **AWS Credentials** - Access key/secret or CLI profile
-- **Bedrock Model** - AI model for decision-making
+- **Gemini (Vertex AI)** - GCP project ID, region, model ID (auth via `gcloud auth application-default login`, not a key)
+- **k2-horizon (ifm.ai)** - API key and model ID
 - **Slack Alerts** - Optional webhook for notifications
 - **Security** - Domain allowlist and safety settings
 - **Defaults** - Device profile, network speed, personas
@@ -90,12 +91,12 @@ Sniff preflight
 ```
 
 Checks:
-- ✅ Environment variables loaded
-- ✅ AWS credentials valid
-- ✅ Bedrock service accessible
-- ✅ Model access enabled
-- ✅ Network connectivity
-- ✅ Model invocation working
+- ✅ Environment variables loaded (`GEMINI_PROJECT_ID`, `IFM_API_KEY`)
+- ✅ Google Cloud Application Default Credentials valid
+- ✅ Network connectivity to Gemini/k2-horizon endpoints
+- ✅ Gemini invocation working
+- ✅ k2-horizon invocation working
+- ✅ Jev invocation working (if `TYPESAFE_ENABLED=true`)
 
 ### 3. Run Your First Test
 
@@ -121,16 +122,15 @@ Sniff init [OPTIONS]
 
 **What It Configures:**
 
-**AWS Credentials (4 methods):**
-1. **Manual Entry** - Enter access key/secret (password-masked)
-2. **AWS CLI Profile** - Use existing `~/.aws/credentials` profile
-3. **IAM Role** - For EC2/Lambda (no credentials stored)
-4. **Skip** - Configure later manually
+**Gemini (Vertex AI) Configuration:**
+- GCP project ID (`GEMINI_PROJECT_ID`)
+- Vertex AI region (`GEMINI_REGION`, e.g., `us-central1`)
+- Model ID and fallback model ID
+- Auth is Application Default Credentials (`gcloud auth application-default login`), checked but not entered interactively - there's no key to type in
 
-**Bedrock Configuration:**
-- Model ID (e.g., `anthropic.claude-sonnet-4-5-20250929-v1:0`)
-- AWS region (e.g., `us-west-2`)
-- Optional fallback model for redundancy
+**k2-horizon (ifm.ai) Configuration:**
+- API key (password-masked, saved as `IFM_API_KEY`)
+- Model ID
 
 **Security Settings:**
 - Allowed domains (comma-separated)
@@ -160,7 +160,7 @@ Sniff init
 
 ### `Sniff preflight`
 
-**Validate AWS and Bedrock setup**
+**Validate the Gemini/k2-horizon/Jev setup**
 
 ```bash
 Sniff preflight [OPTIONS]
@@ -170,28 +170,28 @@ Sniff preflight [OPTIONS]
 - `--verbose` - Show detailed check output
 
 **Checks Performed:**
-1. Environment variables (AWS_REGION, BEDROCK_MODEL_ID, etc.)
-2. AWS credentials validity (calls `sts:GetCallerIdentity`)
-3. Bedrock service access (lists available models)
-4. Specific model access enabled
-5. Network connectivity to Bedrock endpoints
-6. Model invocation test
+1. Environment variables (`GEMINI_PROJECT_ID`, `IFM_API_KEY`, etc., from config + `.env`)
+2. Google Cloud Application Default Credentials validity
+3. Network connectivity to Gemini/k2-horizon endpoints
+4. Gemini invocation (real Vertex AI call)
+5. k2-horizon invocation (real ifm.ai call)
+6. Jev invocation, only if `TYPESAFE_ENABLED=true`
 
 **Example:**
 ```bash
 Sniff preflight --verbose
 
 Preflight Check Results
-┌────────────────────────┬─────────┬──────────────────────┐
-│ Check                  │ Status  │ Details              │
-├────────────────────────┼─────────┼──────────────────────┤
-│ Environment Variables  │ ✅ PASS │ All required present │
-│ AWS Credentials        │ ✅ PASS │ Account: 982744...   │
-│ Bedrock Service Access │ ✅ PASS │ 135 models available │
-│ Model Access           │ ✅ PASS │ Model enabled        │
-│ Network Connectivity   │ ✅ PASS │ Endpoints reachable  │
-│ Model Invocation       │ ✅ PASS │ Success              │
-└────────────────────────┴─────────┴──────────────────────┘
+┌──────────────────────────┬─────────┬────────────────────────────────┐
+│ Check                    │ Status  │ Details                        │
+├──────────────────────────┼─────────┼────────────────────────────────┤
+│ Environment Variables    │ ✅ PASS │ Gemini + k2-horizon configured  │
+│ Google Cloud Credentials │ ✅ PASS │ ADC valid                      │
+│ Network Connectivity     │ ✅ PASS │ Endpoints reachable            │
+│ Gemini Invocation        │ ✅ PASS │ Success                        │
+│ k2-horizon Invocation    │ ✅ PASS │ Success                        │
+│ Jev Invocation           │ ✅ PASS │ Success                        │
+└──────────────────────────┴─────────┴────────────────────────────────┘
 
 ✅ All checks passed! (6/6)
 ```
@@ -423,9 +423,8 @@ Sniff demo --scenario backend_timeout
 - Paths and defaults
 
 **Environment Variables:** `.env`
-- AWS credentials
-- Bedrock model ID
-- Region
+- Gemini project ID/region/model ID
+- k2-horizon API key/model ID
 - Slack webhook
 - Sensitive values
 
@@ -433,22 +432,23 @@ Sniff demo --scenario backend_timeout
 
 **Required:**
 ```bash
-AWS_ACCESS_KEY_ID=AKIA...          # OR use AWS_PROFILE
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION=us-west-2
-BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-5-20250929-v1:0
+GEMINI_PROJECT_ID=your-gcp-project-id   # Auth via `gcloud auth application-default login`, not a key
+GEMINI_REGION=us-central1
+IFM_API_KEY=your-ifm-api-key
 ```
 
 **Optional:**
 ```bash
-AWS_PROFILE=default                 # Use AWS CLI profile
-AWS_SESSION_TOKEN=...               # For temporary credentials
-BEDROCK_MODEL_FALLBACK=...          # Fallback model ID
+GEMINI_MODEL_ID=gemini-3.5-flash-lite      # Primary Gemini model
+GEMINI_FALLBACK_MODEL_ID=gemini-2.5-flash-lite  # Used if primary unavailable in region
+IFM_MODEL_ID=IFM/K2-Horizon-375B-A23B      # k2-horizon model ID
 SLACK_WEBHOOK_URL=https://...       # Slack webhook
 SLACK_CHANNEL=#alerts               # Override channel
-SHERLOCK_MAX_STEPS=50               # Max steps per run
-SHERLOCK_HARD_TIMEOUT=600           # Timeout in seconds
+SNIFF_MAX_STEPS=50               # Max steps per run
+SNIFF_HARD_TIMEOUT=600           # Timeout in seconds
 ```
+
+See `.env.example` for the complete reference, including `TYPESAFE_*` variables for the optional Jev (Typesafe AI) Tier 2 model.
 
 ### Manual Configuration
 
@@ -459,10 +459,9 @@ vi .env
 
 Or set environment variables:
 ```bash
-export AWS_ACCESS_KEY_ID="AKIA..."
-export AWS_SECRET_ACCESS_KEY="..."
-export AWS_REGION="us-west-2"
-export BEDROCK_MODEL_ID="anthropic.claude-sonnet-4-5-20250929-v1:0"
+export GEMINI_PROJECT_ID="your-gcp-project-id"
+export GEMINI_REGION="us-central1"
+export IFM_API_KEY="your-ifm-api-key"
 ```
 
 ---
@@ -595,37 +594,36 @@ Slack Alert: Sent to #Sniff-alerts
 
 ### Common Issues
 
-#### "AWS credentials not configured"
+#### "Google Cloud Credentials" check fails
 
 **Solution:**
 ```bash
 # Option 1: Run init again
 Sniff init
 
-# Option 2: Set in .env
-echo "AWS_ACCESS_KEY_ID=AKIA..." >> .env
-echo "AWS_SECRET_ACCESS_KEY=..." >> .env
+# Option 2: Authenticate directly
+gcloud auth application-default login
+gcloud config set project <your-project-id>
 
-# Option 3: Use AWS CLI profile
-export AWS_PROFILE=default
+# Option 3: Set the project in .env
+echo "GEMINI_PROJECT_ID=<your-project-id>" >> .env
 ```
 
-#### "BEDROCK_MODEL_ID not set"
+#### "IFM_API_KEY not set"
 
 **Solution:**
 ```bash
 # Add to .env
-echo "BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-5-20250929-v1:0" >> .env
+echo "IFM_API_KEY=your-ifm-api-key" >> .env
 ```
 
-#### Preflight fails: "Model access denied"
+#### Preflight fails: "Gemini Invocation" or "PERMISSION_DENIED"
 
 **Solution:**
-1. Go to AWS Bedrock console
-2. Navigate to Model access
-3. Request access to Claude models
-4. Wait for approval (usually instant)
-5. Run `Sniff preflight` again
+1. Confirm the Vertex AI API is enabled: `gcloud services enable aiplatform.googleapis.com`
+2. Confirm `GEMINI_PROJECT_ID` matches your active gcloud project
+3. Try the default region (`GEMINI_REGION=us-central1`) if your model isn't available in the configured one
+4. Run `Sniff preflight` again
 
 #### "No module named 'src'"
 
@@ -778,7 +776,7 @@ Sniff/
 │       ├── confused_first_time_user.json
 │       ├── impatient_user.json
 │       └── careful_user.json
-└── SHERLOCK_CLI_GUIDE.md        # This file
+└── SNIFF_CLI_GUIDE.md        # This file
 ```
 
 ---
@@ -815,11 +813,17 @@ Sniff report --list
 
 ## Appendix
 
-### Supported Bedrock Models
+### Supported Models
 
-- `anthropic.claude-sonnet-4-5-20250929-v1:0` (recommended)
-- `anthropic.claude-3-5-sonnet-20241022-v2:0` (fallback)
-- `anthropic.claude-opus-4-6` (premium)
+**Gemini (Vertex AI)** - per-step vision-capable navigation decisions:
+- `gemini-3.5-flash-lite` (default primary)
+- `gemini-2.5-flash-lite` (default fallback)
+
+**k2-horizon (ifm.ai)** - text-only goal enhancement, planning, persona review:
+- `IFM/K2-Horizon-375B-A23B` (default)
+
+**Jev (Typesafe AI, optional Tier 2)** - fast decision model:
+- `jev-latest` (default, only used if `TYPESAFE_ENABLED=true`)
 
 ### Device Profiles
 

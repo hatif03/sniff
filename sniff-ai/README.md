@@ -6,13 +6,13 @@ Sniff is an AI-powered testing system that simulates real user behavior to test 
 
 ---
 
-**📊 View Test Dashboards**: Check out the [Sniff Website](https://github.com/abbasali-sariya-thg/sherlock_website) to view run history, visualize test results, and explore insights from your Sniff tests in a beautiful web interface.
+**📊 View Test Dashboards**: Check out the Sniff web dashboard (see the `sniff-web` directory) to view run history, visualize test results, and explore insights from your Sniff tests in a beautiful web interface.
 
 ---
 
 ## Features
 
-- **AI-Driven Navigation**: Uses AWS Bedrock to make intelligent decisions during signup flows
+- **AI-Driven Navigation**: Uses Gemini (Vertex AI) for vision-capable per-step decisions and k2-horizon (ifm.ai) for goal enhancement/planning
 - **Persona-Based Testing**: Test with different user profiles (impatient, confused, careful users)
 - **Mobile Emulation**: Full Playwright-based mobile device simulation with network throttling
 - **Automated Diagnosis**: Classifies failures by root cause (Backend, UX/Content, Performance, Integration)
@@ -23,7 +23,8 @@ Sniff is an AI-powered testing system that simulates real user behavior to test 
 ## Requirements
 
 - Python 3.11 or higher
-- AWS account with Bedrock access
+- A Google Cloud project with the Vertex AI API enabled (for Gemini)
+- An ifm.ai API key (for k2-horizon)
 - Playwright browsers (installed automatically)
 
 ## Installation
@@ -51,37 +52,28 @@ pip install Sniff-0.1.0-py3-none-any.whl
 playwright install
 ```
 
-## AWS Credentials Setup
+## Provider Setup
 
-Sniff requires AWS credentials for Bedrock access. Choose one of these methods:
+Sniff requires Gemini (Vertex AI) for per-step navigation decisions and k2-horizon (ifm.ai) for goal enhancement/planning/persona review.
 
-### Option 1: AWS Profile (Recommended)
-
-```bash
-# Configure AWS CLI
-aws configure --profile Sniff
-
-# Enter your credentials when prompted
-# Then create .env file:
-echo "AWS_PROFILE=Sniff" > .env
-```
-
-### Option 2: Environment Variables
+### Gemini (Vertex AI) - Application Default Credentials
 
 ```bash
-export AWS_ACCESS_KEY_ID=AKIA...
-export AWS_SECRET_ACCESS_KEY=...
-export AWS_DEFAULT_REGION=us-west-2
+gcloud auth application-default login
+gcloud config set project <your-project-id>
+gcloud services enable aiplatform.googleapis.com
 ```
 
-### Option 3: .env File
+See `GCLOUD_SETUP.md` for the full walkthrough.
+
+### k2-horizon (ifm.ai) - API key
 
 ```bash
 # Create .env file (never commit this!)
 cat > .env << EOF
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=...
-AWS_DEFAULT_REGION=us-west-2
+GEMINI_PROJECT_ID=<your-project-id>
+GEMINI_REGION=us-central1
+IFM_API_KEY=your-ifm-api-key
 EOF
 ```
 
@@ -91,10 +83,7 @@ EOF
 Sniff preflight
 ```
 
-**For demo setup, use the included script:**
-```bash
-./setup_demo.sh
-```
+**For a guided demo walkthrough, see `DEMO_SETUP.md`.**
 
 ## Quick Start
 
@@ -107,7 +96,7 @@ Sniff init
 This interactive setup will configure:
 - Primary staging URL
 - Allowed domains (security allowlist)
-- AWS Bedrock region/model
+- Gemini (Vertex AI) project/region/model and k2-horizon (ifm.ai) key/model
 - Slack webhook (optional)
 - Default persona and device settings
 
@@ -137,22 +126,16 @@ Sniff report run_20260207_134429_45c8c7ec
 Create a `.env` file in your project directory:
 
 ```bash
-# AWS Credentials
-AWS_PROFILE=Sniff
-# Or use explicit credentials:
-# AWS_ACCESS_KEY_ID=AKIA...
-# AWS_SECRET_ACCESS_KEY=...
+# Gemini (Vertex AI) - auth via `gcloud auth application-default login`, not a key
+GEMINI_PROJECT_ID=your-gcp-project-id
+GEMINI_REGION=us-central1
 
-# AWS Region
-AWS_DEFAULT_REGION=us-west-2
-
-# Bedrock Configuration
-BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
-BEDROCK_REGION=us-west-2
+# k2-horizon (ifm.ai)
+IFM_API_KEY=your-ifm-api-key
 
 # Security
-SHERLOCK_ALLOWED_DOMAINS=staging.example.com,test.example.com
-SHERLOCK_MAX_RUN_DURATION=300
+SNIFF_ALLOWED_DOMAINS=staging.example.com,test.example.com
+SNIFF_MAX_RUN_DURATION=300
 
 # Slack Integration (Optional)
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
@@ -255,14 +238,14 @@ Validate Slack webhook configuration
 Run deterministic demo mode with known failure paths
 
 ### `Sniff preflight`
-Validate AWS/Bedrock setup
+Validate Gemini/k2-horizon/Jev setup
 
 ## Architecture
 
 Sniff uses a modular monolith architecture:
 
 ```
-CLI → Run Orchestrator → Agent Service (Bedrock)
+CLI → Run Orchestrator → Agent Service (Gemini + k2-horizon)
                        → Execution Worker (Playwright)
                        → Diagnosis Engine
                        → Alert Service (Slack)
@@ -365,4 +348,4 @@ Contributions welcome! Please:
 
 ---
 
-Built with AWS Bedrock, Playwright, and Python.
+Built with Gemini (Vertex AI), k2-horizon (ifm.ai), Playwright, and Python.

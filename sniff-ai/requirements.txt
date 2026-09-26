@@ -19,10 +19,16 @@ pydantic>=2.13.0
 # Browser automation — v1.63 adds improved mobile emulation and network interception
 playwright>=1.63.0
 
-# AWS SDK — v1.43 includes latest Bedrock client updates and model IDs
-boto3>=1.43.0
+# Vertex AI Gemini SDK — Tier 3 vision-capable reasoning (replaces Bedrock)
+google-genai>=2.25,<3
 
-# HTTP client for Slack webhooks and Typesafe AI API
+# Google Cloud auth (Application Default Credentials) for Vertex AI
+google-auth>=2.35.0
+
+# OpenAI-compatible client — used for k2-horizon (ifm.ai), Tier 3 text-only reasoning
+openai>=1.50.0
+
+# HTTP client for Slack webhooks and Jev (Typesafe AI) API
 httpx>=0.28.0
 
 # Environment configuration

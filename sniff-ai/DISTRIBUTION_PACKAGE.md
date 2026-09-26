@@ -1,6 +1,6 @@
 ﻿# Sniff Distribution Package
 
-This document explains what gets included in the Sniff package and how AWS credentials are handled.
+This document explains what gets included in the Sniff package and how Gemini/k2-horizon credentials are handled.
 
 ## What's in the Package Build
 
@@ -14,7 +14,7 @@ Sniff/
 │   ├── __init__.py
 │   ├── cli/                    # CLI commands
 │   ├── core/                   # Orchestrator, state machine
-│   ├── agent/                  # Bedrock agent service
+│   ├── agent/                  # Gemini/k2-horizon agent service
 │   ├── executor/               # Playwright worker
 │   ├── diagnosis/              # Failure classification
 │   ├── evidence/               # Report builder
@@ -33,7 +33,7 @@ Sniff/
 These are in `.gitignore` and NEVER included:
 
 ```
-.env                           # ❌ Contains AWS credentials
+.env                           # ❌ Contains the ifm.ai API key
 data/                          # ❌ Runtime database
 artifacts/                     # ❌ Test run evidence
 *.log                          # ❌ Log files
@@ -42,7 +42,7 @@ dist/                          # ❌ Build artifacts
 *.egg-info/                    # ❌ Package metadata
 ```
 
-## How AWS Credentials Are Handled
+## How Gemini/k2-horizon Credentials Are Handled
 
 ### Build Time ⚙️
 
@@ -64,60 +64,39 @@ They get:
 - The `Sniff` CLI command
 - Python source code
 - Persona templates
-- **NO AWS credentials**
+- **NO credentials**
 
 ### Runtime ⚡
 
-Users must configure their own credentials using one of these methods:
+Users must configure their own credentials:
 
-#### Method 1: AWS Profile (Recommended for Demo)
+#### Gemini (Vertex AI) - Application Default Credentials, no key in `.env`
 
 ```bash
 # One-time setup
-aws configure --profile Sniff
-# Enter: Access Key, Secret Key, Region
-
-# Create .env
-cat > .env << EOF
-AWS_PROFILE=Sniff
-AWS_DEFAULT_REGION=us-west-2
-BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
-BEDROCK_REGION=us-west-2
-SHERLOCK_ALLOWED_DOMAINS=staging.example.com,deriv.com
-EOF
+gcloud auth application-default login
+gcloud config set project <your-project-id>
+gcloud services enable aiplatform.googleapis.com
 ```
 
-**Advantage:** Credentials stored securely by AWS CLI, not in plaintext
+See `GCLOUD_SETUP.md` for the full walkthrough.
 
-#### Method 2: Environment Variables (Session-based)
+**Advantage:** No long-lived credential stored in plaintext; ADC is cached outside the project directory.
 
-```bash
-export AWS_ACCESS_KEY_ID=AKIA...
-export AWS_SECRET_ACCESS_KEY=...
-export AWS_DEFAULT_REGION=us-west-2
-
-Sniff run --goal "Complete signup"
-```
-
-**Advantage:** No files to manage, credentials only in current session
-
-#### Method 3: .env File (Persistent, Local)
+#### k2-horizon (ifm.ai) - API key in `.env`
 
 ```bash
 cat > .env << EOF
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=...
-AWS_DEFAULT_REGION=us-west-2
-BEDROCK_MODEL_ID=nvidia.nemotron-nano-12b-v2
-BEDROCK_REGION=us-west-2
+GEMINI_PROJECT_ID=<your-project-id>
+GEMINI_REGION=us-central1
+IFM_API_KEY=your-ifm-api-key
+SNIFF_ALLOWED_DOMAINS=staging.example.com,deriv.com
 EOF
 
 chmod 600 .env  # Secure the file
 ```
 
-**Advantage:** Persistent across sessions, local to project directory
-
-**Warning:** This stores credentials in plaintext. Never commit to git!
+**Warning:** This stores the ifm.ai key in plaintext. Never commit `.env` to git!
 
 ## For Demo Distribution
 
@@ -139,91 +118,65 @@ chmod 600 .env  # Secure the file
 
 ### What Demo Users Configure
 
-Users configure their own AWS credentials after installation:
+Users configure their own credentials after installation:
 
 ```bash
 # Install package
 pip install Sniff-0.1.0-py3-none-any.whl
 playwright install
 
-# Run setup script
-./setup_demo.sh
+# Authenticate for Gemini (Vertex AI)
+gcloud auth application-default login
+gcloud config set project <your-project-id>
+gcloud services enable aiplatform.googleapis.com
 
-# Or configure manually
-aws configure --profile Sniff
+# Create .env with GEMINI_PROJECT_ID, GEMINI_REGION, IFM_API_KEY
 ```
+
+See `GCLOUD_SETUP.md` and `DEMO_SETUP.md` for the full walkthrough.
 
 ## Security Best Practices
 
 ### ✅ DO
 
-- Use AWS profiles whenever possible
-- Store credentials in `~/.aws/credentials` (AWS CLI)
-- Create `.env` files locally (excluded by `.gitignore`)
-- Use IAM roles for EC2/ECS deployments
-- Rotate credentials regularly
-- Use temporary credentials (STS) for CI/CD
+- Use `gcloud auth application-default login` for Gemini (no long-lived key to leak)
+- Create `.env` files locally (excluded by `.gitignore`) for `IFM_API_KEY` and Gemini project/region
+- Rotate the ifm.ai API key regularly
+- Use least-privilege IAM roles if a service account is ever needed
 
 ### ❌ DON'T
 
 - Include `.env` in the package
-- Commit AWS credentials to git
+- Commit credentials (ADC file, ifm.ai key) to git
 - Hardcode credentials in source code
 - Share `.env` files via email/chat
-- Use root AWS account credentials
 - Store credentials in public repositories
 
 ## Credential Lookup Order
 
 Sniff looks for credentials in this order:
 
-1. **Environment variables:**
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-   - `AWS_SESSION_TOKEN` (optional)
+1. **Gemini (Vertex AI):**
+   - Google Cloud Application Default Credentials, resolved automatically by the client library (set up via `gcloud auth application-default login`)
+   - `GEMINI_PROJECT_ID` / `GEMINI_REGION` from `.env` or environment variables select the project/region to call
 
-2. **`.env` file in current directory:**
-   - `AWS_PROFILE=Sniff` (then looks up profile)
-   - OR `AWS_ACCESS_KEY_ID=...` (direct credentials)
-
-3. **AWS Profile:**
-   - `~/.aws/credentials`
-   - Profile specified by `AWS_PROFILE` env var
-
-4. **Default AWS credentials:**
-   - `~/.aws/credentials` (default profile)
-   - EC2 instance metadata (if running on EC2)
-   - ECS task role (if running on ECS)
-
-## Demo Setup Script
-
-The `setup_demo.sh` script guides users through credential setup:
-
-```bash
-./setup_demo.sh
-```
-
-This script:
-1. Checks Python version
-2. Verifies Sniff installation
-3. Installs Playwright browsers
-4. Helps configure AWS credentials (choose method)
-5. Creates `.env` file with chosen method
-6. Runs `Sniff preflight` to verify
-7. Provides demo commands
+2. **k2-horizon (ifm.ai):**
+   - `IFM_API_KEY` from `.env` or environment variables
 
 ## Verification
 
 After setup, verify credentials:
 
 ```bash
-# Check Sniff can access AWS
+# Check Sniff can reach Gemini and k2-horizon
 Sniff preflight
 
 # Expected output:
-# ✓ AWS credentials configured
-# ✓ Bedrock access verified
-# ✓ Model nvidia.nemotron-nano-12b-v2 available
+# ✓ Environment Variables
+# ✓ Google Cloud Credentials (ADC valid)
+# ✓ Network Connectivity
+# ✓ Gemini Invocation
+# ✓ k2-horizon Invocation
 ```
 
 ## Package Distribution Checklist
@@ -231,11 +184,10 @@ Sniff preflight
 Before distributing the package:
 
 - [ ] `.env` is in `.gitignore`
-- [ ] No AWS credentials in any source files
+- [ ] No credentials in any source files
 - [ ] `.env.example` has only placeholder values
 - [ ] `README.md` includes credential setup instructions
 - [ ] `DEMO_SETUP.md` provided for demo users
-- [ ] `setup_demo.sh` script is executable
 - [ ] Package tested with fresh credentials
 - [ ] Documentation mentions credential requirements
 
@@ -243,12 +195,11 @@ Before distributing the package:
 
 **Key Points:**
 
-1. **AWS credentials are NEVER in the package**
+1. **Credentials are NEVER in the package**
 2. **Users configure their own credentials after installation**
-3. **Multiple configuration methods supported**
-4. **`setup_demo.sh` script simplifies demo setup**
-5. **`.env.example` provides a template**
-6. **Documentation clearly explains credential setup**
+3. **Gemini uses Application Default Credentials (no key in `.env`); k2-horizon uses `IFM_API_KEY`**
+4. **`.env.example` provides a template**
+5. **Documentation clearly explains credential setup**
 
 This approach ensures:
 - Security (no credential leakage)

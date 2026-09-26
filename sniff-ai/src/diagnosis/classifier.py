@@ -1,8 +1,10 @@
 ﻿"""Diagnosis classifier for root cause and severity analysis.
 
-Hybrid approach combining:
-- Deterministic signals (HTTP errors, timeouts, console errors)
-- LLM interpretation (UX issues, ambiguous failures)
+Tier 1 of Sniff's three-tier decision architecture: 100% deterministic rule
+trees over extracted signals (HTTP errors, timeouts, console errors, keyword
+matching). No model call of any kind - root cause, severity, and suggested
+fix are all rule-based. (This used to be misdescribed here as a hybrid with
+"optional LLM interpretation" - that branch never existed in this file.)
 
 Output: DiagnosisResult with root cause, severity, owner, repro steps, and suggested fix.
 """
@@ -120,9 +122,8 @@ class DiagnosisSignals:
 class DiagnosisClassifier:
     """Classifies failures into root cause categories with severity.
 
-    Uses hybrid approach:
-    - Deterministic rules for clear signals (HTTP errors, timeouts)
-    - Optional LLM interpretation for ambiguous cases
+    Fully deterministic (Tier 1): rule trees over DiagnosisSignals, no model
+    call. Root cause, severity, and suggested fix are all rule-based.
     """
 
     def __init__(self, owner_routing: Optional[dict[str, str]] = None):

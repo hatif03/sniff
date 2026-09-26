@@ -10,10 +10,9 @@ Handles:
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field, field_validator
 
 
 class PlaywrightConfig(BaseModel):
@@ -25,23 +24,40 @@ class PlaywrightConfig(BaseModel):
     navigation_timeout: int = Field(default=60000, ge=1000, description="Navigation timeout in ms")
 
 
-class BedrockConfig(BaseModel):
-    """AWS Bedrock configuration for agent decisions."""
-    model_id: str = Field(default="anthropic.claude-sonnet-4-5-20250929-v1:0", description="Primary Bedrock model ID")
-    fallback_model_id: Optional[str] = Field(default="anthropic.claude-3-5-sonnet-20241022-v2:0", description="Fallback model")
-    region: str = Field(default="us-west-2", description="AWS region for Bedrock")
+class GeminiConfig(BaseModel):
+    """Vertex AI Gemini configuration - the Tier 3 vision-capable reasoning model.
+
+    Auth is via Application Default Credentials (`gcloud auth application-default
+    login`), not an API key. Region/model are overridable because Gemini 3.x
+    tiers aren't uniformly available in every regional Vertex location yet.
+    """
+    project_id: str | None = Field(default=None, description="GCP project ID (Vertex AI)")
+    region: str = Field(default="us-central1", description="Vertex AI region")
+    model_id: str = Field(default="gemini-3.5-flash-lite", description="Primary Gemini model ID")
+    fallback_model_id: str = Field(default="gemini-2.5-flash-lite", description="Fallback model if primary unavailable in region")
     max_tokens: int = Field(default=4096, ge=1, description="Maximum tokens in response")
     temperature: float = Field(default=0.7, ge=0.0, le=1.0, description="Sampling temperature")
     timeout_seconds: int = Field(default=60, ge=1, description="Request timeout")
-    max_retries: int = Field(default=3, ge=0, description="Max retry attempts")
-    anthropic_version: str = Field(default="bedrock-2023-05-31", description="Anthropic API version")
+
+
+class K2HorizonConfig(BaseModel):
+    """ifm.ai k2-horizon configuration - the Tier 3 text-only reasoning model.
+
+    OpenAI-compatible API, used for GoalEnhancer/Planner/PersonaReviewer
+    (none of which need vision).
+    """
+    api_key: str | None = Field(default=None, description="ifm.ai API key")
+    base_url: str = Field(default="https://api.ifm.ai/v1", description="ifm.ai API base URL")
+    model_id: str = Field(default="IFM/K2-Horizon-375B-A23B", description="k2-horizon model ID")
+    temperature: float = Field(default=0.7, ge=0.0, le=1.0, description="Sampling temperature")
+    timeout_seconds: int = Field(default=60, ge=1, description="Request timeout")
 
 
 class SlackConfig(BaseModel):
     """Slack alerting configuration."""
-    webhook_url: Optional[str] = Field(default=None, description="Slack webhook URL")
-    channel: Optional[str] = Field(default=None, description="Override channel")
-    bot_name: Optional[str] = Field(default="Sniff Alert Bot", description="Bot display name")
+    webhook_url: str | None = Field(default=None, description="Slack webhook URL")
+    channel: str | None = Field(default=None, description="Override channel")
+    bot_name: str | None = Field(default="Sniff Alert Bot", description="Bot display name")
 
 
 class GuardrailsConfig(BaseModel):
@@ -70,7 +86,7 @@ class SecurityConfig(BaseModel):
 
 class DefaultsConfig(BaseModel):
     """Default values for run parameters."""
-    persona: Optional[str] = Field(default=None, description="Default persona")
+    persona: str | None = Field(default=None, description="Default persona")
     device: str = Field(default="iPhone 13", description="Default device profile")
     network: str = Field(default="4g", description="Default network profile (4g|3g|slow3g)")
 
@@ -78,12 +94,40 @@ class DefaultsConfig(BaseModel):
 class SupabaseConfig(BaseModel):
     """Supabase integration configuration."""
     enabled: bool = Field(default=False, description="Enable Supabase integration")
-    url: Optional[str] = Field(default=None, description="Supabase project URL")
-    key: Optional[str] = Field(default=None, description="Supabase anon/service key")
+    url: str | None = Field(default=None, description="Supabase project URL")
+    key: str | None = Field(default=None, description="Supabase anon/service key")
     auto_upload: bool = Field(default=True, description="Auto-upload runs after completion")
     screenshots_bucket: str = Field(default="sniff-screenshots", description="Screenshots bucket name")
     videos_bucket: str = Field(default="sniff-videos", description="Videos bucket name")
     traces_bucket: str = Field(default="sniff-traces", description="Traces bucket name")
+
+
+class TypesafeConfig(BaseModel):
+    """Typesafe AI (Jev) configuration — the Tier 2 'System One' decision model.
+
+    Disabled by default: every caller of JevClient/TierRouter degrades to
+    today's deterministic/Bedrock-only behavior when this is False or no
+    api_key is set. Typesafe's public docs don't publish exact endpoint
+    paths/schemas as of this writing, so base_url/model_id are overridable
+    once verified against the real API reference (console.typesafe.ai).
+    """
+    enabled: bool = Field(default=False, description="Enable Jev (Tier 2) decision calls")
+    api_key: str | None = Field(default=None, description="Typesafe AI API key")
+    base_url: str = Field(default="https://api.typesafe.ai/v1", description="Typesafe AI API base URL")
+    model_id: str = Field(default="jev-latest", description="Jev model identifier")
+    timeout_seconds: int = Field(default=5, ge=1, description="Request timeout (Jev is designed to respond in <1s)")
+
+
+class ApiConfig(BaseModel):
+    """FastAPI backend configuration (Phase 1: shared-secret gate).
+
+    `token` gates POST/GET on /runs and /experiments via a static
+    `Authorization: Bearer <token>` check - a deliberately minimal stand-in
+    for real per-user auth, which is Phase 2 (see
+    docs/product/SAAS_ROADMAP.md section 1).
+    """
+    token: str | None = Field(default=None, description="Shared bearer token required for API access (Phase 1 auth)")
+    cors_origin: str = Field(default="http://localhost:3000", description="Allowed CORS origin for the web frontend (Next.js dev server by default)")
 
 
 class SniffConfig(BaseModel):
@@ -95,16 +139,19 @@ class SniffConfig(BaseModel):
     db_path: str = Field(default="./data/sniff.db", description="SQLite database path")
     artifacts_path: str = Field(default="./artifacts", description="Artifacts storage path")
     personas_path: str = Field(default="./src/personas", description="Persona storage path")
-    primary_url: Optional[str] = Field(default=None, description="Default staging URL for test runs")
+    primary_url: str | None = Field(default=None, description="Default staging URL for test runs")
 
     # Component configurations
     playwright: PlaywrightConfig = Field(default_factory=PlaywrightConfig)
-    bedrock: BedrockConfig = Field(default_factory=BedrockConfig)
+    gemini: GeminiConfig = Field(default_factory=GeminiConfig)
+    k2horizon: K2HorizonConfig = Field(default_factory=K2HorizonConfig)
     slack: SlackConfig = Field(default_factory=SlackConfig)
     guardrails: GuardrailsConfig = Field(default_factory=GuardrailsConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     defaults: DefaultsConfig = Field(default_factory=DefaultsConfig)
     supabase: SupabaseConfig = Field(default_factory=SupabaseConfig)
+    typesafe: TypesafeConfig = Field(default_factory=TypesafeConfig)
+    api: ApiConfig = Field(default_factory=ApiConfig)
 
     # Feature flags
     demo_mode: bool = Field(default=False, description="Enable deterministic demo mode")
@@ -135,15 +182,22 @@ class SniffConfig(BaseModel):
                 navigation_timeout=int(os.getenv('PLAYWRIGHT_NAVIGATION_TIMEOUT', '60000')),
             ),
 
-            bedrock=BedrockConfig(
-                model_id=os.getenv('BEDROCK_MODEL_ID', 'anthropic.claude-sonnet-4-5-20250929-v1:0'),
-                fallback_model_id=os.getenv('BEDROCK_MODEL_FALLBACK'),
-                region=os.getenv('BEDROCK_REGION', os.getenv('AWS_REGION', 'us-west-2')),
-                max_tokens=int(os.getenv('BEDROCK_MAX_TOKENS', '4096')),
-                temperature=float(os.getenv('BEDROCK_TEMPERATURE', '0.7')),
-                timeout_seconds=int(os.getenv('BEDROCK_TIMEOUT_SECONDS', '60')),
-                max_retries=int(os.getenv('BEDROCK_MAX_RETRIES', '3')),
-                anthropic_version=os.getenv('BEDROCK_ANTHROPIC_VERSION', 'bedrock-2023-05-31'),
+            gemini=GeminiConfig(
+                project_id=os.getenv('GEMINI_PROJECT_ID') or os.getenv('GOOGLE_CLOUD_PROJECT'),
+                region=os.getenv('GEMINI_REGION', 'us-central1'),
+                model_id=os.getenv('GEMINI_MODEL_ID', 'gemini-3.5-flash-lite'),
+                fallback_model_id=os.getenv('GEMINI_FALLBACK_MODEL_ID', 'gemini-2.5-flash-lite'),
+                max_tokens=int(os.getenv('GEMINI_MAX_TOKENS', '4096')),
+                temperature=float(os.getenv('GEMINI_TEMPERATURE', '0.7')),
+                timeout_seconds=int(os.getenv('GEMINI_TIMEOUT_SECONDS', '60')),
+            ),
+
+            k2horizon=K2HorizonConfig(
+                api_key=os.getenv('IFM_API_KEY'),
+                base_url=os.getenv('IFM_BASE_URL', 'https://api.ifm.ai/v1'),
+                model_id=os.getenv('IFM_MODEL_ID', 'IFM/K2-Horizon-375B-A23B'),
+                temperature=float(os.getenv('IFM_TEMPERATURE', '0.7')),
+                timeout_seconds=int(os.getenv('IFM_TIMEOUT_SECONDS', '60')),
             ),
 
             slack=SlackConfig(
@@ -182,12 +236,25 @@ class SniffConfig(BaseModel):
                 traces_bucket=os.getenv('SUPABASE_TRACES_BUCKET', 'sniff-traces'),
             ),
 
+            typesafe=TypesafeConfig(
+                enabled=os.getenv('TYPESAFE_ENABLED', 'false').lower() == 'true',
+                api_key=os.getenv('TYPESAFE_API_KEY'),
+                base_url=os.getenv('TYPESAFE_BASE_URL', 'https://api.typesafe.ai/v1'),
+                model_id=os.getenv('TYPESAFE_MODEL_ID', 'jev-latest'),
+                timeout_seconds=int(os.getenv('TYPESAFE_TIMEOUT_SECONDS', '5')),
+            ),
+
+            api=ApiConfig(
+                token=os.getenv('SNIFF_API_TOKEN'),
+                cors_origin=os.getenv('SNIFF_API_CORS_ORIGIN', 'http://localhost:3000'),
+            ),
+
             demo_mode=os.getenv('SNIFF_DEMO_MODE', 'false').lower() == 'true',
             test_mode=os.getenv('SNIFF_TEST_MODE', 'false').lower() == 'true',
         )
 
     @classmethod
-    def load(cls, config_path: Optional[Path] = None) -> 'SniffConfig':
+    def load(cls, config_path: Path | None = None) -> 'SniffConfig':
         """Load configuration from JSON file or create default.
 
         Args:
@@ -205,14 +272,14 @@ class SniffConfig(BaseModel):
             config_path = Path('./data/sniff.json')
 
         if config_path.exists():
-            with open(config_path, 'r') as f:
+            with open(config_path) as f:
                 data = json.load(f)
                 return cls(**data)
 
         # Return default config from environment
         return cls.from_env()
 
-    def save(self, config_path: Optional[Path] = None) -> None:
+    def save(self, config_path: Path | None = None) -> None:
         """Save configuration to JSON file.
 
         Args:
@@ -235,47 +302,24 @@ class SniffConfig(BaseModel):
         """
         errors = []
 
-        # Check AWS configuration - test if credentials actually work
-        # instead of just checking environment variables
-        try:
-            import boto3
-            from botocore.exceptions import NoCredentialsError, ClientError
-            from botocore.config import Config
-
+        # Check Gemini (Vertex AI) auth - Application Default Credentials,
+        # not an API key. Also require a project ID since ADC alone doesn't
+        # imply which GCP project to bill/run against.
+        if not self.gemini.project_id:
+            errors.append("Gemini project not configured. Set GEMINI_PROJECT_ID (or GOOGLE_CLOUD_PROJECT)")
+        else:
             try:
-                # Use short timeout to avoid hanging on network issues
-                sts_config = Config(
-                    connect_timeout=3,
-                    read_timeout=5,
-                    retries={'max_attempts': 1}
-                )
-                sts = boto3.client('sts', config=sts_config)
-                sts.get_caller_identity()
-                # Credentials are valid
-            except NoCredentialsError:
-                errors.append("AWS credentials not configured. Set AWS_PROFILE or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY")
+                import google.auth
+                google.auth.default()
             except Exception as e:
-                # Handle timeouts and other errors gracefully
-                if 'timeout' in str(e).lower() or 'timed out' in str(e).lower() or '408' in str(e):
-                    # Timeout is not a credential issue - just log warning
-                    import logging
-                    logging.getLogger(__name__).warning(f"AWS credential validation timed out: {e}. Assuming credentials are valid.")
-                    # Don't add error - allow run to continue
-                elif isinstance(e, ClientError):
-                    error_code = e.response.get('Error', {}).get('Code', '')
-                    if error_code == 'ExpiredToken':
-                        errors.append("AWS credentials expired. Run 'aws sso login' or refresh your credentials")
-                    else:
-                        errors.append(f"AWS credentials error: {error_code}")
-                else:
-                    # Other errors - log but don't block
-                    import logging
-                    logging.getLogger(__name__).warning(f"AWS credential validation failed: {e}. Continuing anyway.")
+                errors.append(
+                    f"Google Cloud Application Default Credentials not available: {e}. "
+                    "Run `gcloud auth application-default login`"
+                )
 
-        except ImportError:
-            # boto3 not available, fall back to environment variable check
-            if not os.getenv('AWS_PROFILE') and not os.getenv('AWS_ACCESS_KEY_ID'):
-                errors.append("AWS credentials not configured. Set AWS_PROFILE or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY")
+        # Check k2-horizon (ifm.ai) API key presence
+        if not self.k2horizon.api_key:
+            errors.append("k2-horizon API key not configured. Set IFM_API_KEY")
 
         # Check domain allowlist if enforcement enabled
         if self.security.enforce_domain_allowlist and not self.security.allowed_domains:
@@ -284,7 +328,7 @@ class SniffConfig(BaseModel):
         return errors
 
 
-def get_config(config_path: Optional[Path] = None) -> SniffConfig:
+def get_config(config_path: Path | None = None) -> SniffConfig:
     """Get sniff configuration singleton.
 
     Args:

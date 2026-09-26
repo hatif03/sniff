@@ -2,7 +2,7 @@
 sniff CLI Commands
 
 Available commands:
-- preflight: Validate AWS and Bedrock configuration
+- preflight: Validate Gemini/k2-horizon/Jev configuration
 - init: Initialize sniff configuration
 - run: Launch autonomous test run
 - report: Display run summary

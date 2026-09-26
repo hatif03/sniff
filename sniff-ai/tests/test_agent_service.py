@@ -1,26 +1,26 @@
 """Unit tests for Agent Service decision generation.
 
 Tests:
-- Bedrock client invocation
 - Decision schema validation
 - Malformed output repair logic
 - Fallback decision generation
 - Reasoning timeline tracking
+
+DecisionService is tested here against a generic mocked LLM client (any
+object exposing invoke()/invoke_with_json_response()) - it doesn't care
+whether that's GeminiClient, K2HorizonClient, or a test double. See
+test_gemini_client.py and test_k2horizon_client.py for the concrete client
+implementations themselves.
 """
 
-import json
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 from pydantic import ValidationError
 
-from src.core.models import Observation, AgentDecision
-from src.agent.bedrock_client import BedrockClient, BedrockInvocationError, BedrockTimeoutError
-from src.agent.decision_service import (
-    DecisionService,
-    DecisionGenerationError,
-    DecisionValidationError,
-    DecisionTimeoutError
-)
+from src.agent.decision_service import DecisionService, DecisionTimeoutError
+from src.agent.llm_errors import LLMTimeoutError
+from src.core.models import AgentDecision, Observation
 
 
 @pytest.fixture
@@ -54,95 +54,17 @@ def valid_decision_json():
 
 @pytest.fixture
 def mock_bedrock_client():
-    """Mock Bedrock client."""
-    return Mock(spec=BedrockClient)
-
-
-class TestBedrockClient:
-    """Tests for BedrockClient wrapper."""
-
-    @patch('boto3.client')
-    def test_client_initialization(self, mock_boto_client):
-        """Test Bedrock client initializes correctly."""
-        client = BedrockClient(region="us-west-2")
-        assert client.region == "us-west-2"
-        assert "claude" in client.model_id.lower()
-        mock_boto_client.assert_called_once()
-
-    @patch('boto3.client')
-    def test_invoke_success(self, mock_boto_client):
-        """Test successful model invocation."""
-        mock_client_instance = MagicMock()
-        mock_boto_client.return_value = mock_client_instance
-
-        # Mock response
-        mock_response = {
-            'body': MagicMock(read=lambda: json.dumps({
-                'content': [{'text': 'Test response'}]
-            }).encode())
-        }
-        mock_client_instance.invoke_model.return_value = mock_response
-
-        client = BedrockClient()
-        response = client.invoke(
-            system_prompt="Test system",
-            user_message="Test user"
-        )
-
-        assert response == "Test response"
-
-    @patch('boto3.client')
-    def test_invoke_with_json_response(self, mock_boto_client):
-        """Test JSON response parsing."""
-        mock_client_instance = MagicMock()
-        mock_boto_client.return_value = mock_client_instance
-
-        json_response = {"key": "value"}
-        mock_response = {
-            'body': MagicMock(read=lambda: json.dumps({
-                'content': [{'text': json.dumps(json_response)}]
-            }).encode())
-        }
-        mock_client_instance.invoke_model.return_value = mock_response
-
-        client = BedrockClient()
-        response = client.invoke_with_json_response(
-            system_prompt="Return JSON",
-            user_message="Test"
-        )
-
-        assert response == json_response
-
-    @patch('boto3.client')
-    def test_invoke_with_markdown_json(self, mock_boto_client):
-        """Test JSON extraction from markdown code blocks."""
-        mock_client_instance = MagicMock()
-        mock_boto_client.return_value = mock_client_instance
-
-        json_data = {"action": "tap"}
-        markdown_response = f"```json\n{json.dumps(json_data)}\n```"
-        mock_response = {
-            'body': MagicMock(read=lambda: json.dumps({
-                'content': [{'text': markdown_response}]
-            }).encode())
-        }
-        mock_client_instance.invoke_model.return_value = mock_response
-
-        client = BedrockClient()
-        response = client.invoke_with_json_response(
-            system_prompt="Return JSON",
-            user_message="Test"
-        )
-
-        assert response == json_data
+    """Generic mocked Tier 3 LLM client (name kept for minimal test diff -
+    DecisionService is provider-agnostic, see module docstring above)."""
+    return Mock()
 
 
 class TestDecisionService:
     """Tests for DecisionService."""
 
-    def test_service_initialization(self):
+    def test_service_initialization(self, mock_bedrock_client):
         """Test service initializes with correct defaults."""
-        service = DecisionService(max_repair_retries=3)
+        service = DecisionService(llm_client=mock_bedrock_client, max_repair_retries=3)
         assert service.max_repair_retries == 3
         assert len(service.reasoning_timeline) == 0
 
@@ -155,7 +77,7 @@ class TestDecisionService:
         """Test successful decision generation."""
         mock_bedrock_client.invoke_with_json_response.return_value = valid_decision_json
 
-        service = DecisionService(bedrock_client=mock_bedrock_client)
+        service = DecisionService(llm_client=mock_bedrock_client)
         decision = service.get_decision(
             observation=sample_observation,
             goal="Complete signup"
@@ -202,7 +124,7 @@ class TestDecisionService:
         ]
 
         service = DecisionService(
-            bedrock_client=mock_bedrock_client,
+            llm_client=mock_bedrock_client,
             max_repair_retries=2
         )
 
@@ -239,7 +161,7 @@ class TestDecisionService:
         mock_bedrock_client.invoke_with_json_response.return_value = invalid_json
 
         service = DecisionService(
-            bedrock_client=mock_bedrock_client,
+            llm_client=mock_bedrock_client,
             max_repair_retries=2
         )
 
@@ -264,10 +186,10 @@ class TestDecisionService:
     ):
         """Test timeout exception is raised and handled."""
         mock_bedrock_client.invoke_with_json_response.side_effect = (
-            BedrockTimeoutError("Request timed out")
+            LLMTimeoutError("Request timed out")
         )
 
-        service = DecisionService(bedrock_client=mock_bedrock_client)
+        service = DecisionService(llm_client=mock_bedrock_client)
 
         with pytest.raises(DecisionTimeoutError):
             service.get_decision(
@@ -286,7 +208,7 @@ class TestDecisionService:
 
         mock_bedrock_client.invoke_with_json_response.return_value = valid_decision
 
-        service = DecisionService(bedrock_client=mock_bedrock_client)
+        service = DecisionService(llm_client=mock_bedrock_client)
 
         # Generate multiple decisions
         for step in range(1, 4):
@@ -324,7 +246,7 @@ class TestDecisionService:
         """Test persona description is included in prompt."""
         mock_bedrock_client.invoke_with_json_response.return_value = valid_decision_json
 
-        service = DecisionService(bedrock_client=mock_bedrock_client)
+        service = DecisionService(llm_client=mock_bedrock_client)
         service.get_decision(
             observation=sample_observation,
             goal="Complete signup",
@@ -347,7 +269,7 @@ class TestDecisionService:
             {"action": "tap", "target": "Sign Up", "result": "success"}
         ]
 
-        service = DecisionService(bedrock_client=mock_bedrock_client)
+        service = DecisionService(llm_client=mock_bedrock_client)
         service.get_decision(
             observation=sample_observation,
             goal="Complete signup",

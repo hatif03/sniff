@@ -1,16 +1,13 @@
 ﻿"""sniff run command - Execute autonomous test runs."""
 
-from pathlib import Path
-from typing import Optional
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 import questionary
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.live import Live
-from rich.spinner import Spinner
 
 from ...core.config import get_config
 from ...core.persona import PersonaProfile
@@ -19,31 +16,31 @@ console = Console()
 
 
 def run_command(
-    goal: Optional[str] = typer.Option(
+    goal: str | None = typer.Option(
         None,
         "--goal",
         "-g",
         help="User-defined test goal (required)"
     ),
-    persona: Optional[str] = typer.Option(
+    persona: str | None = typer.Option(
         None,
         "--persona",
         "-p",
         help="Persona to use for testing"
     ),
-    url: Optional[str] = typer.Option(
+    url: str | None = typer.Option(
         None,
         "--url",
         "-u",
         help="Starting URL (overrides config)"
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
         help="Device profile (e.g., 'iPhone 13')"
     ),
-    network: Optional[str] = typer.Option(
+    network: str | None = typer.Option(
         None,
         "--network",
         "-n",
@@ -54,7 +51,7 @@ def run_command(
         "--headless/--headed",
         help="Run browser in headless mode"
     ),
-    max_steps: Optional[int] = typer.Option(
+    max_steps: int | None = typer.Option(
         None,
         "--max-steps",
         help="Override max steps guardrail"
@@ -187,7 +184,7 @@ def run_command(
 
     # Import orchestrator here to avoid circular imports
     try:
-        from ...core.orchestrator import Orchestrator
+        from ...core.orchestrator import SyncOrchestrator
 
         def update_progress(message: str):
             """Callback to update progress display."""
@@ -195,7 +192,7 @@ def run_command(
             console.print(f"  {message}")
 
         # Create orchestrator with progress callback
-        orchestrator = Orchestrator(
+        orchestrator = SyncOrchestrator(
             config=config,
             run_id=run_id,
             goal=goal,
@@ -224,7 +221,7 @@ def run_command(
         console.print(f"Duration: {result.get('duration_seconds', 0):.1f}s")
 
         if result.get('diagnosis'):
-            console.print(f"\nDiagnosis:")
+            console.print("\nDiagnosis:")
             console.print(f"  Root cause: {result['diagnosis'].get('rootCause', 'Unknown')}")
             console.print(f"  Severity: {result['diagnosis'].get('severity', 'Unknown')}")
 
@@ -236,7 +233,7 @@ def run_command(
         console.print("\nView full report with: [cyan]sniff report {run_id}[/cyan]")
 
     except ImportError as e:
-        console.print(f"[red]Error:[/red] Orchestrator not yet implemented.")
+        console.print("[red]Error:[/red] Orchestrator not yet implemented.")
         console.print("[yellow]The orchestrator module is still being developed.[/yellow]")
         console.print(f"Details: {e}")
         raise typer.Exit(1)

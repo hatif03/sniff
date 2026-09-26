@@ -26,7 +26,7 @@ app = typer.Typer(
 console = Console()
 
 # Register command modules
-app.add_typer(preflight.app, name="preflight", help="Validate AWS/Bedrock setup")
+app.add_typer(preflight.app, name="preflight", help="Validate Gemini/k2-horizon setup")
 app.command(name="init")(init.init_command)
 app.add_typer(personas.app, name="personas", help="Manage user personas")
 app.command(name="run")(run.run_command)

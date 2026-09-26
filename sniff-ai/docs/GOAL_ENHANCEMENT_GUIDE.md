@@ -65,7 +65,7 @@ When the agent first loads the website, the **Website Analyzer** extracts:
 
 ### Step 2: Goal Enhancement
 
-The **Goal Enhancer** uses an LLM to combine:
+The **Goal Enhancer** uses k2-horizon (ifm.ai, text-only reasoning - no vision needed here) to combine:
 
 1. **Original user goal** ("Complete signup")
 2. **Website context** (buttons, forms, OAuth options)
@@ -157,8 +157,8 @@ SUCCESS CRITERIA:
 ### Enable/Disable Goal Enhancement
 
 Goal enhancement is **automatically enabled** when:
-- Bedrock agent service is configured
-- Agent service has a valid Bedrock client
+- The k2-horizon client is configured (`IFM_API_KEY` set)
+- Agent service has a valid k2-horizon client
 
 To disable (use original goals only):
 ```python
@@ -172,16 +172,19 @@ Edit `src/agent/goal_enhancer.py`:
 
 ```python
 # Adjust LLM temperature for enhancement
-response = self.bedrock_client.invoke_model(
-    messages=[{"role": "user", "content": prompt}],
+response = self.llm_client.invoke(
+    system_prompt=system_prompt,
+    user_message=user_message,
     max_tokens=1500,
     temperature=0.3,  # Lower = more focused, Higher = more creative
 )
 ```
 
+Note: `GoalEnhancer`'s client parameter is a `K2HorizonClient` instance at runtime (see `create_goal_enhancer()` usage in `src/core/orchestrator.py`).
+
 ### Fallback Behavior
 
-If goal enhancement fails (network issue, Bedrock error, etc.):
+If goal enhancement fails (network issue, k2-horizon error, etc.):
 - System automatically falls back to original goal
 - Warning logged but run continues
 - No user-facing error
@@ -221,7 +224,7 @@ INFO: Goal enhanced (487 chars)
 To see the full enhanced goal:
 ```bash
 # Set log level to DEBUG
-export SHERLOCK_LOG_LEVEL=DEBUG
+export SNIFF_LOG_LEVEL=DEBUG
 
 # Run Sniff
 Sniff run --goal "Complete signup" --persona impatient_user
@@ -251,7 +254,7 @@ artifacts/run_20260207_143027_8a3f1b2c/
 
 **Overhead:** ~2-5 seconds per run
 - Website analysis: <1 second (local processing)
-- LLM goal enhancement: 1-4 seconds (Bedrock API call)
+- LLM goal enhancement: 1-4 seconds (k2-horizon API call)
 
 **Benefits:** Significant improvement in:
 - First-decision accuracy (+40%)
@@ -313,15 +316,15 @@ if detected_language != "en":
 
 ### Enhancement Fails Consistently
 
-**Cause:** Bedrock API issues or invalid model
+**Cause:** k2-horizon API issues or invalid model
 
 **Solution:**
 ```bash
-# Verify Bedrock access
+# Verify k2-horizon access
 Sniff preflight
 
 # Check logs for specific error
-export SHERLOCK_LOG_LEVEL=DEBUG
+export SNIFF_LOG_LEVEL=DEBUG
 Sniff run ...
 ```
 

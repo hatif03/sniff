@@ -11,8 +11,6 @@ Tests the integration between:
 - Alerting system
 """
 
-import asyncio
-import json
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -20,24 +18,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Import all core components
-from src.core.config import SniffConfig, PlaywrightConfig, BedrockConfig, SlackConfig
-from src.core.persona import PersonaProfile
-from src.core.models import (
-    Observation,
-    AgentDecision,
-    ActionResult,
-    DiagnosisResult,
-    SanitizedDecision,
-)
-from src.core.validation import DecisionSanitizer, ActionWhitelist
-from src.core.trace_logger import TraceLogger
-from src.core.state_machine import RunState, StateMachine, RunOutcome
-from src.core.orchestrator import RunOrchestrator
 from src.agent.decision_service import DecisionService
+from src.alerts.slack import SlackAlert
+
+# Import all core components
+from src.core.config import DefaultsConfig, GeminiConfig, PlaywrightConfig, SlackConfig, SniffConfig
+from src.core.models import (
+    ActionResult,
+    AgentDecision,
+    Observation,
+)
+from src.core.orchestrator import RunOrchestrator
+from src.core.persona import PersonaProfile
+from src.core.state_machine import RunOutcome, RunState, StateMachine
+from src.core.trace_logger import TraceLogger
+from src.core.validation import ActionWhitelist, DecisionSanitizer
 from src.diagnosis.classifier import DiagnosisClassifier
-from src.alerts.slack import SlackAlerter
-from src.evidence.report_builder import RunReport, ReportBuilder
+from src.evidence.report_builder import ReportBuilder
 
 
 class TestImports:
@@ -122,26 +119,30 @@ class TestDataFlowIntegration:
         sanitized = sanitizer.sanitize(decision)
 
         # Validate sanitization
-        assert sanitized.is_valid
+        assert sanitized.wasSanitized is False
         assert sanitized.decision == decision
-        assert sanitized.fallback_applied is False
 
     def test_invalid_decision_fallback(self):
-        """Test that invalid decisions get fallback applied."""
-        # Create invalid decision (type without inputText)
-        decision = AgentDecision(
-            action="type",
-            target="email",
-            reasoningSummary="Typing",
-            confidence=0.8,
-        )
+        """Test that invalid decisions get fallback applied.
+
+        AgentDecision's own validator rejects a 'type' action without
+        inputText at construction time, so the invalid shape has to be
+        passed as a raw dict - that's the path a malformed Bedrock/Jev
+        response actually takes into the sanitizer.
+        """
+        raw_decision = {
+            "action": "type",
+            "target": "email",
+            "reasoningSummary": "Typing",
+            "confidence": 0.8,
+        }
 
         # Sanitize decision
         sanitizer = DecisionSanitizer()
-        sanitized = sanitizer.sanitize(decision, allow_fallback=True)
+        sanitized = sanitizer.sanitize(raw_decision, allow_fallback=True)
 
         # Should have fallback applied
-        assert sanitized.fallback_applied
+        assert sanitized.wasSanitized
         assert sanitized.decision.action == "wait"
 
     def test_action_result_flow(self):
@@ -149,15 +150,15 @@ class TestDataFlowIntegration:
         result = ActionResult(
             success=True,
             action="tap",
+            status="success",
             target="Sign Up button",
             timestamp=datetime.now().isoformat(),
-            duration_ms=150,
-            observation=None,
+            durationMs=150,
         )
 
         assert result.success
         assert result.action == "tap"
-        assert result.duration_ms == 150
+        assert result.durationMs == 150
 
 
 class TestConfigurationIntegration:
@@ -166,38 +167,38 @@ class TestConfigurationIntegration:
     def test_config_creation_and_validation(self):
         """Test config creation with all required fields."""
         config = SniffConfig(
-            playwright=PlaywrightConfig(
-                headless=True,
-                default_device="iPhone 13",
-                default_network="4g",
+            playwright=PlaywrightConfig(headless=True),
+            defaults=DefaultsConfig(
+                device="iPhone 13",
+                network="4g",
             ),
-            bedrock=BedrockConfig(
-                region="us-west-2",
-                model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
+            gemini=GeminiConfig(
+                region="us-central1",
+                model_id="gemini-3.5-flash-lite",
                 timeout_seconds=30,
             ),
             slack=SlackConfig(
                 webhook_url="https://hooks.slack.com/services/TEST/TEST/TEST",
-                default_channel="#sniff-alerts",
+                channel="#sniff-alerts",
             ),
         )
 
         # Validate config
-        assert config.playwright.default_device == "iPhone 13"
-        assert config.bedrock.region == "us-west-2"
+        assert config.defaults.device == "iPhone 13"
+        assert config.gemini.region == "us-central1"
         assert config.slack.webhook_url.startswith("https://hooks.slack.com")
 
     def test_config_to_from_dict(self):
         """Test config serialization."""
         config = SniffConfig(
             playwright=PlaywrightConfig(headless=True),
-            bedrock=BedrockConfig(
-                region="us-west-2",
-                model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
+            gemini=GeminiConfig(
+                region="us-central1",
+                model_id="gemini-3.5-flash-lite",
             ),
             slack=SlackConfig(
                 webhook_url="https://hooks.slack.com/test",
-                default_channel="#test",
+                channel="#test",
             ),
         )
 
@@ -217,31 +218,28 @@ class TestPersonaIntegration:
         """Test persona profile creation."""
         persona = PersonaProfile(
             name="test_user",
+            display_name="Test User",
             description="A test user persona",
-            behavior_traits={
-                "patience_level": 0.7,
-                "tech_savviness": 0.8,
-            },
-            goal_template="Complete signup flow",
+            patience_level=0.7,
+            technical_proficiency=0.8,
+            default_goal_template="Complete signup flow",
         )
 
         assert persona.name == "test_user"
-        assert persona.behavior_traits["patience_level"] == 0.7
+        assert persona.patience_level == 0.7
 
     def test_persona_prompt_context(self):
         """Test persona to prompt context conversion."""
         persona = PersonaProfile(
             name="confused_user",
+            display_name="Confused First-Time User",
             description="A confused first-time user",
-            behavior_traits={
-                "patience_level": 0.3,
-                "confusion_tendency": 0.9,
-            },
-            goal_template="Sign up for account",
+            patience_level=0.3,
+            default_goal_template="Sign up for account",
         )
 
         context = persona.to_prompt_context()
-        assert "confused_user" in context
+        assert "Confused First-Time User" in context
         assert "confused first-time user" in context.lower()
 
 
@@ -256,16 +254,17 @@ class TestStateMachineIntegration:
         assert sm.current_state == RunState.SETUP
 
         # Test valid transitions
-        sm.transition_to(RunState.NAVIGATE)
+        sm.transition(RunState.NAVIGATE, "Setup complete")
         assert sm.current_state == RunState.NAVIGATE
 
-        sm.transition_to(RunState.ACTION_EXECUTION)
+        sm.transition(RunState.ACTION_EXECUTION, "Navigated to start URL")
         assert sm.current_state == RunState.ACTION_EXECUTION
 
-        sm.transition_to(RunState.EVALUATE_PROGRESS)
+        sm.transition(RunState.EVALUATE_PROGRESS, "Action executed")
         assert sm.current_state == RunState.EVALUATE_PROGRESS
 
-        sm.transition_to(RunState.DONE, RunOutcome.SUCCESS)
+        sm.transition(RunState.DONE, "Goal reached")
+        sm.set_outcome(RunOutcome.SUCCESS)
         assert sm.current_state == RunState.DONE
         assert sm.outcome == RunOutcome.SUCCESS
 
@@ -275,7 +274,7 @@ class TestStateMachineIntegration:
 
         # Try invalid transition (SETUP → DIAGNOSE)
         with pytest.raises(ValueError):
-            sm.transition_to(RunState.DIAGNOSE)
+            sm.transition(RunState.DIAGNOSE, "Invalid jump")
 
 
 class TestTraceLoggingIntegration:
@@ -286,7 +285,7 @@ class TestTraceLoggingIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             logger = TraceLogger(
                 run_id="test-123",
-                log_dir=Path(tmpdir),
+                trace_dir=Path(tmpdir),
             )
 
             # Log observation
@@ -303,7 +302,7 @@ class TestTraceLoggingIntegration:
                 lastActionResult={},
             )
 
-            logger.log_observation(obs, step=1)
+            logger.log_observation(obs)
 
             # Verify log file exists
             log_files = list(Path(tmpdir).glob("*.jsonl"))
@@ -337,15 +336,21 @@ class TestDiagnosisIntegration:
             ActionResult(
                 success=False,
                 action="tap",
+                status="failed",
                 target="Submit",
                 timestamp=datetime.now().isoformat(),
-                duration_ms=5000,
+                durationMs=5000,
                 error="Timeout waiting for response",
             )
         ]
 
         # Classify the issue
-        diagnosis = classifier.classify_deterministic(obs, action_history)
+        diagnosis = classifier.classify(
+            observations=[obs],
+            action_results=action_history,
+            run_goal="Complete signup",
+            stuck_reason="Backend error on submit",
+        )
 
         # Should detect backend issue
         assert diagnosis is not None
@@ -359,19 +364,6 @@ class TestEndToEndIntegration:
     @pytest.mark.asyncio
     async def test_mock_orchestrator_run(self):
         """Test orchestrator with mocked components."""
-        # Create config
-        config = SniffConfig(
-            playwright=PlaywrightConfig(headless=True),
-            bedrock=BedrockConfig(
-                region="us-west-2",
-                model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
-            ),
-            slack=SlackConfig(
-                webhook_url="https://hooks.slack.com/test",
-                default_channel="#test",
-            ),
-        )
-
         # Create mock agent service
         mock_agent = MagicMock()
         mock_agent.get_decision = AsyncMock(
@@ -406,9 +398,10 @@ class TestEndToEndIntegration:
                     return_value=ActionResult(
                         success=True,
                         action="tap",
+                        status="success",
                         target="Sign Up",
                         timestamp=datetime.now().isoformat(),
-                        duration_ms=100,
+                        durationMs=100,
                     )
                 )
                 mock_worker.__aenter__ = AsyncMock(return_value=mock_worker)
@@ -416,11 +409,24 @@ class TestEndToEndIntegration:
 
                 MockWorker.return_value = mock_worker
 
+                # Create config with artifacts written to the temp dir
+                config = SniffConfig(
+                    playwright=PlaywrightConfig(headless=True),
+                    gemini=GeminiConfig(
+                        region="us-central1",
+                        model_id="gemini-3.5-flash-lite",
+                    ),
+                    slack=SlackConfig(
+                        webhook_url="https://hooks.slack.com/test",
+                        channel="#test",
+                    ),
+                    artifacts_path=tmpdir,
+                )
+
                 # Create orchestrator
                 orchestrator = RunOrchestrator(
                     config=config,
                     agent_service=mock_agent,
-                    artifact_dir=Path(tmpdir),
                 )
 
                 # This would normally run a full flow, but we're just testing
@@ -440,7 +446,7 @@ def test_integration_suite_summary():
         "Orchestrator": RunOrchestrator,
         "DecisionService": DecisionService,
         "Diagnosis": DiagnosisClassifier,
-        "Slack": SlackAlerter,
+        "Slack": SlackAlert,
         "ReportBuilder": ReportBuilder,
     }
 

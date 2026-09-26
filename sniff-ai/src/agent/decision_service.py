@@ -1,6 +1,7 @@
 ﻿"""Agent Decision Service for sniff.
 
-Converts observations into validated agent decisions using Bedrock.
+Converts observations into validated agent decisions using a vision-capable
+Tier 3 reasoning LLM (Gemini by default - see gemini_client.py).
 Implements strict schema validation with bounded retries for malformed outputs.
 
 Architecture boundary:
@@ -9,13 +10,14 @@ Architecture boundary:
 - Orchestrator owns execution authority
 """
 
+import base64
 import json
 import logging
-import base64
-from pathlib import Path
-from typing import Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
+from typing import Any
+
 from pydantic import ValidationError
 
 try:
@@ -24,9 +26,16 @@ try:
 except ImportError:
     HAS_PIL = False
 
-from src.core.models import Observation, AgentDecision
-from .bedrock_client import BedrockClient, BedrockInvocationError, BedrockTimeoutError
-from .prompts import build_system_prompt, build_user_message, build_user_message_with_vision, build_repair_prompt
+from src.core.models import AgentDecision, Observation
+
+from .llm_errors import LLMInvocationError, LLMTimeoutError
+from .prompts import (
+    build_repair_prompt,
+    build_system_prompt,
+    build_user_message,
+    build_user_message_with_vision,
+)
+from .tier_router import TierRouter
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +45,7 @@ class DecisionService:
 
     Responsibilities:
     - Construct decision prompts from observations + persona + goal
-    - Invoke Bedrock with proper system/user messages
+    - Invoke the Tier 3 reasoning LLM with proper system/user messages
     - Validate response against AgentDecision schema
     - Retry with repair prompts for malformed outputs (bounded)
     - Log reasoning summaries for evidence timeline
@@ -44,20 +53,27 @@ class DecisionService:
 
     def __init__(
         self,
-        bedrock_client: Optional[BedrockClient] = None,
+        llm_client: Any,
         max_repair_retries: int = 2,
-        decision_temperature: float = 0.7
+        decision_temperature: float = 0.7,
+        tier_router: TierRouter | None = None,
     ):
         """Initialize decision service.
 
         Args:
-            bedrock_client: Bedrock client instance (creates default if None)
+            llm_client: Tier 3 reasoning client (GeminiClient by default -
+                must expose invoke()/invoke_with_json_response() and a
+                `model_id` attribute; see gemini_client.py).
             max_repair_retries: Maximum attempts to repair malformed outputs
             decision_temperature: Temperature for decision generation (0-1)
+            tier_router: Optional Tier 2 (Jev) router. When None or disabled,
+                behavior is identical to before Jev existed - context
+                enrichment is skipped and the decision critic never fires.
         """
-        self.client = bedrock_client or BedrockClient()
+        self.client = llm_client
         self.max_repair_retries = max_repair_retries
         self.decision_temperature = decision_temperature
+        self.tier_router = tier_router
 
         # Store reasoning timeline for evidence collection
         self.reasoning_timeline: list[dict] = []
@@ -66,8 +82,8 @@ class DecisionService:
         self,
         observation: Observation,
         goal: str,
-        persona_description: Optional[str] = None,
-        recent_history: Optional[list[dict]] = None
+        persona_description: str | None = None,
+        recent_history: list[dict] | None = None
     ) -> AgentDecision:
         """Generate validated agent decision from observation.
 
@@ -83,10 +99,18 @@ class DecisionService:
         Raises:
             DecisionGenerationError: If decision generation fails after retries
             DecisionValidationError: If decision validation fails after repair attempts
-            DecisionTimeoutError: If Bedrock request times out
+            DecisionTimeoutError: If the reasoning LLM request times out
         """
         # Build prompts
         system_prompt = build_system_prompt(persona_description)
+
+        # Tier 2 (Jev): parallel context enrichment, computed before the
+        # expensive Tier 3 call so the reasoning model gets a pre-digested
+        # screen classification instead of re-deriving it every step.
+        # Returns None (no annotation) whenever Jev is disabled/unavailable.
+        jev_signals = None
+        if self.tier_router:
+            jev_signals = self.tier_router.enrich_context(goal=goal, visible_text=observation.visibleText)
 
         # Load and encode screenshot for vision
         screenshot_base64 = None
@@ -98,28 +122,25 @@ class DecisionService:
             except Exception as e:
                 logger.warning(f"Failed to load screenshot from {screenshot_path}: {e}")
 
-        # Build user message with vision if screenshot available
+        # Build user message with vision if screenshot available.
+        # "anthropic"-style content blocks (image+source, text) are the
+        # canonical shape GeminiClient._build_contents() understands.
         if screenshot_base64:
-            # Determine vision format based on model type
-            model_id = self.client.model_id.lower()
-            if "nvidia" in model_id or "deepseek" in model_id:
-                format_style = "openai"
-            else:
-                format_style = "anthropic"
-
             user_message = build_user_message_with_vision(
                 goal=goal,
                 observation=observation.model_dump(),
                 screenshot_base64=screenshot_base64,
                 recent_history=recent_history,
-                format_style=format_style
+                format_style="anthropic",
+                jev_signals=jev_signals,
             )
         else:
             # Fallback to text-only if no screenshot
             user_message = build_user_message(
                 goal=goal,
                 observation=observation.model_dump(),
-                recent_history=recent_history
+                recent_history=recent_history,
+                jev_signals=jev_signals,
             )
 
         # Log decision request
@@ -129,7 +150,7 @@ class DecisionService:
 
         # Primary decision attempt
         try:
-            decision = self._attempt_decision(system_prompt, user_message)
+            decision = self._attempt_decision(system_prompt, user_message, goal, recent_history)
             self._log_reasoning(observation, decision, attempt=1, repaired=False)
             return decision
 
@@ -159,8 +180,8 @@ class DecisionService:
                     if attempt == self.max_repair_retries:
                         # Final attempt failed - use fallback
                         logger.error(
-                            f"All repair attempts exhausted. "
-                            f"Returning safe fallback decision."
+                            "All repair attempts exhausted. "
+                            "Returning safe fallback decision."
                         )
                         fallback = self._create_fallback_decision(observation, str(e))
                         self._log_reasoning(
@@ -172,33 +193,43 @@ class DecisionService:
                         )
                         return fallback
 
-        except BedrockTimeoutError as e:
-            logger.error(f"Bedrock timeout: {e}")
+        except LLMTimeoutError as e:
+            logger.error(f"LLM timeout: {e}")
             raise DecisionTimeoutError(
                 f"Decision generation timed out: {e}"
             ) from e
 
-        except BedrockInvocationError as e:
-            logger.error(f"Bedrock invocation failed: {e}")
+        except LLMInvocationError as e:
+            logger.error(f"LLM invocation failed: {e}")
             raise DecisionGenerationError(
                 f"Failed to generate decision: {e}"
             ) from e
 
-    def _attempt_decision(self, system_prompt: str, user_message: str) -> AgentDecision:
+    def _attempt_decision(
+        self,
+        system_prompt: str,
+        user_message: str,
+        goal: str,
+        recent_history: list[dict] | None = None,
+    ) -> AgentDecision:
         """Attempt to generate and validate a decision.
 
         Args:
-            system_prompt: System prompt for Bedrock
+            system_prompt: System prompt for the reasoning LLM
             user_message: User message with observation
+            goal: Run goal, used only for the Tier 2 (Jev) critic gate below
+            recent_history: Recent action history, used only for the critic gate
 
         Returns:
             Validated AgentDecision
 
         Raises:
-            DecisionValidationError: If validation fails
+            DecisionValidationError: If validation fails, or if the Tier 2
+                (Jev) critic flags the decision as implausible - routed
+                through the same bounded repair loop as a schema failure.
         """
         try:
-            # Invoke Bedrock
+            # Invoke the Tier 3 reasoning LLM
             response = self.client.invoke_with_json_response(
                 system_prompt=system_prompt,
                 user_message=user_message,
@@ -208,6 +239,27 @@ class DecisionService:
 
             # Validate against schema
             decision = AgentDecision.model_validate(response)
+
+            # Tier 2 (Jev) Generator-Critic gate: a cheap sanity check on the
+            # Tier 3 decision before it's executed. A low-confidence critique
+            # is treated exactly like a validation failure so it flows
+            # through the existing repair-retry mechanism rather than a new
+            # parallel retry path. No-op whenever Jev is disabled.
+            if self.tier_router and self.tier_router.critique_decision(
+                goal=goal,
+                reasoning_summary=decision.reasoningSummary,
+                action=decision.action,
+                target=decision.target,
+                recent_history=recent_history,
+            ):
+                raise DecisionValidationError(
+                    validation_error=(
+                        "Jev critic (Tier 2): this action was flagged as unlikely to "
+                        "progress toward the goal given the reasoning and recent history."
+                    ),
+                    malformed_output=decision.model_dump_json(),
+                )
+
             return decision
 
         except ValidationError as e:
@@ -216,7 +268,7 @@ class DecisionService:
                 malformed_output=json.dumps(response, indent=2)
             ) from e
 
-        except BedrockInvocationError as e:
+        except LLMInvocationError as e:
             # If response isn't JSON, treat as malformed
             if hasattr(e, 'details') and isinstance(e.details, str):
                 raise DecisionValidationError(
@@ -309,7 +361,7 @@ class DecisionService:
             is_fallback: Whether this is a fallback decision
         """
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "runId": observation.runId,
             "step": observation.step,
             "url": observation.url,
@@ -427,19 +479,24 @@ def create_agent_service(config):
         config: SniffConfig instance
 
     Returns:
-        DecisionService instance configured with Bedrock client
+        DecisionService instance configured with a Gemini client (the
+        vision-capable Tier 3 reasoning model) and, when
+        config.typesafe.enabled, the Tier 2 (Jev) TierRouter.
     """
-    from .bedrock_client import BedrockClient
+    from .gemini_client import GeminiClient
+    from .tier_router import create_tier_router
 
-    bedrock_client = BedrockClient(
-        model_id=config.bedrock.model_id,
-        region=config.bedrock.region,
-        timeout_seconds=config.bedrock.timeout_seconds,
-        max_retries=config.bedrock.max_retries,
+    gemini_client = GeminiClient(
+        project_id=config.gemini.project_id,
+        region=config.gemini.region,
+        model_id=config.gemini.model_id,
+        fallback_model_id=config.gemini.fallback_model_id,
+        timeout_seconds=config.gemini.timeout_seconds,
     )
 
     return DecisionService(
-        bedrock_client=bedrock_client,
+        llm_client=gemini_client,
         max_repair_retries=2,
-        decision_temperature=config.bedrock.temperature,
+        decision_temperature=config.gemini.temperature,
+        tier_router=create_tier_router(config),
     )

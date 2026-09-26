@@ -1,10 +1,12 @@
-﻿"""Agent Service module for sniff.
+"""Agent Service module for sniff.
 
-Provides AI-driven decisioning using AWS Bedrock.
+Provides AI-driven decisioning across three tiers: deterministic code,
+Jev (Tier 2, fast decisions), and Gemini/k2-horizon (Tier 3, reasoning).
 Agent returns decisions only - never controls browser directly.
 """
 
-from .bedrock_client import BedrockClient
+from .gemini_client import GeminiClient
+from .k2horizon_client import K2HorizonClient
 from .decision_service import DecisionService
 
-__all__ = ["BedrockClient", "DecisionService"]
+__all__ = ["GeminiClient", "K2HorizonClient", "DecisionService"]

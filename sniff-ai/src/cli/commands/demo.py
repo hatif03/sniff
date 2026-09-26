@@ -1,17 +1,15 @@
 ﻿"""sniff demo command - Deterministic demo mode for presentations."""
 
 from pathlib import Path
-from typing import Optional
 
+import questionary
 import typer
 from rich.console import Console
-from rich.panel import Panel
 from rich.live import Live
+from rich.panel import Panel
 from rich.spinner import Spinner
-import questionary
 
 from ...core.config import get_config
-from ...core.persona import PersonaProfile
 
 console = Console()
 
@@ -118,7 +116,7 @@ def demo_command(
 
     # Import and run demo
     try:
-        from ...core.orchestrator import Orchestrator
+        from ...core.orchestrator import SyncOrchestrator
         from ...core.persona import PersonaProfile
 
         personas_dir = Path(config.personas_path)
@@ -127,7 +125,7 @@ def demo_command(
         try:
             persona = PersonaProfile.load(demo_config['persona'], personas_dir)
         except FileNotFoundError:
-            console.print(f"[yellow]Persona not found, creating defaults...[/yellow]")
+            console.print("[yellow]Persona not found, creating defaults...[/yellow]")
             from ...core.persona import create_default_personas
             create_default_personas(personas_dir)
             persona = PersonaProfile.load(demo_config['persona'], personas_dir)
@@ -139,12 +137,12 @@ def demo_command(
             demo_url = "https://demo.sniff.example.com"
 
         # Generate demo run ID
-        from datetime import datetime
         import uuid
+        from datetime import datetime
         run_id = f"demo_{scenario}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
         # Create orchestrator with demo mode
-        orchestrator = Orchestrator(
+        orchestrator = SyncOrchestrator(
             config=config,
             run_id=run_id,
             goal=demo_config['goal'],
@@ -194,7 +192,7 @@ def demo_command(
         console.print("\nView full report: [cyan]sniff report {run_id}[/cyan]")
 
     except ImportError as e:
-        console.print(f"[red]Error:[/red] Orchestrator not yet implemented.")
+        console.print("[red]Error:[/red] Orchestrator not yet implemented.")
         console.print("[yellow]Demo mode requires the orchestrator module.[/yellow]")
         console.print(f"Details: {e}")
         raise typer.Exit(1)

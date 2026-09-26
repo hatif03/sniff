@@ -65,121 +65,73 @@ def init_command(
         raise typer.Exit(1)
 
     # Interactive configuration
-    console.print("\n[bold]AWS Credentials Configuration[/bold]")
+    console.print("\n[bold]Gemini (Vertex AI) Configuration[/bold]")
+    console.print(
+        "[dim]Auth is via Application Default Credentials, not an API key. "
+        "Run `gcloud auth application-default login` first if you haven't.[/dim]"
+    )
 
-    # Check for existing credentials
     env_file = Path(".env")
-    existing_creds = {
-        'AWS_ACCESS_KEY_ID': os.getenv('AWS_ACCESS_KEY_ID'),
-        'AWS_SECRET_ACCESS_KEY': os.getenv('AWS_SECRET_ACCESS_KEY'),
-        'AWS_SESSION_TOKEN': os.getenv('AWS_SESSION_TOKEN'),
-        'AWS_REGION': os.getenv('AWS_REGION'),
-    }
-
-    has_existing = any(existing_creds.values())
-
-    if has_existing:
-        console.print("[green]✓[/green] Found existing AWS credentials in environment")
-        use_existing = questionary.confirm(
-            "Use existing AWS credentials?",
-            default=True
-        ).ask()
-    else:
-        console.print("[yellow]![/yellow] No AWS credentials found in environment")
-        use_existing = False
-
     env_updates = {}
 
-    if not use_existing:
-        cred_method = questionary.select(
-            "How would you like to provide AWS credentials?",
-            choices=[
-                "Enter credentials manually",
-                "Use AWS CLI profile (credentials file)",
-                "Use IAM role (for EC2/Lambda)",
-                "Configure later (skip for now)",
-            ]
-        ).ask()
+    has_adc = False
+    try:
+        import google.auth
+        google.auth.default()
+        has_adc = True
+    except Exception:
+        pass
 
-        if cred_method == "Enter credentials manually":
-            console.print("\n[cyan]Enter your AWS credentials:[/cyan]")
-            console.print("[dim]These will be saved to .env file[/dim]")
+    if has_adc:
+        console.print("[green]✓[/green] Found valid Google Cloud Application Default Credentials")
+    else:
+        console.print("[yellow]![/yellow] No Google Cloud ADC found")
+        console.print("[dim]Run `gcloud auth application-default login` in another terminal, then continue.[/dim]")
 
-            access_key = questionary.password(
-                "AWS Access Key ID:",
-                validate=lambda x: len(x) > 0 or "Access Key ID is required"
-            ).ask()
-
-            secret_key = questionary.password(
-                "AWS Secret Access Key:",
-                validate=lambda x: len(x) > 0 or "Secret Access Key is required"
-            ).ask()
-
-            use_session_token = questionary.confirm(
-                "Do you have a session token? (for temporary credentials)",
-                default=False
-            ).ask()
-
-            session_token = None
-            if use_session_token:
-                session_token = questionary.password(
-                    "AWS Session Token:",
-                ).ask()
-
-            env_updates['AWS_ACCESS_KEY_ID'] = access_key
-            env_updates['AWS_SECRET_ACCESS_KEY'] = secret_key
-            if session_token:
-                env_updates['AWS_SESSION_TOKEN'] = session_token
-
-        elif cred_method == "Use AWS CLI profile (credentials file)":
-            profile_name = questionary.text(
-                "AWS profile name:",
-                default="default"
-            ).ask()
-            env_updates['AWS_PROFILE'] = profile_name
-            console.print(f"[green]✓[/green] Will use AWS profile: {profile_name}")
-            console.print("[dim]Make sure your ~/.aws/credentials file is configured[/dim]")
-
-        elif cred_method == "Use IAM role (for EC2/Lambda)":
-            console.print("[green]✓[/green] Will use IAM role from instance metadata")
-            console.print("[dim]Ensure your EC2 instance or Lambda function has appropriate IAM role attached[/dim]")
-
-        else:  # Configure later
-            console.print("[yellow]![/yellow] AWS credentials not configured")
-            console.print("[dim]You'll need to set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env before running[/dim]")
-
-    console.print("\n[bold]Bedrock Configuration[/bold]")
-
-    # Bedrock configuration
-    model_id = questionary.text(
-        "Bedrock model ID:",
-        default=config.bedrock.model_id
+    project_id = questionary.text(
+        "GCP project ID (for Vertex AI):",
+        default=config.gemini.project_id or os.getenv("GOOGLE_CLOUD_PROJECT", "")
     ).ask()
-
-    config.bedrock.model_id = model_id
-    env_updates['BEDROCK_MODEL_ID'] = model_id
+    config.gemini.project_id = project_id
+    env_updates['GEMINI_PROJECT_ID'] = project_id
 
     region = questionary.text(
-        "AWS region:",
-        default=config.bedrock.region
+        "Vertex AI region:",
+        default=config.gemini.region
     ).ask()
+    config.gemini.region = region
+    env_updates['GEMINI_REGION'] = region
 
-    config.bedrock.region = region
-    env_updates['AWS_REGION'] = region
-
-    # Optional: Configure fallback model
-    configure_fallback = questionary.confirm(
-        "Configure fallback model? (optional, for redundancy)",
-        default=False
+    model_id = questionary.text(
+        "Gemini model ID:",
+        default=config.gemini.model_id
     ).ask()
+    config.gemini.model_id = model_id
+    env_updates['GEMINI_MODEL_ID'] = model_id
 
-    if configure_fallback:
-        fallback_model = questionary.text(
-            "Fallback Bedrock model ID:",
-            default=config.bedrock.fallback_model_id or "anthropic.claude-3-5-sonnet-20241022-v2:0"
-        ).ask()
-        config.bedrock.fallback_model_id = fallback_model
-        env_updates['BEDROCK_MODEL_FALLBACK'] = fallback_model
+    fallback_model = questionary.text(
+        "Fallback Gemini model ID (used if the primary isn't available in this region):",
+        default=config.gemini.fallback_model_id
+    ).ask()
+    config.gemini.fallback_model_id = fallback_model
+    env_updates['GEMINI_FALLBACK_MODEL_ID'] = fallback_model
+
+    console.print("\n[bold]k2-horizon (ifm.ai) Configuration[/bold]")
+    console.print("[dim]Text-only reasoning model, used for goal enhancement, planning, and persona reviews.[/dim]")
+
+    api_key = questionary.password(
+        "ifm.ai API key:",
+        validate=lambda x: len(x) > 0 or "API key is required"
+    ).ask()
+    config.k2horizon.api_key = api_key
+    env_updates['IFM_API_KEY'] = api_key
+
+    k2_model_id = questionary.text(
+        "k2-horizon model ID:",
+        default=config.k2horizon.model_id
+    ).ask()
+    config.k2horizon.model_id = k2_model_id
+    env_updates['IFM_MODEL_ID'] = k2_model_id
 
     # Security configuration
     console.print("\n[bold]Security Configuration[/bold]")
@@ -277,13 +229,13 @@ def init_command(
 
     # Save environment variables to .env
     if env_updates:
-        console.print(f"\n[bold]Updating .env file...[/bold]")
+        console.print("\n[bold]Updating .env file...[/bold]")
         env_file = Path(".env")
 
         # Read existing .env if it exists
         existing_env = {}
         if env_file.exists():
-            with open(env_file, 'r') as f:
+            with open(env_file) as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith('#') and '=' in line:
@@ -307,7 +259,7 @@ def init_command(
         # This ensures validation can see the newly configured credentials
         from dotenv import load_dotenv
         load_dotenv(env_file, override=True)
-        console.print(f"  ✓ Loaded credentials into environment")
+        console.print("  ✓ Loaded credentials into environment")
 
     # Validate configuration (AFTER loading credentials)
     console.print("\n[bold]Validating Configuration...[/bold]")
@@ -332,22 +284,9 @@ def init_command(
     summary.add_column("Value", style="white")
 
     summary.add_row("Config file", str(config_file))
-
-    # AWS Credentials status
-    if env_updates:
-        if 'AWS_ACCESS_KEY_ID' in env_updates:
-            summary.add_row("AWS Credentials", "✓ Manual credentials configured")
-        elif 'AWS_PROFILE' in env_updates:
-            summary.add_row("AWS Credentials", f"✓ Using profile: {env_updates['AWS_PROFILE']}")
-        else:
-            summary.add_row("AWS Credentials", "✓ Using IAM role")
-    elif has_existing:
-        summary.add_row("AWS Credentials", "✓ Using existing credentials")
-    else:
-        summary.add_row("AWS Credentials", "✗ Not configured")
-
-    summary.add_row("Bedrock model", config.bedrock.model_id)
-    summary.add_row("AWS region", config.bedrock.region)
+    summary.add_row("Google Cloud ADC", "✓ Valid" if has_adc else "✗ Not configured - run `gcloud auth application-default login`")
+    summary.add_row("Gemini model", f"{config.gemini.model_id} ({config.gemini.region})")
+    summary.add_row("k2-horizon model", config.k2horizon.model_id)
     summary.add_row("Personas path", config.personas_path)
     summary.add_row("Artifacts path", config.artifacts_path)
     summary.add_row("Max steps", str(config.guardrails.max_steps))
@@ -362,15 +301,17 @@ def init_command(
 
     # Next steps
     console.print("\n[bold]Next Steps:[/bold]")
-    if env_updates or has_existing:
-        console.print("  1. Validate AWS setup: [cyan]sniff preflight[/cyan]")
+    if has_adc and config.k2horizon.api_key:
+        console.print("  1. Validate setup: [cyan]sniff preflight[/cyan]")
         console.print("  2. Review/edit personas: [cyan]sniff personas list[/cyan]")
         console.print("  3. Test Slack alerts (if configured): [cyan]sniff alert test[/cyan]")
         console.print("  4. Run your first test: [cyan]sniff run --goal 'Complete signup'[/cyan]")
     else:
-        console.print("  [yellow]![/yellow] Configure AWS credentials first:")
-        console.print("     - Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env")
-        console.print("     - Or configure AWS CLI with [cyan]aws configure[/cyan]")
-        console.print("  1. Validate AWS setup: [cyan]sniff preflight[/cyan]")
+        console.print("  [yellow]![/yellow] Finish provider setup first:")
+        if not has_adc:
+            console.print("     - Run [cyan]gcloud auth application-default login[/cyan] for Gemini/Vertex AI")
+        if not config.k2horizon.api_key:
+            console.print("     - Set IFM_API_KEY in .env for k2-horizon")
+        console.print("  1. Validate setup: [cyan]sniff preflight[/cyan]")
         console.print("  2. Review/edit personas: [cyan]sniff personas list[/cyan]")
         console.print("  3. Run your first test: [cyan]sniff run --goal 'Complete signup'[/cyan]")

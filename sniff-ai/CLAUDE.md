@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Sniff** is an autonomous mystery shopper system that tests mobile/web signup flows using AI-driven navigation and diagnosis. The system simulates real user behavior, detects friction points, diagnoses root causes, and escalates issues via Slack alerts.
 
-**Current Status**: Planning phase - architecture and requirements defined, implementation not yet started.
+**Current Status**: Implemented and working - core agent loop, three-tier decision architecture, and a FastAPI layer for triggering runs from the web are all in place. See `docs/product/ARCHITECTURE.md` and `docs/product/SAAS_ROADMAP.md` for what's built vs backlog.
 
-**Tech Stack**: Python 3.11+, Playwright (mobile emulation), AWS Bedrock (AI decisions), optional Strands Agents framework.
+**Tech Stack**: Python 3.11+, Playwright (mobile emulation), Gemini via Vertex AI (Tier 3 vision-capable reasoning), k2-horizon via ifm.ai (Tier 3 text-only reasoning), Jev via Typesafe AI (Tier 2 fast decisions).
 
 ## Architecture
 
@@ -23,7 +23,7 @@ CLI (Control Plane)
   ↓
 Run Orchestrator (State Machine + Guardrails)
   ↓
-├── Agent Service (Bedrock) → returns decisions only
+├── Agent Service (Gemini + k2-horizon) → returns decisions only
 ├── Execution Worker (Playwright) → executes actions, captures observations
 ├── Diagnosis Engine → classifies failures, assigns severity
 └── Alert Service (Slack) → escalates with evidence
@@ -33,7 +33,6 @@ Run Orchestrator (State Machine + Guardrails)
 - Agent Service never directly controls the browser - it only returns `AgentDecision` objects
 - Run Orchestrator maintains state machine authority, not the LLM
 - Execution Worker owns Playwright session lifecycle
-- If using Strands framework, keep it confined to `src/agent/` as an implementation detail
 
 ### State Machine Flow
 
@@ -63,9 +62,10 @@ src/
     config.py
     models.py
   agent/
-    bedrock_client.py  # AWS Bedrock integration
     decision_service.py
-    strands_agent.py   # Optional: Strands framework wrapper
+    gemini_client.py    # Tier 3 vision-capable reasoning
+    k2horizon_client.py # Tier 3 text-only reasoning
+    jev_client.py        # Tier 2 fast decisions
     prompts/
   executor/
     playwright_worker.py  # Browser automation + tool methods
@@ -136,7 +136,7 @@ artifacts/
 Interactive setup for:
 - **Primary staging URL** - Default entry point for test runs (e.g., `https://staging.acme.com`)
 - **Allowed domains** - Security allowlist to prevent accidental production runs (e.g., `["staging.acme.com", "auth-staging.acme.com"]`)
-- Bedrock region/model
+- GCP project/region for Gemini, ifm.ai key for k2-horizon
 - Slack webhook
 - Default persona/device/network
 - Owner routing map
@@ -232,19 +232,14 @@ Browser automation tools exposed to Agent Service:
 - Persist reasoning timeline for demo transparency (judges love this)
 - Apply persona behavior policies consistently
 
-**Bedrock Integration**:
-- Use organizer-provided Bedrock resources
-- Support model swapping flexibility
-- Handle timeouts with fallback strategies
-
-**Optional Strands Framework**:
-- If used, keep inside `src/agent/` only
-- Do NOT let it own browser execution lifecycle
-- Keep RAG/memory behind explicit tools for auditability
+**Gemini + k2-horizon Integration**:
+- Gemini (Vertex AI, Application Default Credentials) for the vision-dependent per-step decision; k2-horizon (ifm.ai, OpenAI-compatible) for text-only goal enhancement/planning/persona review
+- Both clients share the same `invoke()`/`invoke_with_json_response()` interface, so swapping either is a one-line change
+- Handle timeouts with fallback strategies (`GeminiClient` automatically retries once with `fallback_model_id` on a 404/not-found)
 
 ## Diagnosis Engine
 
-**Hybrid approach**: Deterministic signals + LLM interpretation
+**Fully deterministic (Tier 1)**: rule trees over extracted signals, no model call of any kind
 
 **Root Cause Categories**:
 - **Backend** - Server errors, API failures
@@ -281,13 +276,14 @@ Required packages:
 - `rich` - Terminal output formatting
 - `pydantic` - Schema validation
 - `playwright` - Browser automation
-- `boto3` - AWS Bedrock client
-- `httpx` - HTTP client for Slack webhooks
+- `google-genai` - Gemini (Vertex AI) client
+- `openai` - OpenAI-compatible client, used for k2-horizon (ifm.ai)
+- `httpx` - HTTP client for Slack webhooks and Jev (Typesafe AI)
 - `python-dotenv` - Environment configuration
 - `questionary` - Interactive prompts
 
 ### Environment Configuration
-Use `.env` for secrets (Bedrock credentials, Slack webhook URL). Never commit secrets or log sensitive data.
+Use `.env` for secrets (ifm.ai/Typesafe API keys, Slack webhook URL). Gemini auth is via `gcloud auth application-default login`, not a secret in `.env`. Never commit secrets or log sensitive data.
 
 ### Testing Strategy
 Must target staging URLs only. Never automate against production environments.
@@ -329,8 +325,8 @@ Must target staging URLs only. Never automate against production environments.
 - **CHALLENGE.md** - Original hackathon problem statement
 - **IMPLEMENTATION_PLAN.md** - Phase-by-phase build tasks and checklist
 - **PRODUCT_REQUIREMENTS.md** - Complete PRD with functional requirements and acceptance criteria
-- **STRANDS_BEDROCK_REPORT.md** - Technical decision report on Agent Service layer framework tradeoffs
-- **AGENT_README.md** / **AGENT_SETUP_GUIDE.md** - Strands + Bedrock AgentCore deployment documentation (reference material)
+- **STRANDS_BEDROCK_REPORT.md** - Historical decision report from when Agent Service ran on AWS Bedrock/Strands, superseded by the Gemini + k2-horizon provider swap
+- **docs/product/SAAS_ROADMAP.md** - What it takes to go from this pass's shared-secret API gate to a real multi-tenant SaaS
 
 ## Post-Hackathon Evolution Path
 
