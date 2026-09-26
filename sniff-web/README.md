@@ -75,7 +75,7 @@ vercel --prod
 ## Project Structure
 
 ```
-sherlock_website/
+sniff_website/
 ├── app/
 │   ├── globals.css         # Global styles
 │   ├── layout.tsx          # Root layout with fonts

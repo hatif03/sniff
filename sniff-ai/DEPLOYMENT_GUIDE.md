@@ -16,15 +16,15 @@ This guide covers all methods to deploy and distribute Sniff as a Python package
 
 ## 🔒 Security: NEVER Include Credentials in Package
 
-**CRITICAL: AWS credentials must NEVER be included in the package build.**
+**CRITICAL: credentials must NEVER be included in the package build.**
 
 ### What Gets Excluded from the Build
 
 The following files are excluded via `.gitignore` and should NEVER be in the package:
-- `.env` files (contains AWS credentials)
+- `.env` files (contains the ifm.ai API key and Gemini project/region)
 - `data/` directory (contains run history database)
 - `artifacts/` directory (contains test run evidence)
-- Any files with AWS keys, tokens, or secrets
+- Any files with API keys, tokens, or secrets
 
 ### What IS Included in the Build
 
@@ -37,21 +37,17 @@ Only these files are packaged:
 
 ### How Users Configure Credentials
 
-After installation, users configure their own credentials using one of these methods:
+After installation, users configure their own credentials:
 
-1. **AWS Profile** (Recommended):
+1. **Gemini (Vertex AI) - Application Default Credentials**:
    ```bash
-   aws configure --profile Sniff
+   gcloud auth application-default login
+   gcloud config set project <your-project-id>
    ```
+   See `GCLOUD_SETUP.md` for the full walkthrough.
 
-2. **Environment Variables**:
-   ```bash
-   export AWS_ACCESS_KEY_ID=...
-   export AWS_SECRET_ACCESS_KEY=...
-   ```
-
-3. **Local .env File**:
-   Users create their own `.env` from `.env.example`
+2. **k2-horizon (ifm.ai) - API key via `.env`**:
+   Users create their own `.env` from `.env.example` and set `IFM_API_KEY`.
 
 ### Pre-Build Security Checklist
 
@@ -316,8 +312,8 @@ RUN playwright install --with-deps chromium
 # Create directories
 RUN mkdir -p /app/artifacts /app/data
 
-ENV SHERLOCK_ARTIFACTS_PATH=/app/artifacts
-ENV SHERLOCK_DB_PATH=/app/data/Sniff.db
+ENV SNIFF_ARTIFACTS_PATH=/app/artifacts
+ENV SNIFF_DB_PATH=/app/data/Sniff.db
 
 ENTRYPOINT ["Sniff"]
 CMD ["--help"]
@@ -465,7 +461,7 @@ Add `PYPI_API_TOKEN` to GitHub repository secrets.
 ## Support & Documentation
 
 - **Installation Issues**: Direct users to README.md installation section
-- **Usage Questions**: Point to SHERLOCK_CLI_GUIDE.md
+- **Usage Questions**: Point to SNIFF_CLI_GUIDE.md
 - **Bug Reports**: GitHub Issues
 - **Feature Requests**: GitHub Discussions
 
