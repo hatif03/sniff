@@ -16,7 +16,14 @@ export default function MarkdownContent({ content }: MarkdownContentProps) {
         // Custom styling for code blocks
         code({ node, className, children, ...props }) {
           const match = /language-(\w+)/.exec(className || '');
-          const isInline = !match;
+          // A fenced code block with no language tag (```` ``` ````, no
+          // `bash`/etc after it) still produces a <pre><code> structure with
+          // no `language-*` className - checking className alone misclassified
+          // it as inline code, which skipped the overflow-x-auto wrapper and
+          // caused real page-level horizontal overflow on mobile for any such
+          // block. True inline code (single backtick) never contains a
+          // newline, so that's the reliable signal instead.
+          const isInline = !match && !String(children).includes('\n');
 
           if (isInline) {
             return (

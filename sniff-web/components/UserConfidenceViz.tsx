@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { Card, CardContent } from '@/components/ui/card';
+import { Heading3 } from '@/components/ui/typography';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { getActions } from '@/lib/queries';
 
@@ -123,9 +125,7 @@ export default function UserConfidenceViz({ runId }: { runId: string }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
       >
-        <h3 className="text-2xl font-display font-bold text-foreground mb-2">
-          User Confidence Over Time
-        </h3>
+        <Heading3 className="mb-2">User Confidence Over Time</Heading3>
         <p className="text-sm text-muted-foreground mb-6">
           How confident the user felt at each step, based on success rate and hesitation patterns
         </p>
@@ -147,41 +147,45 @@ export default function UserConfidenceViz({ runId }: { runId: string }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="bg-card rounded-xl p-6 border border-foreground/10 mb-6"
+        className="mb-6"
       >
-        <ChartContainer config={chartConfig} className="h-64 w-full aspect-auto">
-          <BarChart data={confidenceData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-            <XAxis
-              dataKey="step"
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(v) => `Step ${v}`}
-            />
-            <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-            <ChartTooltip
-              cursor={{ fill: 'var(--muted)' }}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(_, payload) => `Step ${payload?.[0]?.payload?.step}`}
-                  formatter={(value, _name, item) => (
-                    <div className="flex w-full items-center justify-between gap-3">
-                      <span className="text-muted-foreground">
-                        {item.payload.emoji} {item.payload.label}
-                      </span>
-                      <span className="font-mono font-medium tabular-nums">{String(value)}%</span>
-                    </div>
-                  )}
+        <Card>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-64 w-full aspect-auto">
+              <BarChart data={confidenceData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="step"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `Step ${v}`}
                 />
-              }
-            />
-            <Bar dataKey="confidencePct" radius={[4, 4, 0, 0]} maxBarSize={48}>
-              {confidenceData.map((d) => (
-                <Cell key={d.step} fill={d.fill} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ChartContainer>
+                <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                <ChartTooltip
+                  cursor={{ fill: 'var(--muted)' }}
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={(_, payload) => `Step ${payload?.[0]?.payload?.step}`}
+                      formatter={(value, _name, item) => (
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <span className="text-muted-foreground">
+                            {item.payload.emoji} {item.payload.label}
+                          </span>
+                          <span className="font-mono font-medium tabular-nums">{String(value)}%</span>
+                        </div>
+                      )}
+                    />
+                  }
+                />
+                <Bar dataKey="confidencePct" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                  {confidenceData.map((d) => (
+                    <Cell key={d.step} fill={d.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Emotional journey cards */}
@@ -192,29 +196,30 @@ export default function UserConfidenceViz({ runId }: { runId: string }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 + i * 0.08, ease: [0.33, 1, 0.68, 1] }}
-            className="bg-card rounded-xl p-6 border border-foreground/10 hover:border-primary/30 transition-all shadow-sm hover:shadow-md"
           >
-            <div className="flex justify-between items-start gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">{d.emoji}</span>
-                  <p className="font-display font-semibold text-foreground">
-                    {d.action} → <span className="text-primary">{d.target}</span>
+            <Card className="hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
+              <CardContent className="flex justify-between items-start gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">{d.emoji}</span>
+                    <p className="font-display font-semibold text-foreground">
+                      {d.action} → <span className="text-primary">{d.target}</span>
+                    </p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    User felt <span className="font-semibold">{d.label.toLowerCase()}</span> during this step
                   </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  User felt <span className="font-semibold">{d.label.toLowerCase()}</span> during this step
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <span
-                  className="px-3 py-1 rounded-full text-xs font-bold"
-                  style={{ backgroundColor: `color-mix(in srgb, ${d.fill} 15%, transparent)`, color: d.fill }}
-                >
-                  {d.confidencePct}%
-                </span>
-              </div>
-            </div>
+                <div className="flex-shrink-0">
+                  <span
+                    className="px-3 py-1 rounded-full text-xs font-bold"
+                    style={{ backgroundColor: `color-mix(in srgb, ${d.fill} 15%, transparent)`, color: d.fill }}
+                  >
+                    {d.confidencePct}%
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
         ))}
       </div>

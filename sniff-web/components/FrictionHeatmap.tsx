@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
 import { getFrictionAnalytics } from '@/lib/queries';
 
 interface FrictionData {
@@ -49,33 +50,34 @@ export default function FrictionHeatmap() {
               initial={{ opacity: 0, x: -20 }}
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.5, delay: i * 0.05, ease: [0.33, 1, 0.68, 1] }}
-              className="bg-surface rounded-xl p-4 border border-foreground/10 hover:border-primary/30 transition-all shadow-sm hover:shadow-md"
             >
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <p className="text-sm font-display font-semibold text-foreground mb-1">
-                    {item.friction_point}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{item.persona_name}</p>
-                </div>
-                <div className="w-32 bg-background rounded-full h-3 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={isInView ? { width: `${percentage}%` } : {}}
-                    transition={{ duration: 0.8, delay: 0.3 + i * 0.05, ease: [0.33, 1, 0.68, 1] }}
-                    className={`h-full rounded-full ${
-                      intensity === 'critical'
-                        ? 'bg-gradient-to-r from-critical to-critical/70'
-                        : intensity === 'warning'
-                        ? 'bg-gradient-to-r from-warning to-warning/70'
-                        : 'bg-gradient-to-r from-soft-accent to-primary'
-                    }`}
-                  />
-                </div>
-                <span className="text-sm font-mono font-bold text-foreground min-w-[2rem] text-right">
-                  {item.occurrence_count}
-                </span>
-              </div>
+              <Card className="hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
+                <CardContent className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-display font-semibold text-foreground mb-1">
+                      {item.friction_point}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{item.persona_name}</p>
+                  </div>
+                  <div className="flex-1 bg-background rounded-full h-3 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={isInView ? { width: `${percentage}%` } : {}}
+                      transition={{ duration: 0.8, delay: 0.3 + i * 0.05, ease: [0.33, 1, 0.68, 1] }}
+                      className={`h-full rounded-full ${
+                        intensity === 'critical'
+                          ? 'bg-gradient-to-r from-critical to-critical/70'
+                          : intensity === 'warning'
+                          ? 'bg-gradient-to-r from-warning to-warning/70'
+                          : 'bg-gradient-to-r from-soft-accent to-primary'
+                      }`}
+                    />
+                  </div>
+                  <span className="text-sm font-mono font-bold text-foreground w-8 text-right shrink-0">
+                    {item.occurrence_count}
+                  </span>
+                </CardContent>
+              </Card>
             </motion.div>
           );
         })}

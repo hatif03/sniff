@@ -1,14 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/container";
+import { Display1, BodyLg } from "@/components/ui/typography";
 
 export default function HeroSection() {
   return (
-    <section className="min-h-screen flex items-center justify-center px-6 relative overflow-hidden">
+    <section className="min-h-screen flex items-center justify-center relative overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-background via-surface to-background opacity-60" />
 
-      <div className="max-w-5xl mx-auto text-center relative z-10">
+      <Container className="text-center relative z-10">
         {/* Eyebrow */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -22,33 +26,28 @@ export default function HeroSection() {
         </motion.div>
 
         {/* Headline */}
-        <motion.h1
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1, ease: [0.33, 1, 0.68, 1] }}
-          className="text-5xl md:text-6xl lg:text-7xl font-display font-bold text-foreground mb-6 leading-tight"
         >
-          Your Product Flow Is Breaking.{" "}
-          <span className="relative inline-block">
-            <span className="relative z-10">Sniff Already Knows.</span>
-            <motion.span
-              initial={{ width: 0 }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 0.5, delay: 0.6, ease: [0.33, 1, 0.68, 1] }}
-              className="absolute bottom-2 left-0 h-3 bg-primary/20 -z-0"
-            />
-          </span>
-        </motion.h1>
+          <Display1 className="text-foreground mb-6">
+            Your Product Flow Is Breaking.{" "}
+            <span className="text-primary">Sniff Already Knows.</span>
+          </Display1>
+        </motion.div>
 
         {/* Subheadline */}
-        <motion.p
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2, ease: [0.33, 1, 0.68, 1] }}
-          className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-12 leading-relaxed"
         >
-          Powered by Sniff for mobile/web product quality.
-        </motion.p>
+          <BodyLg className="text-muted-foreground max-w-3xl mx-auto mb-12">
+            An AI agent that signs up, clicks, and scrolls through your product like a real user
+            — then tells you exactly where it broke and audits your landing page for what&apos;s costing you conversions.
+          </BodyLg>
+        </motion.div>
 
         {/* CTAs */}
         <motion.div
@@ -57,18 +56,12 @@ export default function HeroSection() {
           transition={{ duration: 0.5, delay: 0.3, ease: [0.33, 1, 0.68, 1] }}
           className="flex flex-col sm:flex-row gap-4 justify-center items-center"
         >
-          <a
-            href="/dashboard"
-            className="px-8 py-4 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 inline-block"
-          >
-            View Dashboard
-          </a>
-          <a
-            href="/docs"
-            className="px-8 py-4 bg-surface text-foreground border-2 border-foreground/10 rounded-lg font-medium hover:border-primary/30 hover:text-primary transition-all duration-200 inline-block"
-          >
-            View CLI Documentation
-          </a>
+          <Button asChild size="xl">
+            <Link href="/dashboard/new-run">Run an Audit</Link>
+          </Button>
+          <Button asChild variant="outline" size="xl">
+            <Link href="/dashboard">View Dashboard</Link>
+          </Button>
         </motion.div>
 
         <motion.a
@@ -80,7 +73,7 @@ export default function HeroSection() {
         >
           View Full Tech Stack →
         </motion.a>
-      </div>
+      </Container>
 
       {/* Scroll indicator */}
       <motion.div

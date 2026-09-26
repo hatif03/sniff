@@ -2,103 +2,85 @@
 
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
-import { useRef, useState, useEffect } from "react";
+import { useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Container } from "@/components/ui/container";
+import { Display2, Body } from "@/components/ui/typography";
 
 export default function ReplaySection() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [terminalText, setTerminalText] = useState("");
-  const [showAlert, setShowAlert] = useState(false);
-
-  const fullCommand = "$ sniff run --persona confused_first_time_user --device iphone13 --network 3g";
-
-  useEffect(() => {
-    if (!isInView) return;
-
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index <= fullCommand.length) {
-        setTerminalText(fullCommand.slice(0, index));
-        index++;
-      } else {
-        clearInterval(interval);
-        setTimeout(() => setShowAlert(true), 500);
-      }
-    }, 30);
-
-    return () => clearInterval(interval);
-  }, [isInView]);
 
   return (
-    <section ref={ref} className="py-32 px-6 bg-surface">
-      <div className="max-w-6xl mx-auto">
+    <section ref={ref} className="py-20 md:py-32 bg-surface">
+      <Container>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
+          <Display2 className="text-foreground mb-4">
             See It In Action
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Watch Sniff detect a critical product-flow bug in real-time.
-          </p>
+          </Display2>
+          <Body className="text-muted-foreground max-w-2xl mx-auto">
+            A look at how Sniff reports a critical product-flow bug in the dashboard.
+          </Body>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Terminal */}
+          {/* Run summary preview */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.2, ease: [0.33, 1, 0.68, 1] }}
-            className="bg-foreground rounded-2xl p-6 shadow-2xl overflow-hidden"
           >
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-3 h-3 rounded-full bg-critical" />
-              <div className="w-3 h-3 rounded-full bg-warning" />
-              <div className="w-3 h-3 rounded-full bg-[#10B981]" />
-              <span className="ml-2 text-xs text-muted-foreground font-mono">sniff-cli</span>
-            </div>
-            <div className="font-mono text-sm">
-              <div className="text-[#10B981] mb-4">
-                {terminalText}
-                <span className="animate-pulse">|</span>
-              </div>
-              {terminalText.length === fullCommand.length && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-2 text-muted-foreground/80"
-                >
-                  <div>→ Initializing persona: confused_first_time_user</div>
-                  <div>→ Device: iPhone 13</div>
-                  <div>→ Network: 3G throttling enabled</div>
-                  <div className="mt-4">Running product flow...</div>
-                  <div className="text-warning">⚠ Button not responding after 3s</div>
-                  <div className="text-critical">✗ Critical: Product flow blocked</div>
-                  <div className="text-primary">→ Generating diagnosis...</div>
-                  <div className="text-[#10B981]">✓ Alert sent to #eng-mobile</div>
-                </motion.div>
-              )}
-            </div>
+            <Card className="p-6 shadow-2xl">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Run #a3f9c2</CardTitle>
+                <Badge variant="destructive">Failed</Badge>
+              </CardHeader>
+              <CardContent className="space-y-3 font-mono text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Persona</span>
+                  <span className="text-foreground">confused_first_time_user</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Target</span>
+                  <span className="text-foreground">app.example.com/signup</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Device</span>
+                  <span className="text-foreground">iPhone 13, 3G</span>
+                </div>
+                <div className="mt-4 space-y-2 border-t border-foreground/10 pt-4">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="text-[#10B981]">✓</span> Loaded signup page
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="text-[#10B981]">✓</span> Filled form fields
+                  </div>
+                  <div className="flex items-center gap-2 text-warning">
+                    <span>⚠</span> Submit button not responding after 3s
+                  </div>
+                  <div className="flex items-center gap-2 text-critical">
+                    <span>✗</span> Product flow blocked
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
 
-          {/* Alert Card */}
+          {/* Diagnosis Card */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.3, ease: [0.33, 1, 0.68, 1] }}
-            className="relative"
           >
-            {showAlert && (
-              <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
-                className="bg-background rounded-2xl p-8 border-2 border-critical/20 shadow-xl"
-              >
+            <Card className="p-8 border-2 border-critical/20 shadow-xl">
+              <CardContent className="space-y-4">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-critical/10 flex items-center justify-center">
@@ -111,44 +93,40 @@ export default function ReplaySection() {
                       <div className="text-sm text-muted-foreground">2 minutes ago</div>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-critical/10 text-critical text-xs font-bold rounded-full">
-                    P0
-                  </span>
+                  <Badge variant="destructive">P0</Badge>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-sm font-medium text-foreground mb-1">Issue</div>
-                    <div className="text-sm text-muted-foreground">
-                      Submit button unresponsive on iPhone 13 with 3G network
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm font-medium text-foreground mb-1">Root Cause</div>
-                    <div className="text-sm text-muted-foreground">
-                      JavaScript event listener not attached due to slow bundle load
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm font-medium text-foreground mb-1">Impact</div>
-                    <div className="text-sm text-muted-foreground">
-                      100% of product-flow attempts failing on slower connections
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-foreground/10">
-                    <button className="w-full px-4 py-3 bg-critical text-white rounded-lg font-medium hover:bg-critical/90 transition-colors">
-                      View Full Diagnosis →
-                    </button>
+                <div>
+                  <div className="text-sm font-medium text-foreground mb-1">Issue</div>
+                  <div className="text-sm text-muted-foreground">
+                    Submit button unresponsive on iPhone 13 with 3G network
                   </div>
                 </div>
-              </motion.div>
-            )}
+
+                <div>
+                  <div className="text-sm font-medium text-foreground mb-1">Root Cause</div>
+                  <div className="text-sm text-muted-foreground">
+                    JavaScript event listener not attached due to slow bundle load
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm font-medium text-foreground mb-1">Impact</div>
+                  <div className="text-sm text-muted-foreground">
+                    100% of product-flow attempts failing on slower connections
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-foreground/10">
+                  <Button variant="destructive" className="w-full">
+                    View Full Diagnosis →
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

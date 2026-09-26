@@ -3,6 +3,9 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Container } from "@/components/ui/container";
+import { Display2, Heading3, Body } from "@/components/ui/typography";
 
 const differentiators = [
   {
@@ -18,8 +21,8 @@ const differentiators = [
     gradient: "from-warning/10 to-warning/5",
   },
   {
-    title: "Bedrock-Powered Decisions",
-    description: "Claude analyzes context and makes smart decisions about severity and routing.",
+    title: "Three-Tier AI Architecture",
+    description: "Gemini handles vision-capable navigation, k2-horizon drives text reasoning, and a fast Jev tier sanity-checks every decision.",
     icon: "⚡",
     gradient: "from-primary/10 to-primary/5",
   },
@@ -36,20 +39,20 @@ export default function DifferentiatorsSection() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-32 px-6 bg-background">
-      <div className="max-w-6xl mx-auto">
+    <section ref={ref} className="py-20 md:py-32 bg-background">
+      <Container>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
-            Why Judges Will Love It
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <Display2 className="text-foreground mb-4">
+            Why Sniff
+          </Display2>
+          <Body className="text-muted-foreground max-w-2xl mx-auto">
             Built for the real world, powered by cutting-edge AI.
-          </p>
+          </Body>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -64,19 +67,24 @@ export default function DifferentiatorsSection() {
                 ease: [0.33, 1, 0.68, 1],
               }}
               whileHover={{ y: -8, transition: { duration: 0.2 } }}
-              className={`bg-gradient-to-br ${item.gradient} rounded-2xl p-8 border border-foreground/5 hover:border-primary/20 transition-all duration-300 hover:shadow-xl cursor-pointer group`}
             >
-              <div className="text-4xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
-                {item.icon}
-              </div>
-              <h3 className="text-xl font-display font-bold text-foreground mb-3">
-                {item.title}
-              </h3>
-              <p className="text-muted-foreground leading-relaxed">{item.description}</p>
+              <Card
+                className={`bg-gradient-to-br ${item.gradient} p-8 border-foreground/5 hover:border-primary/20 transition-all duration-300 hover:shadow-xl cursor-pointer group`}
+              >
+                <CardContent>
+                  <div className="text-4xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
+                    {item.icon}
+                  </div>
+                  <Heading3 className="text-foreground mb-3">
+                    {item.title}
+                  </Heading3>
+                  <Body className="text-muted-foreground">{item.description}</Body>
+                </CardContent>
+              </Card>
             </motion.div>
           ))}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

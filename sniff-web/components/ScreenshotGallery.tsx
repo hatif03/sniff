@@ -71,7 +71,7 @@ export default function ScreenshotGallery({ runId }: { runId: string }) {
       </motion.div>
 
       {/* Thumbnail navigation */}
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
         {observations.map((obs, i) => (
           <motion.button
             key={obs.step}
@@ -79,7 +79,7 @@ export default function ScreenshotGallery({ runId }: { runId: string }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 + i * 0.05, ease: [0.33, 1, 0.68, 1] }}
             onClick={() => setSelectedStep(i)}
-            className={`flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden border-2 transition-all relative ${
+            className={`relative aspect-video w-full rounded-lg overflow-hidden border-2 transition-all ${
               selectedStep === i
                 ? 'border-primary shadow-lg scale-105'
                 : 'border-foreground/10 hover:border-primary/50 opacity-60 hover:opacity-100'

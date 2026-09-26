@@ -3,34 +3,29 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-
-const architectureNodes = [
-  { name: "CLI", description: "Command interface", position: "top" },
-  { name: "Worker", description: "Execution engine", position: "middle-left" },
-  { name: "Agent", description: "Persona simulator", position: "middle-center" },
-  { name: "Diagnosis", description: "AI analysis", position: "middle-right" },
-  { name: "Alerting", description: "Team notifications", position: "bottom" },
-];
+import { Badge } from "@/components/ui/badge";
+import { Container } from "@/components/ui/container";
+import { Display2, Body } from "@/components/ui/typography";
 
 export default function ArchitectureSection() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-32 px-6 bg-surface">
-      <div className="max-w-6xl mx-auto">
+    <section ref={ref} className="py-20 md:py-32 bg-surface">
+      <Container>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
+          <Display2 className="text-foreground mb-4">
             Technical Architecture
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          </Display2>
+          <Body className="text-muted-foreground max-w-2xl mx-auto">
             A clean, scalable system built for production reliability.
-          </p>
+          </Body>
         </motion.div>
 
         <motion.div
@@ -43,7 +38,7 @@ export default function ArchitectureSection() {
           <div className="absolute inset-0 bg-[linear-gradient(rgba(31,41,55,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(31,41,55,0.03)_1px,transparent_1px)] bg-[size:40px_40px]" />
 
           <div className="relative space-y-8">
-            {/* CLI Node (Top) */}
+            {/* Web Dashboard Node (Top) */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -51,7 +46,7 @@ export default function ArchitectureSection() {
               className="flex justify-center"
             >
               <div className="bg-primary text-white px-8 py-4 rounded-xl font-mono text-sm font-medium shadow-lg">
-                sniff run
+                Web Dashboard
               </div>
             </motion.div>
 
@@ -114,17 +109,14 @@ export default function ArchitectureSection() {
             transition={{ duration: 0.5, delay: 1 }}
             className="mt-12 flex flex-wrap justify-center gap-3"
           >
-            {["TypeScript", "AWS Bedrock", "Playwright", "Slack API"].map((tech) => (
-              <span
-                key={tech}
-                className="px-4 py-2 bg-surface border border-foreground/10 rounded-full text-sm text-muted-foreground font-medium"
-              >
+            {["TypeScript", "Gemini", "k2-horizon", "Playwright", "Slack API"].map((tech) => (
+              <Badge key={tech} variant="outline" className="px-4 py-2 h-auto text-sm bg-surface">
                 {tech}
-              </span>
+              </Badge>
             ))}
           </motion.div>
         </motion.div>
-      </div>
+      </Container>
     </section>
   );
 }
