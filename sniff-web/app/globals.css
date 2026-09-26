@@ -141,25 +141,30 @@
   --sidebar-ring: rgb(124 131 253 / 0.6);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 html {
   scroll-behavior: smooth;
 }
 
 body {
   font-family: var(--font-inter);
-  color: #111827;
-  background-color: #F7F8FA;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 @layer base {
+  /*
+   * The universal margin/padding/box-sizing reset used to live here as a
+   * bare, unlayered `* { margin: 0; padding: 0; box-sizing: border-box }`
+   * rule. Per the CSS Cascade Layers spec, an unlayered rule always beats
+   * a layered one regardless of specificity or source order - so that bare
+   * rule was silently overriding EVERY Tailwind margin/padding utility
+   * site-wide (mx-auto, px-*, py-*, mb-*, gap is unaffected since it's not
+   * margin/padding). Confirmed via computed styles: every margin/padding
+   * utility on every element computed to 0px. Tailwind's own Preflight
+   * (loaded by `@import "tailwindcss"` above) already provides this exact
+   * reset correctly scoped inside its own base layer, so the fix is simply
+   * to delete the redundant duplicate rather than re-add it anywhere.
+   */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-space-grotesk);
     font-weight: 600;
