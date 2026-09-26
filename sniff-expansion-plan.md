@@ -195,7 +195,7 @@ From their docs and positioning:
 
 **Status**: [ ] pending
 
-**Intent**: Integrate Typesafe AI's Jev model (a "System One" fast decision model) as a new intelligence tier between the deterministic rule engine and the full reasoning model (Bedrock Claude). Jev operates as a skill-based agent: it receives structured inputs, applies learned heuristics, and returns rapid decisions without deep chain-of-thought reasoning. This sub-task sets up the skill definitions and client integration following https://docs.typesafe.ai/agent-skill.
+**Intent**: Integrate Typesafe AI's Jev model (a "System One" fast decision model) as a new intelligence tier between the deterministic rule engine and the full reasoning model (Bedrock Claude at the time this plan was written; since replaced by Gemini via Vertex AI + k2-horizon via ifm.ai - see `STRANDS_BEDROCK_REPORT.md`). Jev operates as a skill-based agent: it receives structured inputs, applies learned heuristics, and returns rapid decisions without deep chain-of-thought reasoning. This sub-task sets up the skill definitions and client integration following https://docs.typesafe.ai/agent-skill.
 
 **Expected Outcomes**:
 - A new `src/agent/jev_client.py` module wrapping the Typesafe AI API
@@ -223,7 +223,7 @@ From their docs and positioning:
 7. Write unit tests for `JevClient` with mocked API responses
 
 **Relevant Context**:
-- `src/agent/bedrock_client.py` — pattern to follow for a new AI client
+- `src/agent/gemini_client.py` (formerly `bedrock_client.py`, since the provider swap) — pattern to follow for a new AI client
 - `src/agent/decision_service.py` — where Jev will be integrated in Sub-Task 4
 - `src/core/config.py` — config block pattern
 
@@ -239,7 +239,7 @@ From their docs and positioning:
 |---|---|---|---|
 | **Tier 1 — Deterministic** | Pure Python rules / code | Signal extraction, state machine transitions, guardrail checks, root cause signals | "Is TTFB > 5s?" "Has step count exceeded max?" "Is this a 4xx error?" |
 | **Tier 2 — Jev (System One)** | Typesafe AI Jev | Fast, frequent, low-cost decisions during navigation | "Which element to tap next?", "Is the agent stuck?", "Pick the right form field" |
-| **Tier 3 — Reasoning (Claude)** | AWS Bedrock Claude | Deep, rare, high-stakes decisions | "Is this a P0 blocker?", "What's the root cause?", "Generate persona review narrative" |
+| **Tier 3 — Reasoning (Gemini/k2-horizon)** | Gemini (Vertex AI) + k2-horizon (ifm.ai) - originally AWS Bedrock Claude when this plan was written | Deep, rare, high-stakes decisions | "Is this a P0 blocker?", "What's the root cause?", "Generate persona review narrative" |
 
 This restructuring moves the majority of per-step navigation decisions to Jev (cheaper, faster), reserves Claude for diagnosis, persona review, and ambiguous high-stakes reasoning, and makes all deterministic signal extraction pure code with no LLM involvement.
 
@@ -261,7 +261,7 @@ This restructuring moves the majority of per-step navigation decisions to Jev (c
    - Call `TierRouter.route()` to pick tier
    - Tier 1: return result from pure Python rules
    - Tier 2: call `JevClient.invoke_skill()`
-   - Tier 3: call `BedrockClient.invoke()` (existing behavior)
+   - Tier 3: call `GeminiClient`/`K2HorizonClient` `.invoke()` (existing behavior; these superseded `BedrockClient`)
    - Fall back to Claude if Jev returns low confidence or errors
 4. Refactor `DiagnosisClassifier`:
    - Move all `DiagnosisSignals` methods to remain purely deterministic (no change needed, already pure)

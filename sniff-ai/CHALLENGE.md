@@ -117,7 +117,7 @@ related"
 - CLI (control plane)
 - Run Orchestrator (state machine + guardrails)
 - Execution Worker (Playwright mobile actions)
-- Agent Service (Bedrock decisioning)
+- Agent Service (Gemini/k2-horizon decisioning - originally Bedrock, see `STRANDS_BEDROCK_REPORT.md`)
 - Diagnosis Engine (root cause + severity)
 - Alert Service (Slack escalation)
 - Keep the worker local and deterministic; the agent returns decisions only.

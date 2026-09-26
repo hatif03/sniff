@@ -121,6 +121,6 @@ Built for the hackathon with ❤️
 
 ## Credits
 
-Built with Claude, Bedrock, and modern web technologies.
+Built with Claude, Gemini, and modern web technologies.
 
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>

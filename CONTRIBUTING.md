@@ -26,7 +26,7 @@ Thank you for contributing. This guide covers how to set up the project locally,
 sniff/
 ├── sniff-ai/           # Python backend — autonomous test runner, CLI, AI agents
 │   ├── src/            # All source code
-│   │   ├── agent/      # AI decision services (Bedrock, Jev, tier routing)
+│   │   ├── agent/      # AI decision services (Gemini, k2-horizon, Jev, tier routing)
 │   │   ├── cli/        # Typer CLI commands
 │   │   ├── core/       # Models, orchestrator, state machine, config
 │   │   ├── diagnosis/  # Root cause classifier
@@ -56,7 +56,8 @@ sniff/
 - Node.js 18+
 - [uv](https://github.com/astral-sh/uv) (Python package manager)
 - Yarn
-- An AWS account with Bedrock access (Claude Sonnet)
+- A Google Cloud project with the Vertex AI API enabled (for Gemini)
+- An ifm.ai API key (for k2-horizon)
 - A Typesafe AI account and API key (for Jev)
 
 ### Python (sniff-ai)
@@ -69,7 +70,8 @@ uv sync
 
 # Copy and fill in environment variables
 cp .env.example .env
-# Edit .env with your AWS credentials, Typesafe API key, Slack webhook, etc.
+# Edit .env with your Gemini project/region, ifm.ai key, Typesafe API key, Slack webhook, etc.
+# Gemini auth is via `gcloud auth application-default login`, not a key in .env.
 
 # Install Playwright browsers
 uv run playwright install chromium
@@ -147,7 +149,7 @@ yarn build
    
    Architecture note: This client is Tier 2 in the three-tier intelligence model.
    It handles fast, frequent navigation decisions. Deep reasoning (diagnosis,
-   persona review) is handled by the Tier 3 BedrockClient.
+   persona review) is handled by the Tier 3 GeminiClient/K2HorizonClient.
    
    Decision: We use httpx (already a project dependency) rather than a dedicated
    Typesafe SDK to avoid adding a new dependency for a simple HTTP wrapper.
@@ -223,7 +225,7 @@ ADRs live in `docs/adr/`. They use the format in `docs/adr/ADR-000-template.md`.
 
 These rules are non-negotiable:
 
-1. **Never commit secrets**: API keys, passwords, webhook URLs, and AWS credentials must only ever exist in `.env` files (which are `.gitignore`d). See `.gitignore` for the full exclusion list.
+1. **Never commit secrets**: API keys, passwords, and webhook URLs must only ever exist in `.env` files (which are `.gitignore`d). See `.gitignore` for the full exclusion list.
 
 2. **Never hardcode credentials in source**: Config must come from environment variables via `SniffConfig`.
 

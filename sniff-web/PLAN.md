@@ -68,7 +68,7 @@ Create a **high-impact single-page website** for Sniff that feels clean, calm, a
 - Differentiators:
   - Persona-driven behavior
   - Root-cause intelligence
-  - Bedrock-powered decisions
+  - Gemini/k2-horizon-powered decisions
   - Slack escalation with evidence
 - Animation:
   - Soft hover lift + shadow

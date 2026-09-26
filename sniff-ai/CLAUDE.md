@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Sniff** is an autonomous mystery shopper system that tests mobile/web signup flows using AI-driven navigation and diagnosis. The system simulates real user behavior, detects friction points, diagnoses root causes, and escalates issues via Slack alerts.
 
-**Current Status**: Implemented and working - core agent loop, three-tier decision architecture, and a FastAPI layer for triggering runs from the web are all in place. See `docs/product/ARCHITECTURE.md` and `docs/product/SAAS_ROADMAP.md` for what's built vs backlog.
+**Current Status**: Implemented and working - core agent loop, three-tier decision architecture, and a FastAPI layer for triggering runs from the web are all in place. The web dashboard (`sniff-web`) is now the primary way users trigger and watch runs/audits; the CLI (`src/cli/`) still works and is documented below, but is a secondary/developer-facing tool. See `docs/product/ARCHITECTURE.md` and `docs/product/SAAS_ROADMAP.md` for what's built vs backlog.
 
 **Tech Stack**: Python 3.11+, Playwright (mobile emulation), Gemini via Vertex AI (Tier 3 vision-capable reasoning), k2-horizon via ifm.ai (Tier 3 text-only reasoning), Jev via Typesafe AI (Tier 2 fast decisions).
 

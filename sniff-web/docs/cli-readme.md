@@ -217,8 +217,8 @@ Create a `Sniff.config.json` in your project root:
   },
   "diagnosis": {
     "enabled": true,
-    "aiProvider": "bedrock",
-    "model": "anthropic.claude-3-sonnet"
+    "aiProvider": "gemini",
+    "model": "gemini-3.5-flash-lite"
   }
 }
 ```

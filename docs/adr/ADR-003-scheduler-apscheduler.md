@@ -28,7 +28,7 @@ The daemon uses **APScheduler's `BackgroundScheduler`** with a **SQLite job stor
 |---|---|---|
 | APScheduler daemon (chosen) | ✅ | — |
 | OS cron | ✅ | Not portable; doesn't work in Docker/containers/Windows |
-| Celery + Redis | ✅ | Excessive infrastructure for a CLI-first tool |
+| Celery + Redis | ✅ | Excessive infrastructure for this scheduling use case |
 | systemd timer | ✅ | Linux-only; no cross-platform support |
 | GitHub Actions (CI/CD scheduled workflow) | ✅ | Viable for CI use case but doesn't serve local/self-hosted use |
 

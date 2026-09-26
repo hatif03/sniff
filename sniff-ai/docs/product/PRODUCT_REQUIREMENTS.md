@@ -12,7 +12,9 @@
 
 ## 2. Executive Summary
 
-Sniff is a CLI-first autonomous mystery shopper for mobile/web signup journeys. It simulates realistic user behavior, detects signup friction, diagnoses probable root causes, and escalates issues to Slack with actionable evidence.
+Sniff is an autonomous mystery shopper for mobile/web signup journeys. It simulates realistic user behavior, detects signup friction, diagnoses probable root causes, and escalates issues to Slack with actionable evidence.
+
+*(Note: this PRD documents the original CLI-first hackathon MVP scope below. Since then, the web dashboard (`sniff-web`) has become the product's primary interface for triggering and watching runs; the CLI remains a working secondary/developer tool - see `docs/product/SAAS_ROADMAP.md`.)*
 
 This PRD is intentionally scoped for a solo hackathon build in ~8–9 implementation hours plus demo polish. The strategy is to deliver one deeply reliable end-to-end flow (not many shallow features) that visibly demonstrates AI value.
 
