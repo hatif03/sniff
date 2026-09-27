@@ -94,6 +94,12 @@ export default function DashboardPage() {
                 New Audit
               </Link>
             </Button>
+            <Button asChild size="lg" variant="secondary">
+              <Link href="/dashboard/new-run?mode=site-audit">
+                <PlusIcon data-icon="inline-start" />
+                Site Audits
+              </Link>
+            </Button>
             <Button asChild size="lg">
               <Link href="/dashboard/new-run">
                 <PlusIcon data-icon="inline-start" />

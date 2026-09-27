@@ -20,8 +20,10 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ContainerNarrow } from '@/components/ui/container';
-import { Display2, Body } from '@/components/ui/typography';
+import { Display2, Body, Caption } from '@/components/ui/typography';
 import type { AuditStatusResponse } from '@/lib/audits';
+import type { SiteAuditStatusResponse } from '@/lib/site-audits';
+import { getRecentSiteAudits } from '@/lib/queries';
 
 const QUICK_START_TEMPLATES = [
   {
@@ -50,6 +52,7 @@ const PERSONAS = [
 
 const DEVICES = ['iPhone 13', 'Pixel 5', 'Desktop Chrome'] as const;
 const NETWORKS = ['4g', '3g', 'slow3g'] as const;
+const MAX_PAGES_OPTIONS = [5, 10, 20, 30] as const;
 
 const POLL_INTERVAL_MS = 2500;
 
@@ -581,17 +584,425 @@ function AuditForm() {
   );
 }
 
+type LoginMode = 'credentials' | 'session';
+
+/** Compact "last few site audits" list - lives here rather than on the main
+ * dashboard so that page's diff stays limited to its one new nav button. */
+function RecentSiteAudits() {
+  const [audits, setAudits] = useState<Awaited<ReturnType<typeof getRecentSiteAudits>>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getRecentSiteAudits(5)
+      .then(setAudits)
+      .catch((err) => console.error('Error fetching recent site audits:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || audits.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Recent site audits</p>
+      <div className="space-y-2">
+        {audits.map((a) => (
+          <Link key={a.site_audit_id} href={`/dashboard/site-audits/${a.site_audit_id}`} className="block">
+            <Card className="transition-colors hover:ring-primary/40">
+              <CardContent className="flex items-center justify-between gap-4 py-3">
+                <span className="text-sm font-mono text-foreground truncate">{a.seed_url}</span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs text-muted-foreground">
+                    {a.pages_audited}/{a.max_pages} pages
+                  </span>
+                  <Badge variant={a.status === 'completed' ? 'default' : a.status === 'failed' ? 'destructive' : 'secondary'}>
+                    {a.status}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SiteAuditForm() {
+  const router = useRouter();
+  const [seedUrl, setSeedUrl] = useState('');
+  const [persona, setPersona] = useState<string>('');
+  const [maxPages, setMaxPages] = useState<string>('10');
+
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginMode, setLoginMode] = useState<LoginMode>('credentials');
+  const [loginUrl, setLoginUrl] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [sessionJson, setSessionJson] = useState('');
+  const [sessionJsonError, setSessionJsonError] = useState<string | null>(null);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [siteAudit, setSiteAudit] = useState<SiteAuditStatusResponse | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearTimers = () => {
+    if (pollTimer.current) clearInterval(pollTimer.current);
+    if (elapsedTimer.current) clearInterval(elapsedTimer.current);
+    pollTimer.current = null;
+    elapsedTimer.current = null;
+  };
+
+  useEffect(() => clearTimers, []);
+
+  async function pollSiteAudit(siteAuditId: string) {
+    try {
+      const res = await fetch(`/api/backend/site-audits/${siteAuditId}`);
+      const data: SiteAuditStatusResponse = await res.json();
+      if (!res.ok) {
+        setSubmitError(
+          (data as unknown as { error?: string })?.error ?? `Backend returned ${res.status}`
+        );
+        clearTimers();
+        return;
+      }
+      setSiteAudit(data);
+      if (data.status === 'completed') {
+        clearTimers();
+        router.push(`/dashboard/site-audits/${siteAuditId}`);
+        return;
+      }
+      if (data.status === 'failed') {
+        clearTimers();
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Could not reach the backend');
+      clearTimers();
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitError(null);
+    setSessionJsonError(null);
+    setSiteAudit(null);
+
+    let storageState: object | undefined;
+    if (showLogin && loginMode === 'session' && sessionJson.trim()) {
+      try {
+        storageState = JSON.parse(sessionJson);
+      } catch {
+        setSessionJsonError("That doesn't look like valid JSON.");
+        return;
+      }
+    }
+
+    setSubmitting(true);
+    setElapsedSeconds(0);
+
+    try {
+      const body: Record<string, unknown> = {
+        seed_url: seedUrl,
+        persona: persona || undefined,
+        max_pages: Number(maxPages),
+      };
+      if (showLogin && loginMode === 'credentials' && loginUrl && username && password) {
+        body.login = { url: loginUrl, username, password };
+      }
+      if (storageState) {
+        body.storage_state = storageState;
+      }
+
+      const res = await fetch('/api/backend/site-audits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error ?? `Backend returned ${res.status}`);
+      }
+
+      const initial: SiteAuditStatusResponse = {
+        site_audit_id: data.site_audit_id,
+        status: data.status ?? 'queued',
+        seed_url: seedUrl,
+        max_pages: Number(maxPages),
+        pages_discovered: 0,
+        pages_audited: 0,
+        manifest: {},
+        pages: [],
+        error: null,
+      };
+      setSiteAudit(initial);
+
+      elapsedTimer.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+      pollTimer.current = setInterval(() => pollSiteAudit(initial.site_audit_id), POLL_INTERVAL_MS);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to start the site audit');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const isInFlight = siteAudit && (siteAudit.status === 'queued' || siteAudit.status === 'running');
+
+  return (
+    <>
+      <Card>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="site-audit-url">Seed URL</Label>
+              <Input
+                id="site-audit-url"
+                type="url"
+                required
+                placeholder="https://example.com"
+                value={seedUrl}
+                onChange={(e) => setSeedUrl(e.target.value)}
+              />
+              <p className="text-sm text-muted-foreground">
+                Sniff will crawl same-origin links and sitemap.xml from here, then run the same
+                per-page audit used above on each page it finds.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Persona (optional)</Label>
+                <Select value={persona} onValueChange={setPersona}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Confused First-Time User (default)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERSONAS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Max pages</Label>
+                <Select value={maxPages} onValueChange={setMaxPages}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MAX_PAGES_OPTIONS.map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n} pages
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-foreground/10">
+              <button
+                type="button"
+                onClick={() => setShowLogin((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-foreground"
+              >
+                Login (optional)
+                <span className="text-muted-foreground">{showLogin ? '−' : '+'}</span>
+              </button>
+
+              {showLogin && (
+                <div className="px-4 pb-4 space-y-4 border-t border-foreground/10 pt-4">
+                  <Caption>
+                    Use a dedicated test/staging account, not your real login. Your password is
+                    used once to sign in and is never stored.
+                  </Caption>
+
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setLoginMode('credentials')}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                        loginMode === 'credentials'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-foreground/15 text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Username & password
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLoginMode('session')}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                        loginMode === 'session'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-foreground/15 text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      Paste an existing session
+                    </button>
+                  </div>
+
+                  {loginMode === 'credentials' ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="login-url">Login page URL</Label>
+                        <Input
+                          id="login-url"
+                          type="url"
+                          placeholder="https://example.com/login"
+                          value={loginUrl}
+                          onChange={(e) => setLoginUrl(e.target.value)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="login-username">Username</Label>
+                          <Input
+                            id="login-username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="login-password">Password</Label>
+                          <Input
+                            id="login-password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="login-session">Session (storage_state JSON)</Label>
+                      <Textarea
+                        id="login-session"
+                        rows={5}
+                        placeholder='{"cookies": [...], "origins": [...]}'
+                        value={sessionJson}
+                        onChange={(e) => {
+                          setSessionJson(e.target.value);
+                          setSessionJsonError(null);
+                        }}
+                        className="font-mono text-xs"
+                      />
+                      {sessionJsonError && <p className="text-sm text-critical">{sessionJsonError}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={submitting || Boolean(isInFlight)}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="animate-spin" data-icon="inline-start" />
+                  Starting site audit…
+                </>
+              ) : (
+                'Start Site Audit'
+              )}
+            </Button>
+
+            {submitError && (
+              <p className="text-sm text-critical">{submitError}</p>
+            )}
+          </form>
+        </CardContent>
+      </Card>
+
+      <AnimatePresence>
+        {siteAudit && (
+          <motion.div
+            key="site-audit-progress"
+            initial={{ opacity: 0, y: 20, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.4, ease: [0.33, 1, 0.68, 1] }}
+            className="mt-8"
+          >
+            <Card>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {siteAudit.status === 'completed' ? (
+                      <CheckCircle2 className="text-chart-good size-5" />
+                    ) : siteAudit.status === 'failed' ? (
+                      <XCircle className="text-chart-critical size-5" />
+                    ) : (
+                      <motion.span
+                        animate={{ scale: [1, 1.25, 1], opacity: [1, 0.6, 1] }}
+                        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                        className="size-2.5 rounded-full bg-primary inline-block"
+                      />
+                    )}
+                    <span className="font-display font-semibold text-foreground">
+                      Site Audit {siteAudit.site_audit_id}
+                    </span>
+                  </div>
+                  <span className="text-sm text-muted-foreground font-mono">{elapsedSeconds}s</span>
+                </div>
+
+                <StatusStepper status={siteAudit.status} />
+
+                {isInFlight && (
+                  <p className="text-sm text-muted-foreground">
+                    Auditing page {siteAudit.pages_audited} of up to {siteAudit.max_pages}…
+                  </p>
+                )}
+
+                {siteAudit.status === 'completed' && (
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Report ready - redirecting…</span>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link href={`/dashboard/site-audits/${siteAudit.site_audit_id}`}>
+                        View report
+                        <ArrowRight data-icon="inline-end" />
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+
+                {siteAudit.status === 'failed' && (
+                  <div className="rounded-lg bg-critical/10 px-4 py-3 text-sm text-critical">
+                    {siteAudit.error ?? 'The site audit failed.'}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <RecentSiteAudits />
+    </>
+  );
+}
+
 export default function NewRunPage() {
   // Plain window.location read on mount rather than useSearchParams(), which
   // would force this page into a Suspense boundary just to support the
-  // `?mode=audit` deep link from the dashboard's "New Audit" button.
-  const [defaultTab, setDefaultTab] = useState<'goal' | 'audit'>('goal');
+  // `?mode=audit`/`?mode=site-audit` deep links from the dashboard's nav buttons.
+  const [defaultTab, setDefaultTab] = useState<'goal' | 'audit' | 'site-audit'>('goal');
   // One-time read of a browser API (the URL) unavailable during SSR/first
   // render, not state derived from props/state that could be computed inline.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('mode') === 'audit') {
+    const mode = new URLSearchParams(window.location.search).get('mode');
+    if (mode === 'audit' || mode === 'site-audit') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDefaultTab('audit');
+      setDefaultTab(mode);
     }
   }, []);
 
@@ -624,13 +1035,17 @@ export default function NewRunPage() {
           <Tabs key={defaultTab} defaultValue={defaultTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="goal">Test a Goal</TabsTrigger>
-              <TabsTrigger value="audit">Full Site Audit</TabsTrigger>
+              <TabsTrigger value="audit">Single Page Audit</TabsTrigger>
+              <TabsTrigger value="site-audit">Full Site Audit</TabsTrigger>
             </TabsList>
             <TabsContent value="goal">
               <GoalRunForm />
             </TabsContent>
             <TabsContent value="audit">
               <AuditForm />
+            </TabsContent>
+            <TabsContent value="site-audit">
+              <SiteAuditForm />
             </TabsContent>
           </Tabs>
         </motion.div>

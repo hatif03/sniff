@@ -34,6 +34,17 @@ export async function getRecentAudits(limit = 10) {
   return data;
 }
 
+export async function getRecentSiteAudits(limit = 10) {
+  const { data, error } = await supabase
+    .from('site_audits')
+    .select('site_audit_id, seed_url, status, max_pages, pages_discovered, pages_audited, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
+}
+
 export async function getPersonaMetrics() {
   const { data, error } = await supabase
     .from('persona_metrics')
