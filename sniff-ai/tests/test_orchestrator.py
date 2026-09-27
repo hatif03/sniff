@@ -8,12 +8,17 @@ These tests validate:
 - Report generation
 """
 
-import pytest
-from datetime import datetime, timezone
-from pathlib import Path
+import asyncio
+import time
+from datetime import UTC, datetime
 
-from src.core.state_machine import StateMachine, RunState, RunOutcome, StateTransition
-from src.core.models import Observation, ActionResult, DiagnosisResult
+import pytest
+
+from src.agent.website_analyzer import create_website_analyzer
+from src.core.models import ActionResult, DiagnosisResult, Observation
+from src.core.orchestrator import RunOrchestrator
+from src.core.persona import PersonaProfile
+from src.core.state_machine import RunOutcome, RunState, StateMachine
 from src.diagnosis.classifier import DiagnosisClassifier, DiagnosisSignals
 from src.evidence.report_builder import RunReport
 
@@ -260,8 +265,8 @@ class TestRunReport:
             outcome=RunOutcome.SUCCESS,
             goal="Test goal",
             persona_name="test_persona",
-            start_time=datetime.now(timezone.utc),
-            end_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
+            end_time=datetime.now(UTC),
             total_steps=5,
             observations=[],
             action_results=[],
@@ -273,8 +278,8 @@ class TestRunReport:
 
     def test_report_to_dict(self):
         """Test report serialization to dict."""
-        start = datetime.now(timezone.utc)
-        end = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
+        end = datetime.now(UTC)
 
         report = RunReport(
             run_id="test-123",
@@ -312,8 +317,8 @@ class TestRunReport:
             outcome=RunOutcome.SUCCESS,
             goal="Complete signup",
             persona_name="careful_user",
-            start_time=datetime.now(timezone.utc),
-            end_time=datetime.now(timezone.utc),
+            start_time=datetime.now(UTC),
+            end_time=datetime.now(UTC),
             total_steps=8,
             observations=[],
             action_results=[
@@ -330,6 +335,110 @@ class TestRunReport:
         assert "Complete signup" in summary
         assert "careful_user" in summary
         assert "=" in summary  # ASCII border
+
+
+class SlowGoalEnhancer:
+    """Simulates enhance_goal()'s real, blocking LLM call with time.sleep
+    (not asyncio.sleep) - a genuinely blocking call is exactly the bug."""
+
+    def __init__(self, delay_seconds: float):
+        self.delay_seconds = delay_seconds
+        self.called = False
+
+    def enhance_goal(self, original_goal, website_context, persona):
+        self.called = True
+        time.sleep(self.delay_seconds)
+        return f"ENHANCED GOAL: {original_goal}"
+
+
+class FakeNavigateWorker:
+    async def navigate(self, url, timeout=30000):
+        return Observation(
+            runId="test-run", step=0, url=url,
+            screenshotPath="/tmp/fake.png", visibleText=["hello"],
+        )
+
+
+def _make_bare_orchestrator() -> RunOrchestrator:
+    """A RunOrchestrator built without running __init__ (which creates real
+    k2-horizon/Gemini clients) - only the attributes _handle_navigate
+    itself touches are set."""
+    orchestrator = RunOrchestrator.__new__(RunOrchestrator)
+    orchestrator.progress_callback = None
+    orchestrator.observations = []
+    orchestrator.enhanced_goal = None
+    orchestrator.goal = "Find the signup button"
+    orchestrator.persona = PersonaProfile(
+        name="test_persona", display_name="Test Persona", description="A test persona.",
+    )
+    orchestrator.website_analyzer = create_website_analyzer()
+    orchestrator.worker = FakeNavigateWorker()
+    orchestrator.start_url = "https://example.com"
+    orchestrator.state_machine = StateMachine(initial_state=RunState.NAVIGATE)
+    orchestrator.last_url = None
+    orchestrator.current_url_dwell_start = None
+    return orchestrator
+
+
+class TestHandleNavigateGoalEnhancement:
+    """Regression tests for a real production bug found via a user-reported
+    failed run: enhance_goal() (routed to k2-horizon) is a blocking call.
+    Called directly inside _handle_navigate (not via run_in_executor, unlike
+    every other LLM call in this codebase), it froze the single-process
+    server for every other request during the call - confirmed live via
+    Cloud Run logs, where a concurrent status-poll request logged 36s of
+    latency for what should be an instant in-memory dict read. Because the
+    dwell-time clock started right after navigate(), a merely-slow (not
+    even frozen) enhancement call could also burn through the whole
+    max_dwell_time budget before the agent ever got a chance to act -
+    failing the run with zero steps taken and no error ever recorded."""
+
+    @pytest.mark.asyncio
+    async def test_enhance_goal_does_not_block_the_event_loop(self):
+        orchestrator = _make_bare_orchestrator()
+        orchestrator.goal_enhancer = SlowGoalEnhancer(delay_seconds=0.3)
+
+        tick_count = 0
+
+        async def tick_counter():
+            nonlocal tick_count
+            while True:
+                tick_count += 1
+                await asyncio.sleep(0.01)
+
+        ticker = asyncio.ensure_future(tick_counter())
+        await orchestrator._handle_navigate()
+        ticker.cancel()
+
+        assert orchestrator.goal_enhancer.called
+        # If enhance_goal blocked the event loop for its whole 0.3s delay,
+        # nothing else could run concurrently and this would be ~0.
+        assert tick_count > 5
+
+    @pytest.mark.asyncio
+    async def test_dwell_clock_starts_after_goal_enhancement_not_before(self):
+        orchestrator = _make_bare_orchestrator()
+        orchestrator.goal_enhancer = SlowGoalEnhancer(delay_seconds=0.2)
+
+        before = datetime.utcnow()
+        await orchestrator._handle_navigate()
+
+        assert orchestrator.current_url_dwell_start is not None
+        elapsed_before_dwell_start = (orchestrator.current_url_dwell_start - before).total_seconds()
+        # Must be set close to *after* the slow enhancement call, not right
+        # after navigate() and before it - otherwise the guardrail budget
+        # is spent on setup work the agent never got a chance to act on.
+        assert elapsed_before_dwell_start >= 0.2
+
+    @pytest.mark.asyncio
+    async def test_transitions_to_action_execution_after_enhancement(self):
+        orchestrator = _make_bare_orchestrator()
+        orchestrator.goal_enhancer = SlowGoalEnhancer(delay_seconds=0.05)
+
+        await orchestrator._handle_navigate()
+
+        assert orchestrator.state_machine.current_state == RunState.ACTION_EXECUTION
+        assert orchestrator.enhanced_goal == "ENHANCED GOAL: Find the signup button"
 
 
 if __name__ == "__main__":

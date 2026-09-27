@@ -402,10 +402,7 @@ class RunOrchestrator:
             # Navigate to start URL
             observation = await self.worker.navigate(self.start_url)
             self.observations.append(observation)
-
-            # Update dwell tracking
             self.last_url = observation.url
-            self.current_url_dwell_start = datetime.utcnow()
 
             logger.info(f"Navigated to {self.start_url}")
             self._report_progress(f"✓ Loaded {self.start_url}")
@@ -418,18 +415,37 @@ class RunOrchestrator:
                     website_context = self.website_analyzer.analyze_from_observation(observation)
                     logger.info(f"Website analyzed: {website_context.page_structure}")
 
-                    # Enhance goal with context
+                    # Enhance goal with context - blocking LLM call, run in an
+                    # executor so it doesn't freeze the event loop. It used to
+                    # be called directly: on a slow call, that froze this
+                    # single-process server for everyone (confirmed live by a
+                    # concurrent status-poll request logging 36s of latency),
+                    # and burned enough of the run's own max_dwell_time budget
+                    # that the very first guardrail check failed the run
+                    # before a single decision was ever made.
                     self._report_progress("📋 Creating detailed execution plan...")
-                    self.enhanced_goal = self.goal_enhancer.enhance_goal(
-                        original_goal=self.goal,
-                        website_context=website_context,
-                        persona=self.persona,
+                    loop = asyncio.get_event_loop()
+                    self.enhanced_goal = await loop.run_in_executor(
+                        None,
+                        lambda: self.goal_enhancer.enhance_goal(
+                            original_goal=self.goal,
+                            website_context=website_context,
+                            persona=self.persona,
+                        ),
                     )
                     logger.info(f"Goal enhanced ({len(self.enhanced_goal)} chars)")
                     self._report_progress("✓ Execution plan ready")
                 except Exception as e:
                     logger.warning(f"Goal enhancement failed: {e}, using original goal")
                     self.enhanced_goal = self.goal
+
+            # Dwell tracking starts here, not right after navigate() - the
+            # guardrail measures how long the agent takes to act on a page,
+            # and setup work (goal enhancement) above isn't that: starting
+            # the clock before it could burn most or all of the budget on a
+            # slow-but-successful LLM call before the agent ever got to make
+            # a single decision (see the comment on that call above).
+            self.current_url_dwell_start = datetime.utcnow()
 
             self.state_machine.transition(RunState.ACTION_EXECUTION, "Navigation complete")
 
@@ -680,14 +696,20 @@ class RunOrchestrator:
                     # Convert observation to dict (Pydantic v2 uses model_dump())
                     obs_dict = observation.model_dump() if hasattr(observation, 'model_dump') else observation.dict()
 
-                    planning_guidance = self.planner.get_next_action_plan(
-                        goal=goal_to_use,
-                        goal_type=self.goal_type,
-                        current_observation=obs_dict,
-                        action_history=[{
-                            "action": r.action,
-                            "target": r.details.get("target", "") if r.details else "",
-                        } for r in self.action_results],
+                    # Blocking LLM call - same run_in_executor requirement as
+                    # goal_enhancer.enhance_goal above (see its comment).
+                    planning_loop = asyncio.get_event_loop()
+                    planning_guidance = await planning_loop.run_in_executor(
+                        None,
+                        lambda: self.planner.get_next_action_plan(
+                            goal=goal_to_use,
+                            goal_type=self.goal_type,
+                            current_observation=obs_dict,
+                            action_history=[{
+                                "action": r.action,
+                                "target": r.details.get("target", "") if r.details else "",
+                            } for r in self.action_results],
+                        ),
                     )
                     logger.debug(f"Planning guidance: {planning_guidance}")
 
@@ -697,7 +719,6 @@ class RunOrchestrator:
                 except Exception as e:
                     logger.warning(f"Planning failed: {e}, continuing without guidance")
 
-            import asyncio
             loop = asyncio.get_event_loop()
             decision = await loop.run_in_executor(
                 None,
