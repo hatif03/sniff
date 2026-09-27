@@ -22,6 +22,8 @@ This project was built entirely using **IBM Bob 2.0** across two organisations:
 
 ---
 
+[See our Bob session and usage walkthrough on YouTube.](https://youtu.be/88_NznVOrkc)
+
 ## What Is Sniff?
 
 Sniff is an autonomous AI agent that behaves like a real visitor — not a scripted test runner. Point it at a signup flow or a landing page, and it drives a real browser (Playwright) step by step, deciding what to click based on what it actually sees on screen.

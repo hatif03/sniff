@@ -80,7 +80,11 @@ def test_invoke_with_json_response_retries_with_continuation_on_reasoning_overru
     retry_messages = calls[1].kwargs["messages"]
     assert retry_messages[0] == {"role": "system", "content": "Return JSON"}
     assert retry_messages[1] == {"role": "user", "content": "Test"}
-    assert retry_messages[2] == {"role": "assistant", "content": "We need to analyze this carefully first..."}
+    assert retry_messages[2] == {
+        "role": "assistant",
+        "content": "We need to analyze this carefully first...",
+        "thinking": "",
+    }
     assert "ONLY the final JSON" in retry_messages[3]["content"]
 
 
@@ -101,6 +105,18 @@ def test_timeout_raises_llm_timeout_error(client):
 
     with pytest.raises(LLMTimeoutError):
         client.invoke(system_prompt="sys", user_message="hi")
+
+    assert client._client.chat.completions.create.call_count == 2
+
+
+def test_timeout_retries_once_then_succeeds(client):
+    client._client.chat.completions.create.side_effect = [
+        APITimeoutError(request=MagicMock()),
+        _mock_completion("ok"),
+    ]
+
+    assert client.invoke(system_prompt="sys", user_message="hi") == "ok"
+    assert client._client.chat.completions.create.call_count == 2
 
 
 def test_api_error_raises_llm_invocation_error(client):

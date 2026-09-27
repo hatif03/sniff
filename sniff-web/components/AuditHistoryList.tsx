@@ -5,17 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getRecentAudits } from '@/lib/queries';
-
-interface AuditSummary {
-  audit_id: string;
-  url: string;
-  persona: string | null;
-  overall_score: number | null;
-  label: string | null;
-  verdict: string | null;
-  created_at: string;
-}
+import { getDashboardAuditFeed, type DashboardAuditFeedItem } from '@/lib/queries';
 
 const scoreVariant = (score: number | null): 'default' | 'destructive' | 'secondary' => {
   if (score === null) return 'secondary';
@@ -25,19 +15,19 @@ const scoreVariant = (score: number | null): 'default' | 'destructive' | 'second
 };
 
 /**
- * Shared "Audits" section for the dashboard - every completed audit from
- * every visitor, persisted in Supabase (public-read, no auth), same pattern
- * as the runs list above.
+ * Shared "Audits" section for the dashboard — standalone page audits plus
+ * whole-site crawls as a single row each (per-page rows are hidden; they
+ * live under /dashboard/site-audits/{id}).
  */
 export default function AuditHistoryList() {
-  const [audits, setAudits] = useState<AuditSummary[]>([]);
+  const [items, setItems] = useState<DashboardAuditFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAudits() {
       try {
-        const data = await getRecentAudits();
-        setAudits((data ?? []) as AuditSummary[]);
+        const data = await getDashboardAuditFeed();
+        setItems(data);
       } catch (err) {
         console.error('Failed to fetch audits:', err);
       } finally {
@@ -47,7 +37,7 @@ export default function AuditHistoryList() {
     fetchAudits();
   }, []);
 
-  if (loading || audits.length === 0) return null;
+  if (loading || items.length === 0) return null;
 
   return (
     <div className="mt-12">
@@ -56,28 +46,59 @@ export default function AuditHistoryList() {
         <p className="text-xs text-muted-foreground">Every audit run on Sniff, shared with everyone</p>
       </div>
       <div className="space-y-3">
-        {audits.map((a, i) => (
-          <motion.div
-            key={a.audit_id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: i * 0.05 }}
-          >
-            <Link href={`/dashboard/audits/${a.audit_id}`} className="block">
-              <Card className="transition-all hover:ring-primary/40 hover:shadow-lg">
-                <CardContent className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="font-display font-semibold text-foreground truncate">{a.url}</p>
-                    <p className="text-xs text-muted-foreground truncate">{a.label ?? new Date(a.created_at).toLocaleString()}</p>
-                  </div>
-                  <Badge variant={scoreVariant(a.overall_score)} className="shrink-0 text-xs font-bold">
-                    {a.overall_score !== null ? `${a.overall_score.toFixed(1)}/10` : '—'}
-                  </Badge>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-        ))}
+        {items.map((item, i) => {
+          if (item.kind === 'page') {
+            return (
+              <motion.div
+                key={item.audit_id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: i * 0.05 }}
+              >
+                <Link href={`/dashboard/audits/${item.audit_id}`} className="block">
+                  <Card className="transition-all hover:ring-primary/40 hover:shadow-lg">
+                    <CardContent className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-display font-semibold text-foreground truncate">{item.url}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {item.label ?? new Date(item.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <Badge variant={scoreVariant(item.overall_score)} className="shrink-0 text-xs font-bold">
+                        {item.overall_score !== null ? `${Number(item.overall_score).toFixed(1)}/10` : '—'}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </motion.div>
+            );
+          }
+
+          return (
+            <motion.div
+              key={item.site_audit_id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.05 }}
+            >
+              <Link href={`/dashboard/site-audits/${item.site_audit_id}`} className="block">
+                <Card className="transition-all hover:ring-primary/40 hover:shadow-lg">
+                  <CardContent className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="font-display font-semibold text-foreground truncate">{item.seed_url}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        Site audit · {item.pages_audited} page{item.pages_audited === 1 ? '' : 's'} audited
+                      </p>
+                    </div>
+                    <Badge variant={item.status === 'completed' ? 'default' : 'secondary'} className="shrink-0 text-xs font-bold">
+                      Site
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );

@@ -15,7 +15,16 @@ from typing import Any
 
 from openai import APIError, APITimeoutError, OpenAI
 
+from .json_response import parse_json_object
 from .llm_errors import LLMInvocationError, LLMTimeoutError
+
+# ifm.ai reasoning models require a `thinking` field on assistant turns when
+# resuming multi-turn chat (docs.ifm.ai multi-turn guide — confirmed live:
+# continuation without it returns HTTP 400).
+_CONTINUATION_USER_PROMPT = (
+    "Continue from where you left off and output ONLY the final JSON "
+    "object now - no more reasoning, no markdown fences, nothing before or after it."
+)
 
 DEFAULT_BASE_URL = "https://api.ifm.ai/v1"
 DEFAULT_MODEL_ID = "IFM/K2-Horizon-375B-A23B"
@@ -64,16 +73,7 @@ class K2HorizonClient:
         if top_p is not None:
             kwargs["top_p"] = top_p
 
-        try:
-            response = self._client.chat.completions.create(**kwargs)
-        except APITimeoutError as e:
-            raise LLMTimeoutError(f"k2-horizon request timed out after {self.timeout_seconds}s") from e
-        except APIError as e:
-            raise LLMInvocationError(f"k2-horizon invocation failed: {e}") from e
-
-        content = response.choices[0].message.content
-        if not content:
-            raise LLMInvocationError("k2-horizon returned an empty response", details=response)
+        content = self._complete_chat(**kwargs)
         return content
 
     def invoke_with_json_response(
@@ -98,56 +98,74 @@ class K2HorizonClient:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ]
-        content = self._complete(messages, max_tokens, temperature)
+        content, thinking = self._complete(messages, max_tokens, temperature)
         try:
-            return self._parse_json(content)
+            return parse_json_object(content)
         except json.JSONDecodeError as e:
             continuation = messages + [
-                {"role": "assistant", "content": content},
-                {
-                    "role": "user",
-                    "content": "Continue from where you left off and output ONLY the final JSON "
-                    "object now - no more reasoning, no markdown fences, nothing before or after it.",
-                },
+                self._assistant_message(content, thinking),
+                {"role": "user", "content": _CONTINUATION_USER_PROMPT},
             ]
-            retry_content = self._complete(continuation, max_tokens, temperature)
+            retry_content, _ = self._complete(continuation, max_tokens, temperature)
             try:
-                return self._parse_json(retry_content)
+                return parse_json_object(retry_content)
             except json.JSONDecodeError:
                 raise LLMInvocationError(
                     f"k2-horizon response is not valid JSON, even after a continuation retry: {e}\n"
                     f"Response: {content}\nContinuation response: {retry_content}"
                 ) from e
 
-    def _complete(self, messages: list[dict], max_tokens: int, temperature: float) -> str:
-        try:
-            response = self._client.chat.completions.create(
-                model=self.model_id,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                response_format={"type": "json_object"},
-            )
-        except APITimeoutError as e:
-            raise LLMTimeoutError(f"k2-horizon request timed out after {self.timeout_seconds}s") from e
-        except APIError as e:
-            raise LLMInvocationError(f"k2-horizon invocation failed: {e}") from e
-
+    def _complete_chat(self, **kwargs: Any) -> str:
+        response = self._request_completion(**kwargs)
         content = response.choices[0].message.content
         if not content:
             raise LLMInvocationError("k2-horizon returned an empty response", details=response)
         return content
 
+    def _complete(
+        self, messages: list[dict], max_tokens: int, temperature: float
+    ) -> tuple[str, str]:
+        response = self._request_completion(
+            model=self.model_id,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            response_format={"type": "json_object"},
+        )
+        message = response.choices[0].message
+        content = message.content or ""
+        thinking_raw = getattr(message, "thinking", None)
+        thinking = thinking_raw if isinstance(thinking_raw, str) else ""
+        if not content and not thinking:
+            raise LLMInvocationError("k2-horizon returned an empty response", details=response)
+        return content, thinking
+
+    def _request_completion(self, **kwargs: Any):
+        """One automatic retry on transient network timeouts (session 17 gap)."""
+        last_timeout: APITimeoutError | None = None
+        for attempt in range(2):
+            try:
+                return self._client.chat.completions.create(**kwargs)
+            except APITimeoutError as e:
+                last_timeout = e
+                if attempt == 0:
+                    continue
+                raise LLMTimeoutError(
+                    f"k2-horizon request timed out after {self.timeout_seconds}s"
+                ) from e
+            except APIError as e:
+                raise LLMInvocationError(f"k2-horizon invocation failed: {e}") from e
+        raise LLMTimeoutError(
+            f"k2-horizon request timed out after {self.timeout_seconds}s"
+        ) from last_timeout
+
     @staticmethod
-    def _parse_json(content: str) -> dict[str, Any]:
-        # response_format=json_object guarantees valid JSON syntax, but be
-        # defensive about stray markdown fences anyway (cheap, harmless).
-        text = content.strip()
-        if text.startswith("```"):
-            text = text.strip("`")
-            if text.startswith("json"):
-                text = text[4:]
-        return json.loads(text)
+    def _assistant_message(content: str, thinking: str) -> dict[str, str]:
+        return {
+            "role": "assistant",
+            "content": content,
+            "thinking": thinking,
+        }
 
 
 def create_k2horizon_client(config) -> K2HorizonClient:

@@ -56,8 +56,9 @@ def test_invoke_with_vision_content_blocks(client):
 
     assert result == "tap the button"
     contents = client.client.models.generate_content.call_args.kwargs["contents"]
-    assert len(contents) == 2
-    assert contents[1] == "What should I click?"
+    assert len(contents) == 1
+    assert len(contents[0].parts) == 2
+    assert contents[0].parts[1].text == "What should I click?"
 
 
 def test_invoke_with_json_response_uses_json_mime_type(client):
@@ -71,10 +72,35 @@ def test_invoke_with_json_response_uses_json_mime_type(client):
 
 
 def test_invoke_with_json_response_invalid_json_raises(client):
-    client.client.models.generate_content.return_value = _mock_response("not json")
+    client.client.models.generate_content.side_effect = [
+        _mock_response("not json"),
+        _mock_response("still not json"),
+    ]
 
     with pytest.raises(LLMInvocationError):
         client.invoke_with_json_response(system_prompt="Return JSON", user_message="Test")
+
+
+def test_invoke_with_json_response_continuation_on_truncated_json(client):
+    client.client.models.generate_content.side_effect = [
+        _mock_response('{"overall_score": 7, "label": "Good", "verdict": "ok",'),
+        _mock_response('{"overall_score": 7, "label": "Good", "verdict": "ok"}'),
+    ]
+
+    result = client.invoke_with_json_response(system_prompt="Return JSON", user_message="Test")
+
+    assert result["overall_score"] == 7
+    assert client.client.models.generate_content.call_count == 2
+
+
+def test_invoke_with_json_response_parses_json_embedded_in_text(client):
+    client.client.models.generate_content.return_value = _mock_response(
+        'Here is the audit:\n```json\n{"action": "tap"}\n```'
+    )
+
+    result = client.invoke_with_json_response(system_prompt="Return JSON", user_message="Test")
+
+    assert result == {"action": "tap"}
 
 
 def test_empty_response_raises_invocation_error(client):

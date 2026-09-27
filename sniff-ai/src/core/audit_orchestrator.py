@@ -231,7 +231,8 @@ class AuditOrchestrator:
             lambda: gemini_client.invoke_with_json_response(
                 system_prompt=_GEMINI_AUDIT_SYSTEM_PROMPT,
                 user_message=user_message,
-                max_tokens=4096,
+                # Vision audit JSON is large; 4096 was truncating mid-object in prod.
+                max_tokens=8192,
                 temperature=0.5,
             ),
         )

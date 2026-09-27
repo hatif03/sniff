@@ -313,6 +313,12 @@ async def _execute_audit(audit_id: str, req: AuditRequest) -> None:
             )
             if not upload_result.get("success"):
                 logger.warning(f"Supabase upload failed for audit {audit_id}: {upload_result.get('error')}")
+            else:
+                # AUDIT_STORE still held local artifact paths; Supabase has the
+                # public URLs the dashboard must render (see upload_audit()).
+                row = uploader.get_audit(audit_id)
+                if row:
+                    AUDIT_STORE[audit_id].update(report=AuditReport(**row["report_json"]))
 
     except Exception as e:
         logger.error(f"Audit {audit_id} failed: {e}", exc_info=True)
@@ -344,11 +350,28 @@ def get_audit(audit_id: str) -> AuditStatusResponse:
     finished) when AUDIT_STORE doesn't have it - confirmed live: a real
     completed audit 404'd here after nothing more than a routine backend
     redeploy replaced the in-process store that held it."""
+    uploader = create_supabase_uploader(config)
     entry = AUDIT_STORE.get(audit_id)
     if entry is not None:
+        report = entry.get("report")
+        image_paths: dict[str, str] = {}
+        if report is not None and getattr(report, "images", None):
+            raw = report.images
+            image_paths = raw.model_dump() if hasattr(raw, "model_dump") else raw
+        if (
+            entry.get("status") == "completed"
+            and report is not None
+            and image_paths
+            and any(not str(url).startswith("http") for url in image_paths.values())
+            and uploader
+        ):
+            row = uploader.get_audit(audit_id)
+            if row:
+                return AuditStatusResponse(
+                    audit_id=audit_id, status="completed", report=AuditReport(**row["report_json"])
+                )
         return AuditStatusResponse(audit_id=audit_id, **entry)
 
-    uploader = create_supabase_uploader(config)
     row = uploader.get_audit(audit_id) if uploader else None
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown audit_id: {audit_id}")
@@ -570,10 +593,16 @@ async def _execute_site_audit(site_audit_id: str, req: SiteAuditRequest) -> None
             store_entry["pages_discovered"] = len(store_entry["manifest"])
             if uploader:
                 try:
-                    uploader.upload_audit(
+                    upload_result = uploader.upload_audit(
                         audit_id=page_audit_id, url=url, persona=req.persona, report=report,
                         site_audit_id=site_audit_id,
                     )
+                    if upload_result.get("success"):
+                        row = uploader.get_audit(page_audit_id)
+                        if row:
+                            AUDIT_STORE[page_audit_id].update(
+                                report=AuditReport(**row["report_json"])
+                            )
                 except Exception as e:
                     logger.warning(f"Supabase upload failed for site-audit page {page_audit_id}: {e}")
             if site_audit_store:
@@ -613,13 +642,42 @@ async def _execute_site_audit(site_audit_id: str, req: SiteAuditRequest) -> None
                 logger.warning(f"Could not finalize site_audits row for {site_audit_id}: {e}")
 
     except Exception as e:
-        logger.error(f"Site audit {site_audit_id} failed: {e}", exc_info=True)
-        SITE_AUDIT_STORE[site_audit_id].update(status="failed", error=str(e))
-        if site_audit_store:
-            try:
-                site_audit_store.complete(site_audit_id, "failed", SITE_AUDIT_STORE[site_audit_id].get("manifest", {}), error=str(e))
-            except Exception:
-                pass
+        store_entry = SITE_AUDIT_STORE.get(site_audit_id, {})
+        manifest_dict = store_entry.get("manifest") or {}
+        if not manifest_dict and site_audit_store:
+            row = site_audit_store.get_site_audit(site_audit_id)
+            if row:
+                manifest_dict = row.get("manifest") or {}
+        pages_audited = len([v for v in manifest_dict.values() if v.get("status") == "audited"])
+        if pages_audited > 0:
+            # Crawl hit a time limit or late error after real pages were saved —
+            # treat as completed so the dashboard shows the crawl, not a false failure.
+            note = str(e) or "Site audit ended early"
+            logger.warning(
+                f"Site audit {site_audit_id} ended with an error after {pages_audited} page(s) saved: {note}"
+            )
+            SITE_AUDIT_STORE[site_audit_id].update(
+                status="completed",
+                manifest=manifest_dict,
+                pages_discovered=len(manifest_dict),
+                pages_audited=pages_audited,
+                error=note,
+            )
+            if site_audit_store:
+                try:
+                    site_audit_store.complete(site_audit_id, "completed", manifest_dict, error=note)
+                except Exception:
+                    pass
+        else:
+            logger.error(f"Site audit {site_audit_id} failed: {e}", exc_info=True)
+            SITE_AUDIT_STORE[site_audit_id].update(status="failed", error=str(e))
+            if site_audit_store:
+                try:
+                    site_audit_store.complete(
+                        site_audit_id, "failed", manifest_dict, error=str(e)
+                    )
+                except Exception:
+                    pass
 
 
 @app.post("/site-audits", response_model=SiteAuditResponse, dependencies=[Depends(require_auth)])
@@ -647,35 +705,80 @@ async def create_site_audit(req: SiteAuditRequest) -> SiteAuditResponse:
     return SiteAuditResponse(site_audit_id=site_audit_id, status="queued")
 
 
+def _site_audit_pages_from_manifest(manifest: dict) -> list[SiteAuditPageSummary]:
+    pages: list[SiteAuditPageSummary] = []
+    for url, info in manifest.items():
+        if info.get("status") != "audited":
+            continue
+        audit_id = info.get("audit_id")
+        if not audit_id:
+            continue
+        store_entry = AUDIT_STORE.get(audit_id, {})
+        report = store_entry.get("report")
+        pages.append(
+            SiteAuditPageSummary(
+                audit_id=audit_id,
+                url=url,
+                overall_score=report.overall_score if report else info.get("overall_score"),
+                label=report.label if report else info.get("label"),
+            )
+        )
+    return pages
+
+
 @app.get("/site-audits/{site_audit_id}", response_model=SiteAuditStatusResponse, dependencies=[Depends(require_auth)])
 def get_site_audit(site_audit_id: str) -> SiteAuditStatusResponse:
     """Poll status/progress for a previously-started site audit. `pages`
     lists every page audited so far, each linkable to its full report via
     the existing GET /audits/{audit_id}."""
     entry = SITE_AUDIT_STORE.get(site_audit_id)
-    if entry is None:
+    if entry is not None:
+        return SiteAuditStatusResponse(
+            site_audit_id=site_audit_id,
+            status=entry["status"],
+            seed_url=entry["seed_url"],
+            max_pages=entry["max_pages"],
+            pages_discovered=entry.get("pages_discovered", 0),
+            pages_audited=entry.get("pages_audited", 0),
+            manifest=entry.get("manifest", {}),
+            pages=_site_audit_pages_from_manifest(entry.get("manifest", {})),
+            error=entry.get("error"),
+        )
+
+    site_audit_store = create_site_audit_store(config)
+    row = site_audit_store.get_site_audit(site_audit_id) if site_audit_store else None
+    if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown site_audit_id: {site_audit_id}")
 
-    pages = [
-        SiteAuditPageSummary(
-            audit_id=audit_id,
-            url=url,
-            overall_score=(AUDIT_STORE.get(audit_id, {}).get("report").overall_score if AUDIT_STORE.get(audit_id, {}).get("report") else None),
-            label=(AUDIT_STORE.get(audit_id, {}).get("report").label if AUDIT_STORE.get(audit_id, {}).get("report") else None),
+    manifest = row.get("manifest") or {}
+    score_by_audit = {
+        p["audit_id"]: p for p in (site_audit_store.get_pages(site_audit_id) if site_audit_store else [])
+    }
+    pages = []
+    for url, info in manifest.items():
+        if info.get("status") != "audited":
+            continue
+        audit_id = info.get("audit_id")
+        if not audit_id:
+            continue
+        summary = score_by_audit.get(audit_id, {})
+        pages.append(
+            SiteAuditPageSummary(
+                audit_id=audit_id,
+                url=url,
+                overall_score=summary.get("overall_score"),
+                label=summary.get("label"),
+            )
         )
-        for url, info in entry.get("manifest", {}).items()
-        if info.get("status") == "audited"
-        for audit_id in [info["audit_id"]]
-    ]
 
     return SiteAuditStatusResponse(
         site_audit_id=site_audit_id,
-        status=entry["status"],
-        seed_url=entry["seed_url"],
-        max_pages=entry["max_pages"],
-        pages_discovered=entry.get("pages_discovered", 0),
-        pages_audited=entry.get("pages_audited", 0),
-        manifest=entry.get("manifest", {}),
+        status=row.get("status", "completed"),
+        seed_url=row.get("seed_url", ""),
+        max_pages=row.get("max_pages", 0),
+        pages_discovered=row.get("pages_discovered", len(manifest)),
+        pages_audited=row.get("pages_audited", len(pages)),
+        manifest=manifest,
         pages=pages,
-        error=entry.get("error"),
+        error=row.get("error"),
     )

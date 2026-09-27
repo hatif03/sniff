@@ -1,3 +1,4 @@
+import type { SiteAuditManifestEntry, SiteAuditStatusResponse } from './site-audits';
 import { supabase } from './supabase';
 
 export async function getRunDetails(runId: string) {
@@ -28,6 +29,7 @@ export async function getRecentAudits(limit = 10) {
   const { data, error } = await supabase
     .from('audits')
     .select('audit_id, url, persona, overall_score, label, verdict, created_at')
+    .is('site_audit_id', null)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -44,6 +46,50 @@ export async function getRecentSiteAudits(limit = 10) {
 
   if (error) throw error;
   return data || [];
+}
+
+/** Standalone page audits + whole-site crawls for the dashboard feed (one row per job). */
+export type DashboardAuditFeedItem =
+  | {
+      kind: 'page';
+      audit_id: string;
+      url: string;
+      overall_score: number | null;
+      label: string | null;
+      created_at: string;
+    }
+  | {
+      kind: 'site';
+      site_audit_id: string;
+      seed_url: string;
+      status: string;
+      pages_audited: number;
+      created_at: string;
+    };
+
+export async function getDashboardAuditFeed(limit = 12): Promise<DashboardAuditFeedItem[]> {
+  const [pages, sites] = await Promise.all([getRecentAudits(limit), getRecentSiteAudits(limit)]);
+  const items: DashboardAuditFeedItem[] = [
+    ...(pages ?? []).map((p) => ({
+      kind: 'page' as const,
+      audit_id: p.audit_id,
+      url: p.url,
+      overall_score: p.overall_score,
+      label: p.label,
+      created_at: p.created_at,
+    })),
+    ...(sites ?? []).map((s) => ({
+      kind: 'site' as const,
+      site_audit_id: s.site_audit_id,
+      seed_url: s.seed_url,
+      status: s.status,
+      pages_audited: s.pages_audited,
+      created_at: s.created_at,
+    })),
+  ];
+  return items
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
 }
 
 export async function getPersonaMetrics() {
@@ -155,4 +201,46 @@ export async function getAuditTrendHistory(limit = 500) {
 
   if (error) throw error;
   return data || [];
+}
+
+/** Supabase fallback when the in-process API no longer has this site audit (post-redeploy). */
+export async function getSiteAuditDetailFromSupabase(
+  siteAuditId: string
+): Promise<SiteAuditStatusResponse | null> {
+  const { data: row, error } = await supabase
+    .from('site_audits')
+    .select('*')
+    .eq('site_audit_id', siteAuditId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!row) return null;
+
+  const { data: pageRows, error: pagesError } = await supabase
+    .from('audits')
+    .select('audit_id, url, overall_score, label')
+    .eq('site_audit_id', siteAuditId)
+    .order('created_at');
+
+  if (pagesError) throw pagesError;
+
+  const manifest = (row.manifest ?? {}) as Record<string, SiteAuditManifestEntry>;
+  const pages = (pageRows ?? []).map((p) => ({
+    audit_id: p.audit_id,
+    url: p.url,
+    overall_score: p.overall_score,
+    label: p.label,
+  }));
+
+  return {
+    site_audit_id: row.site_audit_id,
+    status: row.status,
+    seed_url: row.seed_url,
+    max_pages: row.max_pages,
+    pages_discovered: row.pages_discovered ?? Object.keys(manifest).length,
+    pages_audited: row.pages_audited ?? pages.length,
+    manifest,
+    pages,
+    error: row.error,
+  };
 }

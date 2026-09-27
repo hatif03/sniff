@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Container } from '@/components/ui/container';
 import { Display2, Heading3 } from '@/components/ui/typography';
+import { getSiteAuditDetailFromSupabase } from '@/lib/queries';
 import type { SiteAuditStatusResponse } from '@/lib/site-audits';
 
 const POLL_INTERVAL_MS = 2500;
@@ -52,6 +53,15 @@ export default function SiteAuditReportPage({ params }: { params: Promise<{ site
         const json: SiteAuditStatusResponse = await res.json();
         if (cancelled) return;
         if (!res.ok) {
+          const fromDb = await getSiteAuditDetailFromSupabase(id);
+          if (fromDb) {
+            setData(fromDb);
+            setLoadError(null);
+            if (fromDb.status === 'completed' || fromDb.status === 'failed') {
+              if (pollTimer.current) clearInterval(pollTimer.current);
+            }
+            return;
+          }
           setLoadError((json as unknown as { error?: string })?.error ?? `Backend returned ${res.status}`);
           if (pollTimer.current) clearInterval(pollTimer.current);
           return;
@@ -62,6 +72,19 @@ export default function SiteAuditReportPage({ params }: { params: Promise<{ site
         }
       } catch (err) {
         if (cancelled) return;
+        try {
+          const fromDb = await getSiteAuditDetailFromSupabase(id);
+          if (fromDb) {
+            setData(fromDb);
+            setLoadError(null);
+            if (fromDb.status === 'completed' || fromDb.status === 'failed') {
+              if (pollTimer.current) clearInterval(pollTimer.current);
+            }
+            return;
+          }
+        } catch {
+          // fall through to generic error
+        }
         setLoadError(err instanceof Error ? err.message : 'Could not reach the backend');
         if (pollTimer.current) clearInterval(pollTimer.current);
       }

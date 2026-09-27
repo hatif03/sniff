@@ -27,7 +27,13 @@ from typing import Any
 from google import genai
 from google.genai import types
 
+from .json_response import parse_json_object
 from .llm_errors import LLMInvocationError, LLMTimeoutError
+
+_GEMINI_JSON_CONTINUATION = (
+    "Continue from where you left off and output ONLY the final JSON object now - "
+    "no markdown fences, no commentary before or after it."
+)
 
 DEFAULT_LOCATION = "us-central1"
 DEFAULT_MODEL_ID = "gemini-3.5-flash-lite"
@@ -109,11 +115,29 @@ class GeminiClient:
             raise LLMInvocationError("Gemini returned an empty response", details=response)
 
         try:
-            return json.loads(response.text)
+            return parse_json_object(response.text)
         except json.JSONDecodeError as e:
-            raise LLMInvocationError(
-                f"Gemini response is not valid JSON: {e}\nResponse: {response.text}"
-            ) from e
+            continuation = self._generate(
+                system_prompt,
+                user_message,
+                max_tokens,
+                temperature,
+                top_p=None,
+                json_mode=True,
+                prior_model_text=response.text,
+                continuation_user_text=_GEMINI_JSON_CONTINUATION,
+            )
+            if not continuation.text:
+                raise LLMInvocationError(
+                    f"Gemini response is not valid JSON: {e}\nResponse: {response.text}"
+                ) from e
+            try:
+                return parse_json_object(continuation.text)
+            except json.JSONDecodeError:
+                raise LLMInvocationError(
+                    f"Gemini response is not valid JSON, even after a continuation retry: {e}\n"
+                    f"Response: {response.text}\nContinuation: {continuation.text}"
+                ) from e
 
     def _generate(
         self,
@@ -123,8 +147,19 @@ class GeminiClient:
         temperature: float,
         top_p: float | None,
         json_mode: bool = False,
+        prior_model_text: str | None = None,
+        continuation_user_text: str | None = None,
     ):
-        contents = self._build_contents(user_message)
+        if prior_model_text is not None:
+            follow_up = continuation_user_text or _GEMINI_JSON_CONTINUATION
+            user_parts = self._build_parts(user_message)
+            contents = [
+                types.Content(role="user", parts=user_parts),
+                types.Content(role="model", parts=[types.Part.from_text(text=prior_model_text)]),
+                types.Content(role="user", parts=[types.Part.from_text(text=follow_up)]),
+            ]
+        else:
+            contents = self._build_contents(user_message)
         config_kwargs = {
             "system_instruction": system_prompt,
             "max_output_tokens": max_tokens,
@@ -136,41 +171,54 @@ class GeminiClient:
             config_kwargs["response_mime_type"] = "application/json"
 
         config = types.GenerateContentConfig(**config_kwargs)
-        try:
-            return self.client.models.generate_content(
-                model=self.model_id, contents=contents, config=config,
-            )
-        except Exception as e:
-            if self._is_timeout(e):
-                raise LLMTimeoutError(f"Gemini request timed out after {self.timeout_seconds}s") from e
+        return self._generate_with_retries(contents, config)
 
-            # Verified in practice: a model can be listed in Google's public
-            # docs but still 404 ("not found or your project does not have
-            # access to it") on a given project/region until access rolls
-            # out - retry once with the configured fallback before failing.
-            if self._is_not_found(e) and self.model_id != self.fallback_model_id:
+    def _generate_with_retries(self, contents: list, config: types.GenerateContentConfig):
+        def _call(model_id: str):
+            for attempt in range(2):
                 try:
                     return self.client.models.generate_content(
-                        model=self.fallback_model_id, contents=contents, config=config,
+                        model=model_id, contents=contents, config=config,
                     )
+                except Exception as e:
+                    if self._is_timeout(e) and attempt == 0:
+                        continue
+                    if self._is_timeout(e):
+                        raise LLMTimeoutError(
+                            f"Gemini request timed out after {self.timeout_seconds}s"
+                        ) from e
+                    raise
+
+        try:
+            return _call(self.model_id)
+        except Exception as e:
+            if self._is_not_found(e) and self.model_id != self.fallback_model_id:
+                try:
+                    return _call(self.fallback_model_id)
                 except Exception as fallback_error:
                     raise LLMInvocationError(
                         f"Gemini invocation failed for both {self.model_id} and "
                         f"fallback {self.fallback_model_id}: {fallback_error}"
                     ) from fallback_error
-
+            if isinstance(e, LLMTimeoutError):
+                raise
             raise LLMInvocationError(f"Gemini invocation failed: {e}") from e
 
     def _build_contents(self, user_message: str | list[dict]) -> list:
-        """Convert the shared content-block shape into google-genai parts."""
+        """Convert the shared content-block shape into google-genai contents."""
         if isinstance(user_message, str):
             return [user_message]
+        return [types.Content(role="user", parts=self._build_parts(user_message))]
+
+    def _build_parts(self, user_message: str | list[dict]) -> list:
+        if isinstance(user_message, str):
+            return [types.Part.from_text(text=user_message)]
 
         parts = []
         for block in user_message:
             block_type = block.get("type")
             if block_type == "text":
-                parts.append(block["text"])
+                parts.append(types.Part.from_text(text=block["text"]))
             elif block_type == "image":
                 source = block.get("source", {})
                 image_bytes = base64.b64decode(source["data"])
