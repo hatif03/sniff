@@ -85,14 +85,45 @@ class K2HorizonClient:
     ) -> dict[str, Any]:
         """Invoke k2-horizon and parse the response as JSON, using its
         native JSON mode (guarantees syntax, not structure - the prompt
-        still needs to describe the desired fields)."""
+        still needs to describe the desired fields).
+
+        k2-horizon is a reasoning model: response_format=json_object doesn't
+        stop it from spending the whole max_tokens budget on chain-of-thought
+        before ever emitting the JSON object - confirmed live against real
+        pages, where this failed the entire page audit. On that failure, one
+        continuation call reuses the truncated reasoning as context and asks
+        specifically for the final JSON, rather than discarding it and
+        re-reasoning from scratch (cheaper and more likely to land)."""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ]
+        content = self._complete(messages, max_tokens, temperature)
+        try:
+            return self._parse_json(content)
+        except json.JSONDecodeError as e:
+            continuation = messages + [
+                {"role": "assistant", "content": content},
+                {
+                    "role": "user",
+                    "content": "Continue from where you left off and output ONLY the final JSON "
+                    "object now - no more reasoning, no markdown fences, nothing before or after it.",
+                },
+            ]
+            retry_content = self._complete(continuation, max_tokens, temperature)
+            try:
+                return self._parse_json(retry_content)
+            except json.JSONDecodeError:
+                raise LLMInvocationError(
+                    f"k2-horizon response is not valid JSON, even after a continuation retry: {e}\n"
+                    f"Response: {content}\nContinuation response: {retry_content}"
+                ) from e
+
+    def _complete(self, messages: list[dict], max_tokens: int, temperature: float) -> str:
         try:
             response = self._client.chat.completions.create(
                 model=self.model_id,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
+                messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
                 response_format={"type": "json_object"},
@@ -105,7 +136,10 @@ class K2HorizonClient:
         content = response.choices[0].message.content
         if not content:
             raise LLMInvocationError("k2-horizon returned an empty response", details=response)
+        return content
 
+    @staticmethod
+    def _parse_json(content: str) -> dict[str, Any]:
         # response_format=json_object guarantees valid JSON syntax, but be
         # defensive about stray markdown fences anyway (cheap, harmless).
         text = content.strip()
@@ -113,13 +147,7 @@ class K2HorizonClient:
             text = text.strip("`")
             if text.startswith("json"):
                 text = text[4:]
-
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as e:
-            raise LLMInvocationError(
-                f"k2-horizon response is not valid JSON: {e}\nResponse: {content}"
-            ) from e
+        return json.loads(text)
 
 
 def create_k2horizon_client(config) -> K2HorizonClient:

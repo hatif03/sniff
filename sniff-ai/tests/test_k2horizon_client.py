@@ -62,6 +62,40 @@ def test_invoke_with_json_response_strips_markdown_fence(client):
     assert result == {"action": "tap"}
 
 
+def test_invoke_with_json_response_retries_with_continuation_on_reasoning_overrun(client):
+    """k2-horizon is a reasoning model that can burn its whole max_tokens
+    budget on chain-of-thought before emitting any JSON - discovered live
+    against real pages. The retry must reuse that reasoning as context
+    (not discard it) rather than blindly resending the original prompt."""
+    client._client.chat.completions.create.side_effect = [
+        _mock_completion("We need to analyze this carefully first..."),
+        _mock_completion('{"action": "tap"}'),
+    ]
+
+    result = client.invoke_with_json_response(system_prompt="Return JSON", user_message="Test")
+
+    assert result == {"action": "tap"}
+    calls = client._client.chat.completions.create.call_args_list
+    assert len(calls) == 2
+    retry_messages = calls[1].kwargs["messages"]
+    assert retry_messages[0] == {"role": "system", "content": "Return JSON"}
+    assert retry_messages[1] == {"role": "user", "content": "Test"}
+    assert retry_messages[2] == {"role": "assistant", "content": "We need to analyze this carefully first..."}
+    assert "ONLY the final JSON" in retry_messages[3]["content"]
+
+
+def test_invoke_with_json_response_raises_if_continuation_also_fails(client):
+    client._client.chat.completions.create.side_effect = [
+        _mock_completion("still thinking..."),
+        _mock_completion("still not JSON"),
+    ]
+
+    with pytest.raises(LLMInvocationError):
+        client.invoke_with_json_response(system_prompt="Return JSON", user_message="Test")
+
+    assert client._client.chat.completions.create.call_count == 2
+
+
 def test_timeout_raises_llm_timeout_error(client):
     client._client.chat.completions.create.side_effect = APITimeoutError(request=MagicMock())
 
