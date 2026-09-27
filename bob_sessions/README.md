@@ -29,6 +29,10 @@ Each subfolder represents one distinct Bob session (a focused unit of work). Ins
 | [10](./10-cicd-integration/) | CI/CD GitHub Actions | ⬜ Pending | Agent | `sniff-action/`, `action.yml`, `--exit-on-severity` |
 | [11](./11-architecture-docs/) | Architecture Docs Update | ✅ Complete | Agent | Updated `ARCHITECTURE.md`, `SNIFF_CLI_GUIDE.md` (done as part of Sessions 05 & 12) |
 | [12](./12-provider-swap-and-saas-foundation/) | Provider Swap + SaaS Foundation | ✅ Complete (Phase 1) | Agent | Gemini/k2-horizon clients, FastAPI backend, shadcn UI redesign, `SAAS_ROADMAP.md` |
+| [13](./13-audit-feature-and-deployment/) | Landing-Page Conversion Audit + Public Deployment | ✅ Complete | Agent | `AuditOrchestrator`, `POST /audits`, live Cloud Run + Vercel deployment |
+| [14](./14-ui-reimagine-and-shared-data/) | UI Reimagine, Shared Persistent Data, Web-First Messaging | ✅ Complete | Agent | Design-system rebuild, shared-Supabase-backed history (not localStorage) |
+| [15](./15-trends-and-scheduled-runs/) | Trends, Reconnected Analytics, Reliable Scheduled Runs | ✅ Complete | Agent | Dashboard "Trends" tab, `schedules` table + `POST /internal/scheduler/tick`, real Cloud Scheduler job |
+| [16](./16-whole-site-audit/) | Whole-Site Audit | ✅ Complete | Agent | `SiteAuditOrchestrator`, `POST /site-audits`, login/session-reuse crawl, dashboard rollup + drill-down view |
 
 ## How to Read These Sessions
 

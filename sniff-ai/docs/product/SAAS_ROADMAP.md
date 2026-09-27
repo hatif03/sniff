@@ -42,9 +42,12 @@ It is not fine for concurrent paying customers - a single slow/stuck
 Playwright run blocks the same process's other work, and a process
 restart drops in-flight runs silently.
 
-Real version: a proper queue (Celery+Redis, or the already-installed
-`apscheduler` promoted from "unused dependency" to an actual worker
-scheduler) with:
+Real version: a proper queue (Celery+Redis, most likely - `apscheduler` was
+removed from `pyproject.toml` in session 15: it would double-fire the same
+job across `sniff-api`'s autoscaled Cloud Run instances, so recurring runs
+are ticked by an external Cloud Scheduler job instead. That same
+multi-instance problem applies here too - an in-process worker pool needs
+the same "external trigger, not in-process scheduler" shape) with:
 - One worker pool sized to your concurrency budget (Playwright + a
   browser process per run is not cheap - expect to need real limits here).
 - Per-tenant rate limiting/fair queueing so one customer's burst of runs
