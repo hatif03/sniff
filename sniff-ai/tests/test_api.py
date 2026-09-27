@@ -368,6 +368,29 @@ def test_get_unknown_audit_is_404(client):
     assert response.status_code == 404
 
 
+def test_get_audit_falls_back_to_supabase_when_audit_store_has_lost_it(client, monkeypatch):
+    """Regression test for a real production gap: a completed audit became
+    permanently unviewable once its AUDIT_STORE entry was lost to a routine
+    backend redeploy, even though its full report was safely in Supabase."""
+    report = _sample_audit_report()
+
+    class FakeUploaderWithRow:
+        def get_audit(self, audit_id):
+            if audit_id == "audit_lost_from_memory":
+                return {"report_json": report.model_dump(mode="json")}
+            return None
+
+    monkeypatch.setattr(api_main, "create_supabase_uploader", lambda cfg: FakeUploaderWithRow())
+
+    # Deliberately not in AUDIT_STORE - simulates the entry having been lost.
+    response = client.get("/audits/audit_lost_from_memory", headers=auth_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["report"]["overall_score"] == report.overall_score
+
+
 def test_queued_jobs_run_strictly_one_at_a_time(client, monkeypatch):
     """The actual production incident this guards against: firing several
     audits at once used to spin up independent BackgroundTasks that ran

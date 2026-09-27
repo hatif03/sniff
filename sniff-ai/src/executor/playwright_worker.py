@@ -288,8 +288,16 @@ class PlaywrightWorker:
                 durationMs=duration_ms
             )
 
-        # Wait briefly for UI updates
-        await asyncio.sleep(0.5)
+        # Wait for UI updates - confirmed live against a real site: 0.5s was
+        # not always enough for a tapped element to actually leave the DOM
+        # (e.g. a cookie-consent banner whose dismiss handler does async
+        # work before removing itself). The next observation still showed
+        # the same banner text even though the tap itself succeeded, so the
+        # agent reasonably tried tapping the same (now-gone) target again
+        # and failed. `networkidle` was considered and rejected: these real
+        # pages have constant background analytics traffic that never goes
+        # idle, so it would just burn the full timeout on every tap.
+        await asyncio.sleep(1.2)
         return await self.capture_observation()
 
     async def type(self, target: str, input_text: str, timeout: int = 5000) -> Observation:

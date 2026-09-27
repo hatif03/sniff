@@ -34,6 +34,7 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from ..core.audit_models import AuditReport
 from ..core.audit_orchestrator import AuditOrchestrator
 from ..core.config import SniffConfig, get_config
 from ..core.experiment_models import ExperimentConfig
@@ -337,11 +338,21 @@ async def create_audit(req: AuditRequest) -> AuditResponse:
 
 @app.get("/audits/{audit_id}", response_model=AuditStatusResponse, dependencies=[Depends(require_auth)])
 def get_audit(audit_id: str) -> AuditStatusResponse:
-    """Poll status/result for a previously-started audit."""
+    """Poll status/result for a previously-started audit.
+
+    Falls back to Supabase (the actual system of record for anything
+    finished) when AUDIT_STORE doesn't have it - confirmed live: a real
+    completed audit 404'd here after nothing more than a routine backend
+    redeploy replaced the in-process store that held it."""
     entry = AUDIT_STORE.get(audit_id)
-    if entry is None:
+    if entry is not None:
+        return AuditStatusResponse(audit_id=audit_id, **entry)
+
+    uploader = create_supabase_uploader(config)
+    row = uploader.get_audit(audit_id) if uploader else None
+    if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown audit_id: {audit_id}")
-    return AuditStatusResponse(audit_id=audit_id, **entry)
+    return AuditStatusResponse(audit_id=audit_id, status="completed", report=AuditReport(**row["report_json"]))
 
 
 # The three exact filenames screenshot_annotator.capture_audit_screenshots()

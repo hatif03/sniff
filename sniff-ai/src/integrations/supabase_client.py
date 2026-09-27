@@ -197,10 +197,15 @@ class SupabaseUploader:
     ) -> dict[str, Any]:
         """Upload a completed landing-page audit to Supabase.
 
-        The full report is stored as JSONB (report.images are local filesystem
-        paths, not re-hosted to Supabase Storage - screenshots are already
-        served via the existing GET /audits/{audit_id}/images/{filename}
-        endpoint, so there's nothing to upload here beyond the row itself).
+        report.images (above_fold/full_page/annotated) are local filesystem
+        paths on whatever Cloud Run instance ran the audit - ephemeral, gone
+        after a redeploy, an instance restart, or even a scale-down/scale-up
+        cycle. Confirmed live: a real seeded audit became unviewable (its
+        screenshots and, once its in-process store entry was also lost, the
+        whole report) after nothing more than a routine backend redeploy.
+        Uploaded here to Supabase Storage the same way run screenshots
+        already are, so the URLs stored in report_json.images survive
+        independently of any one instance.
 
         Args:
             audit_id: Unique audit identifier
@@ -218,6 +223,8 @@ class SupabaseUploader:
 
         try:
             report_dict = report.model_dump(mode="json")
+            if report_dict.get("images"):
+                report_dict["images"] = self._upload_audit_images(audit_id, report_dict["images"])
             web_vitals = report_dict.get("core_web_vitals") or {}
 
             audit_data = {
@@ -254,6 +261,48 @@ class SupabaseUploader:
                 "audit_id": audit_id,
                 "error": str(e),
             }
+
+    def _upload_audit_images(self, audit_id: str, images: dict[str, str]) -> dict[str, str]:
+        """Upload an audit's screenshots (local paths from AuditReport.images)
+        to Supabase Storage, replacing each with its public URL. A path that
+        can't be read or uploaded is left as-is rather than dropped, so a
+        partial failure doesn't erase which local file a screenshot was
+        supposed to be.
+
+        Args:
+            audit_id: Unique audit identifier - namespaces the storage path
+            images: {"above_fold": local_path, "full_page": ..., "annotated": ...}
+
+        Returns:
+            Same keys, each value replaced with a public URL where the
+            upload succeeded.
+        """
+        uploaded = dict(images)
+        for key, local_path in images.items():
+            try:
+                path = Path(local_path)
+                if not path.is_file():
+                    continue
+                storage_path = f"{audit_id}/{path.name}"
+                with open(path, "rb") as f:
+                    self.client.storage.from_(self.screenshots_bucket).upload(
+                        path=storage_path,
+                        file=f.read(),
+                        file_options={"content-type": "image/png"},
+                    )
+                uploaded[key] = self.client.storage.from_(self.screenshots_bucket).get_public_url(storage_path)
+            except Exception as e:
+                logger.warning(f"Failed to upload audit screenshot '{key}' for {audit_id}: {e}")
+        return uploaded
+
+    def get_audit(self, audit_id: str) -> Optional[dict[str, Any]]:
+        """Fetch a previously-uploaded audit row by audit_id, or None if it
+        doesn't exist. The Supabase-persisted fallback for GET /audits/{id}
+        once an audit's in-process AUDIT_STORE entry is gone (backend
+        restart/redeploy/scale event) - confirmed live: a real seeded audit
+        404'd this way within the same session it was created."""
+        result = self.client.table("audits").select("*").eq("audit_id", audit_id).execute()
+        return result.data[0] if result.data else None
 
     def _upload_screenshots(self, run_id: str, artifacts_dir: Path) -> dict[int, str]:
         """Upload screenshots to Supabase Storage.
