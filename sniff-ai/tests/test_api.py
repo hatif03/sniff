@@ -4,6 +4,7 @@ Mocks RunOrchestrator/ExperimentOrchestrator and the Supabase uploader so no
 real Playwright browser, Gemini/k2-horizon call, or Supabase upload happens.
 """
 
+import asyncio
 import copy
 
 import pytest
@@ -15,6 +16,11 @@ from src.core.experiment_models import ExperimentConfig
 from src.core.state_machine import RunOutcome
 
 
+def _clear_job_queue() -> None:
+    while not api_main.JOB_QUEUE.empty():
+        api_main.JOB_QUEUE.get_nowait()
+
+
 @pytest.fixture(autouse=True)
 def api_token(monkeypatch):
     """Give every test a known shared-secret token and a clean run/audit store."""
@@ -22,10 +28,12 @@ def api_token(monkeypatch):
     api_main.RUN_STORE.clear()
     api_main.AUDIT_STORE.clear()
     api_main.SITE_AUDIT_STORE.clear()
+    _clear_job_queue()
     yield
     api_main.RUN_STORE.clear()
     api_main.AUDIT_STORE.clear()
     api_main.SITE_AUDIT_STORE.clear()
+    _clear_job_queue()
 
 
 @pytest.fixture
@@ -35,6 +43,23 @@ def client():
 
 def auth_headers(token: str = "test-token") -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+def run_queued_jobs() -> None:
+    """Synchronously drain and execute every job currently sitting in
+    JOB_QUEUE. In production, _job_worker() processes the queue in the
+    background, decoupled from the request/response cycle by design - that
+    decoupling is the entire point (it's what lets jobs run strictly one at
+    a time instead of racing each other). A plain sync TestClient request
+    can't wait on that background task, so tests call this right after a
+    POST to deterministically say "run whatever was just queued, now"."""
+    async def _drain():
+        while not api_main.JOB_QUEUE.empty():
+            job = api_main.JOB_QUEUE.get_nowait()
+            await job()
+            api_main.JOB_QUEUE.task_done()
+
+    asyncio.run(_drain())
 
 
 class FakeReport:
@@ -122,8 +147,7 @@ def test_create_run_queues_and_completes(client, monkeypatch):
     run_id = body["run_id"]
     assert run_id.startswith("run_")
 
-    # TestClient runs BackgroundTasks synchronously as part of the request,
-    # so by now the fake run has already completed.
+    run_queued_jobs()
     status_response = client.get(f"/runs/{run_id}", headers=auth_headers())
     assert status_response.status_code == 200
     status_body = status_response.json()
@@ -141,6 +165,7 @@ def test_create_run_failure_reflected_in_status(client, monkeypatch):
     )
     run_id = response.json()["run_id"]
 
+    run_queued_jobs()
     status_response = client.get(f"/runs/{run_id}", headers=auth_headers())
     body = status_response.json()
     assert body["status"] == "failed"
@@ -215,7 +240,7 @@ def test_create_experiment_uploads_each_persona_to_supabase(client, monkeypatch)
     assert body["status"] == "queued"
     assert body["experiment_id"] == "exp_test_00000000"
 
-    # Background task (run synchronously by TestClient) uploaded both personas.
+    run_queued_jobs()
     assert sorted(uploaded) == ["confused_first_time_user", "power_user"]
 
 
@@ -310,8 +335,7 @@ def test_create_audit_queues_and_completes(client, monkeypatch):
     audit_id = body["audit_id"]
     assert audit_id.startswith("audit_")
 
-    # TestClient runs BackgroundTasks synchronously, so the fake audit has
-    # already completed by the time we poll.
+    run_queued_jobs()
     status_response = client.get(f"/audits/{audit_id}", headers=auth_headers())
     assert status_response.status_code == 200
     status_body = status_response.json()
@@ -331,6 +355,7 @@ def test_create_audit_failure_reflected_in_status(client, monkeypatch):
     )
     audit_id = response.json()["audit_id"]
 
+    run_queued_jobs()
     status_response = client.get(f"/audits/{audit_id}", headers=auth_headers())
     body = status_response.json()
     assert body["status"] == "failed"
@@ -341,6 +366,44 @@ def test_create_audit_failure_reflected_in_status(client, monkeypatch):
 def test_get_unknown_audit_is_404(client):
     response = client.get("/audits/audit_never_existed", headers=auth_headers())
     assert response.status_code == 404
+
+
+def test_queued_jobs_run_strictly_one_at_a_time(client, monkeypatch):
+    """The actual production incident this guards against: firing several
+    audits at once used to spin up independent BackgroundTasks that ran
+    concurrently, which (on Cloud Run) triggered a scale-up followed by a
+    scale-down that silently killed whichever jobs landed on the reclaimed
+    instance. JOB_QUEUE + the single _job_worker consumer must guarantee
+    only one job's orchestrator.run_audit() is ever actually executing at
+    once, no matter how many requests arrive first."""
+    active_count = {"current": 0, "max_seen": 0}
+
+    class TrackingAuditOrchestrator(FakeAuditOrchestrator):
+        async def run_audit(self, url, persona=None, audit_id=None):
+            active_count["current"] += 1
+            active_count["max_seen"] = max(active_count["max_seen"], active_count["current"])
+            await asyncio.sleep(0.05)
+            active_count["current"] -= 1
+            return _sample_audit_report()
+
+    monkeypatch.setattr(api_main, "AuditOrchestrator", TrackingAuditOrchestrator)
+
+    audit_ids = [
+        client.post("/audits", json={"url": "https://staging.example.com"}, headers=auth_headers()).json()["audit_id"]
+        for _ in range(3)
+    ]
+
+    # Nothing has drained the queue yet - all three requests must have
+    # returned immediately without waiting for each other or for execution.
+    assert api_main.JOB_QUEUE.qsize() == 3
+    for audit_id in audit_ids:
+        assert api_main.AUDIT_STORE[audit_id]["status"] == "queued"
+
+    run_queued_jobs()
+
+    assert active_count["max_seen"] == 1
+    for audit_id in audit_ids:
+        assert api_main.AUDIT_STORE[audit_id]["status"] == "completed"
 
 
 def test_create_audit_requires_auth(client):
@@ -571,6 +634,7 @@ def test_create_site_audit_queues_and_completes(client, monkeypatch):
     site_audit_id = created.json()["site_audit_id"]
     assert created.json()["status"] == "queued"
 
+    run_queued_jobs()
     status = client.get(f"/site-audits/{site_audit_id}", headers=auth_headers())
     assert status.status_code == 200
     body = status.json()
@@ -593,6 +657,7 @@ def test_create_site_audit_failure_reflected_in_status(client, monkeypatch):
     created = client.post("/site-audits", json={"seed_url": "https://staging.example.com"}, headers=auth_headers())
     site_audit_id = created.json()["site_audit_id"]
 
+    run_queued_jobs()
     status = client.get(f"/site-audits/{site_audit_id}", headers=auth_headers())
     assert status.json()["status"] == "failed"
     assert "crawl boom" in status.json()["error"]

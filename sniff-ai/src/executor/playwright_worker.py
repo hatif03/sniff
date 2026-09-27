@@ -514,6 +514,13 @@ class PlaywrightWorker:
     async def screenshot(self, name: str | None = None) -> str:
         """Capture screenshot of current page state.
 
+        A full-page capture can hang waiting for the page to reach a
+        "stable" render state (fonts/animations settling) on a heavy site -
+        confirmed live: stripe.com timed out here and failed an entire
+        audit that never got to run a single check as a result. Falls back
+        to a cheaper viewport-only capture, then to a placeholder image, so
+        a slow/stuck screenshot degrades the result instead of losing it.
+
         Args:
             name: Optional custom screenshot name
 
@@ -527,10 +534,28 @@ class PlaywrightWorker:
         filename = name or f"step_{self.step_count}_{timestamp}.png"
         screenshot_path = self.artifacts_dir / filename
 
-        await self._page.screenshot(path=str(screenshot_path), full_page=True)
-        logger.debug(f"Screenshot saved: {screenshot_path}")
+        try:
+            await self._page.screenshot(path=str(screenshot_path), full_page=True)
+        except Exception as e:
+            logger.warning(f"Full-page screenshot failed ({e}), retrying viewport-only")
+            try:
+                await self._page.screenshot(path=str(screenshot_path), full_page=False, timeout=15000)
+            except Exception as e2:
+                logger.warning(f"Viewport screenshot also failed ({e2}), using a placeholder image")
+                self._write_placeholder_screenshot(screenshot_path)
 
+        logger.debug(f"Screenshot saved: {screenshot_path}")
         return str(screenshot_path.absolute())
+
+    def _write_placeholder_screenshot(self, path: Path) -> None:
+        """A minimal blank image so a fully-failed capture still leaves a
+        valid file at the expected path - callers (Observation,
+        the Gemini vision call, the dashboard's screenshot viewer) all
+        assume screenshotPath points to a real, openable image."""
+        from PIL import Image
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (1280, 720), color=(240, 240, 240)).save(path)
 
     async def evaluate_page_checks(self) -> dict[str, Any]:
         """Run deterministic landing-page audit checks (colors/fonts sampling,
@@ -671,9 +696,13 @@ class PlaywrightWorker:
         filename = name or f"viewport_{timestamp}.png"
         screenshot_path = self.artifacts_dir / filename
 
-        await self._page.screenshot(path=str(screenshot_path), full_page=False)
-        logger.debug(f"Viewport screenshot saved: {screenshot_path}")
+        try:
+            await self._page.screenshot(path=str(screenshot_path), full_page=False)
+        except Exception as e:
+            logger.warning(f"Viewport screenshot failed ({e}), using a placeholder image")
+            self._write_placeholder_screenshot(screenshot_path)
 
+        logger.debug(f"Viewport screenshot saved: {screenshot_path}")
         return str(screenshot_path.absolute())
 
     async def screenshot_with_overlay(

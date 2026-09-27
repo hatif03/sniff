@@ -10,18 +10,28 @@ Endpoints:
 
 Phase 1 scope (see docs/product/SAAS_ROADMAP.md):
 - Auth is a single shared bearer token (SNIFF_API_TOKEN), not per-user auth.
-- Runs execute as in-process FastAPI BackgroundTasks, not a real job queue.
+- Runs/audits/site-audits/experiments execute one at a time through a single
+  in-process asyncio.Queue worker (JOB_QUEUE below), not a real distributed
+  job queue. Running them concurrently as independent FastAPI BackgroundTasks
+  used to let several heavy Playwright sessions start at once - confirmed
+  live to trigger a Cloud Run scale-up followed by a scale-down that
+  silently killed whichever jobs landed on the reclaimed instance, losing
+  real work with no error ever recorded. Serializing everything through one
+  worker keeps every job on this same, already-warm instance.
 - Run/experiment status lives in a module-level dict (RUN_STORE below) -
   this is lost on process restart. A persistent job store is Phase 2.
 """
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..core.audit_orchestrator import AuditOrchestrator
@@ -79,7 +89,40 @@ AUDIT_STORE: dict[str, dict[str, Any]] = {}
 # produces, no new endpoint needed for per-page detail.
 SITE_AUDIT_STORE: dict[str, dict[str, Any]] = {}
 
-app = FastAPI(title="Sniff API")
+# A run/audit/site-audit/experiment is heavy (a real Playwright browser +
+# several LLM calls) - running more than one at a time on this single
+# instance is what triggered the Cloud Run scale-up/scale-down that
+# silently killed in-flight work (see module docstring). Every job is a
+# zero-arg callable (functools.partial over the same _execute_* functions
+# BackgroundTasks used to call directly) so the single consumer below
+# doesn't need to know which kind of job it's running.
+JOB_QUEUE: asyncio.Queue = asyncio.Queue()
+
+
+async def _job_worker() -> None:
+    """The one and only consumer of JOB_QUEUE - processes jobs strictly one
+    at a time, in submission order. A job's own exception handling (each
+    _execute_* function already catches its own errors and records them in
+    its store) means this loop only needs to guard against something truly
+    unexpected slipping through, so one bad job can't stop every job after it."""
+    while True:
+        job = await JOB_QUEUE.get()
+        try:
+            await job()
+        except Exception:
+            logger.exception("Unhandled exception from a queued job")
+        finally:
+            JOB_QUEUE.task_done()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    worker_task = asyncio.create_task(_job_worker())
+    yield
+    worker_task.cancel()
+
+
+app = FastAPI(title="Sniff API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -164,8 +207,9 @@ async def _execute_run(run_id: str, req: RunRequest) -> None:
 
 
 @app.post("/runs", response_model=RunResponse, dependencies=[Depends(require_auth)])
-def create_run(req: RunRequest, background_tasks: BackgroundTasks) -> RunResponse:
-    """Start a single-persona run in the background. Returns immediately."""
+async def create_run(req: RunRequest) -> RunResponse:
+    """Queue a single-persona run. Returns immediately; actual execution
+    happens one job at a time via JOB_QUEUE (see module docstring)."""
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     run_id = f"run_{timestamp}_{uuid4().hex[:8]}"
 
@@ -176,7 +220,7 @@ def create_run(req: RunRequest, background_tasks: BackgroundTasks) -> RunRespons
         "supabase_url": None,
         "error": None,
     }
-    background_tasks.add_task(_execute_run, run_id, req)
+    await JOB_QUEUE.put(partial(_execute_run, run_id, req))
 
     return RunResponse(run_id=run_id, status="queued")
 
@@ -275,8 +319,9 @@ async def _execute_audit(audit_id: str, req: AuditRequest) -> None:
 
 
 @app.post("/audits", response_model=AuditResponse, dependencies=[Depends(require_auth)])
-def create_audit(req: AuditRequest, background_tasks: BackgroundTasks) -> AuditResponse:
-    """Start a landing-page audit in the background. Returns immediately."""
+async def create_audit(req: AuditRequest) -> AuditResponse:
+    """Queue a landing-page audit. Returns immediately; actual execution
+    happens one job at a time via JOB_QUEUE (see module docstring)."""
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     audit_id = f"audit_{timestamp}_{uuid4().hex[:8]}"
 
@@ -285,7 +330,7 @@ def create_audit(req: AuditRequest, background_tasks: BackgroundTasks) -> AuditR
         "report": None,
         "error": None,
     }
-    background_tasks.add_task(_execute_audit, audit_id, req)
+    await JOB_QUEUE.put(partial(_execute_audit, audit_id, req))
 
     return AuditResponse(audit_id=audit_id, status="queued")
 
@@ -323,8 +368,12 @@ def get_audit_image(audit_id: str, filename: str):
 
 
 @app.post("/experiments", response_model=ExperimentResponse, dependencies=[Depends(require_auth)])
-def create_experiment(req: ExperimentRequest, background_tasks: BackgroundTasks) -> ExperimentResponse:
-    """Start a multi-persona experiment in the background. Returns immediately."""
+async def create_experiment(req: ExperimentRequest) -> ExperimentResponse:
+    """Queue a multi-persona experiment. Returns immediately; actual
+    execution happens one job at a time via JOB_QUEUE (see module
+    docstring) - note this means an experiment's own personas, even if
+    req.parallel was requested, now run behind whatever else is already
+    queued, not concurrently with other jobs on this instance."""
     orchestrator = ExperimentOrchestrator(config)
     experiment = orchestrator.create_experiment(
         name=f"api_{req.goal[:40]}",
@@ -333,7 +382,7 @@ def create_experiment(req: ExperimentRequest, background_tasks: BackgroundTasks)
         url=req.url,
         parallel=req.parallel,
     )
-    background_tasks.add_task(_execute_experiment, orchestrator, experiment)
+    await JOB_QUEUE.put(partial(_execute_experiment, orchestrator, experiment))
 
     return ExperimentResponse(experiment_id=experiment.experiment_id, status="queued")
 
@@ -425,11 +474,12 @@ def _schedule_still_busy(last_run_id: str | None, mode: str) -> bool:
 
 
 @app.post("/internal/scheduler/tick", response_model=TickResponse, dependencies=[Depends(require_auth)])
-def scheduler_tick(background_tasks: BackgroundTasks) -> TickResponse:
+async def scheduler_tick() -> TickResponse:
     """Hit by an external Cloud Scheduler job on a fixed cadence (not called
     by the frontend). Finds due schedules, atomically claims each one, and
-    enqueues its run/audit via the same background-task path POST /runs and
-    POST /audits already use."""
+    queues its run/audit via the same JOB_QUEUE path POST /runs and
+    POST /audits already use - so multiple schedules due in the same tick
+    also run one at a time rather than all at once."""
     store = _require_schedule_store()
     now = datetime.utcnow()
 
@@ -452,14 +502,14 @@ def scheduler_tick(background_tasks: BackgroundTasks) -> TickResponse:
             run_id = f"run_{timestamp}_{uuid4().hex[:8]}"
             RUN_STORE[run_id] = {"status": "queued", "outcome": None, "diagnosis": None, "supabase_url": None, "error": None}
             req = RunRequest(goal=row["goal"], url=row["url"], persona=row["persona"] or "confused_first_time_user", device=row.get("device"), network=row.get("network"))
-            background_tasks.add_task(_execute_run, run_id, req)
+            await JOB_QUEUE.put(partial(_execute_run, run_id, req))
             store.record_last_run(schedule_id, run_id)
         else:
             timestamp = now.strftime("%Y%m%d_%H%M%S")
             audit_id = f"audit_{timestamp}_{uuid4().hex[:8]}"
             AUDIT_STORE[audit_id] = {"status": "queued", "report": None, "error": None}
             audit_req = AuditRequest(url=row["url"], persona=row.get("persona"))
-            background_tasks.add_task(_execute_audit, audit_id, audit_req)
+            await JOB_QUEUE.put(partial(_execute_audit, audit_id, audit_req))
             store.record_last_run(schedule_id, audit_id)
 
         triggered.append(schedule_id)
@@ -562,11 +612,12 @@ async def _execute_site_audit(site_audit_id: str, req: SiteAuditRequest) -> None
 
 
 @app.post("/site-audits", response_model=SiteAuditResponse, dependencies=[Depends(require_auth)])
-def create_site_audit(req: SiteAuditRequest, background_tasks: BackgroundTasks) -> SiteAuditResponse:
-    """Start a whole-site audit crawl in the background. Returns immediately.
+async def create_site_audit(req: SiteAuditRequest) -> SiteAuditResponse:
+    """Queue a whole-site audit crawl. Returns immediately; actual execution
+    happens one job at a time via JOB_QUEUE (see module docstring).
 
     The request body's `login.password`/`storage_state` are used only by the
-    background task to establish a browser session - never written into
+    queued job to establish a browser session - never written into
     SITE_AUDIT_STORE, never logged, never returned by any response."""
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     site_audit_id = f"site_audit_{timestamp}_{uuid4().hex[:8]}"
@@ -580,7 +631,7 @@ def create_site_audit(req: SiteAuditRequest, background_tasks: BackgroundTasks) 
         "manifest": {},
         "error": None,
     }
-    background_tasks.add_task(_execute_site_audit, site_audit_id, req)
+    await JOB_QUEUE.put(partial(_execute_site_audit, site_audit_id, req))
 
     return SiteAuditResponse(site_audit_id=site_audit_id, status="queued")
 
