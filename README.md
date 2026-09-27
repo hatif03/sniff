@@ -2,7 +2,7 @@
 
 > An autonomous browser agent that tests signup flows and audits landing pages the way a real, easily-confused human would — then tells you exactly why they left.
 
-[![Tests](https://img.shields.io/badge/tests-193%20passing-brightgreen)](./sniff-ai)
+[![Tests](https://img.shields.io/badge/tests-201%20passing-brightgreen)](./sniff-ai)
 [![Backend](https://img.shields.io/badge/backend-Cloud%20Run-blue)](https://cloud.google.com/run)
 [![Frontend](https://img.shields.io/badge/frontend-Vercel-black)](https://vercel.com)
 [![Built with IBM Bob](https://img.shields.io/badge/built%20with-IBM%20Bob%202.0-0f62fe)](./agents.md)
@@ -16,7 +16,7 @@ This project was built entirely using **IBM Bob 2.0** across two organisations:
 | Organisation | Region | Role |
 |---|---|---|
 | `TECHZONE-TS022872826` | us-east | Existing organisation from a prior IBM hackathon. A significant portion of the earlier sessions (Sessions 00–12) were run under this org. |
-| `ibm-coding-challenge-uat` | us-east | Current active organisation. Later sessions (Sessions 13–16) and all recent work run here. |
+| `ibm-coding-challenge-uat` | us-east | Current active organisation. Later sessions (Sessions 13–17) and all recent work run here. |
 
 > **Note:** Both organisations used IBM Bob 2.0's Plan mode and Agent mode. The sessions documented in [`bob_sessions/`](./bob_sessions/) span both organisations. All architectural decisions, code, documentation, and deployment were produced by Bob sessions under one or the other org. See [`agents.md`](./agents.md) for the full record of Bob usage.
 
@@ -215,6 +215,10 @@ timeline
         Session 16 : Whole-site audit — crawl + optional login
                    : 4 live-discovered bugs fixed
                    : 193 tests passing
+    section Production Hardening
+        Session 17 : Fixed a blocking-call bug freezing the server
+                   : JOB_QUEUE — background jobs now serialized
+                   : Screenshot-timeout resilience, 201 tests passing
 ```
 
 ---
@@ -308,7 +312,7 @@ sniff/
 └── bob_sessions/                ← IBM Bob session diary (17 sessions)
     ├── README.md                ← Session index
     ├── architecture.md          ← Architectural evolution record
-    └── 00-16/                   ← Per-session: prompt.md, session-summary.md, bob-methodology.md
+    └── 00-17/                   ← Per-session: prompt.md, session-summary.md, bob-methodology.md
 ```
 
 ---
@@ -421,7 +425,7 @@ The stack is deployed as two services:
 Sniff was built entirely through IBM Bob 2.0 sessions across **two IBM organisations**:
 
 - **TECHZONE-TS022872826** (us-east) — prior hackathon org, used for Sessions 00–12
-- **ibm-coding-challenge-uat** (us-east) — current org, used for Sessions 13–16 and ongoing
+- **ibm-coding-challenge-uat** (us-east) — current org, used for Sessions 13–17 and ongoing
 
 Every session is documented in [`bob_sessions/`](./bob_sessions/) with:
 - The exact prompt given to Bob
@@ -463,8 +467,8 @@ See [`agents.md`](./agents.md) for the complete record and [`bob_sessions/archit
 
 | Metric | Value |
 |---|---|
-| Tests | 193 / 193 passing |
-| Bob sessions | 17 (12 complete, 5 planned features pending) |
+| Tests | 201 / 201 passing |
+| Bob sessions | 18 (13 complete, 5 planned features pending) |
 | Product surfaces | 3 (signup testing · landing-page audit · whole-site audit) |
 | Deployment | Live — Cloud Run + Vercel |
 | Auth model | Phase 1 (shared secret) — Phase 2 planned |

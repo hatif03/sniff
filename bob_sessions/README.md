@@ -23,9 +23,9 @@ Each subfolder represents one distinct Bob session (a focused unit of work). Ins
 
 | File | Purpose |
 |---|---|
-| `prompt.md` | The exact prompt(s) given to Bob for this session |
+| `prompt.md` | (Sessions 01–05) The exact prompt(s) given to Bob for this session |
 | `session-summary.md` | What was accomplished, files created/changed, deviations, next steps |
-| `architecture.md` | (Where applicable) Architectural decisions and diagrams for this session |
+| `bob-methodology.md` | (Sessions 13–17) How Bob worked — mode, tools, techniques, discipline applied |
 
 ## Session Index
 
@@ -48,6 +48,7 @@ Each subfolder represents one distinct Bob session (a focused unit of work). Ins
 | [14](./14-ui-reimagine-and-shared-data/) | UI Reimagine, Shared Persistent Data, Web-First Messaging | ✅ Complete | Agent | Design-system rebuild, shared-Supabase-backed history (not localStorage) |
 | [15](./15-trends-and-scheduled-runs/) | Trends, Reconnected Analytics, Reliable Scheduled Runs | ✅ Complete | Agent | Dashboard "Trends" tab, `schedules` table + `POST /internal/scheduler/tick`, real Cloud Scheduler job |
 | [16](./16-whole-site-audit/) | Whole-Site Audit | ✅ Complete | Agent | `SiteAuditOrchestrator`, `POST /site-audits`, login/session-reuse crawl, dashboard rollup + drill-down view |
+| [17](./17-production-reliability-hardening/) | Production Reliability Hardening | ✅ Complete | Agent | Fixed a blocking-call bug freezing the server, `JOB_QUEUE` serializing execution, screenshot-timeout resilience |
 
 ## How to Read These Sessions
 

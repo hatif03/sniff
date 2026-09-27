@@ -251,6 +251,45 @@ Covered by two new client-level tests. Fix applied to the client layer (affects 
 
 ---
 
+## Decision 11: Blocking LLM Call Inside an Async Handler
+
+**Session**: 17
+**Status**: In production
+
+### What Happened
+A real user-reported run against `https://lablab.ai/` completed with 0 steps and no error anywhere. Investigation of live Supabase data + Cloud Run logs found the actual mechanism: `GoalEnhancer.enhance_goal()` (k2-horizon) was called directly inside the `async def _handle_navigate` handler, not wrapped in `run_in_executor` like every other LLM call in the orchestrator. A slow call froze the single FastAPI process for every request — confirmed live via a concurrent status-poll request logging 36.8s of latency for an in-memory dict read. The dwell-time clock also started before this call ran, so it could burn the entire 30s guardrail budget before the agent's first decision.
+
+### Fix
+Wrapped the call (and a second, latent instance in the planner's `get_next_action_plan`) in `run_in_executor`. Moved the dwell-clock reset to after goal enhancement completes. 3 regression tests, confirmed to fail against the pre-fix code.
+
+---
+
+## Decision 12: Single In-Process Job Queue (`JOB_QUEUE`)
+
+**Session**: 17
+**Status**: In production (all 6 background-task call sites migrated)
+
+### What Happened
+Firing several `POST /audits` requests concurrently (while seeding demo data) triggered a Cloud Run scale-up followed by a scale-down that silently killed whichever job had landed on the reclaimed instance — no error recorded, the work just vanished.
+
+### Fix
+Replaced every `BackgroundTasks.add_task(...)` call (`/runs`, `/audits`, `/experiments`, both branches of `/internal/scheduler/tick`, `/site-audits`) with a single module-level `asyncio.Queue` and one consumer coroutine (`_job_worker`), started via the app's `lifespan`. Every job now executes strictly one at a time, in submission order, on this one already-warm instance — regardless of how many requests arrive concurrently. API responses are unchanged (still immediate `status: "queued"`); only execution timing changed. A deliberate, proportionate choice: a real distributed queue (Celery+Redis) remains Phase 2 scope per `SAAS_ROADMAP.md` — this is the smallest change that solves the problem Phase 1 actually hit.
+
+---
+
+## Decision 13: Screenshot Capture Resilience
+
+**Session**: 17
+**Status**: In production
+
+### What Happened
+A seeded audit against `stripe.com` failed entirely: `Page.screenshot(full_page=True)` timed out after 30s waiting for the page to reach a stable render state (fonts still loading), taking down the whole audit before a single check had run.
+
+### Fix
+`PlaywrightWorker.screenshot()` now falls back from a full-page capture to a cheaper viewport-only capture, then to a placeholder image, on failure — so `screenshotPath` always points to a real file and the rest of the audit pipeline can still run on a degraded page. `screenshot_viewport()` got the same placeholder fallback directly; `screenshot_with_overlay()` inherits it for free (it already delegates to `screenshot_viewport()`). 4 new tests using a fake Playwright `Page` prove each fallback tier.
+
+---
+
 ## Architecture State: Beginning vs End
 
 ### Beginning (Before Session 00)
@@ -265,7 +304,7 @@ No deployment. No brand name. No Supabase project provisioned.
 193 test count: 67 (end of planning phase)
 ```
 
-### End (After Session 16)
+### End (After Session 17)
 ```
 sniff-ai/ (sniff)
 ├── Python FastAPI backend
@@ -274,6 +313,7 @@ sniff-ai/ (sniff)
 │   ├── Tier 3: Gemini/Vertex AI (vision navigation, audit scoring)
 │   │         + k2-horizon/ifm.ai (text: planning, persona review, copy rewrites)
 │   ├── RunOrchestrator + AuditOrchestrator + SiteAuditOrchestrator
+│   ├── JOB_QUEUE + _job_worker — every background job serialized, one at a time
 │   ├── POST /runs, POST /audits, POST /site-audits
 │   └── Cloud Scheduler → POST /internal/scheduler/tick (atomic claim pattern)
 │
@@ -285,5 +325,5 @@ sniff-web/ (Next.js App Router)
 └── Supabase (public Postgres): runs, audits, site_audits, schedules
 
 Deployed: Cloud Run (backend) + Vercel (frontend) + GCP Cloud Scheduler
-Tests: 193/193 passing
+Tests: 201/201 passing
 ```

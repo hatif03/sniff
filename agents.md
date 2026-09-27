@@ -1,6 +1,6 @@
 # Sniff — Agent-Assisted Development Record
 
-This document describes how **IBM Bob 2.0** (the AI coding agent) was used to design, plan, and build every feature of Sniff from the ground up. It serves as the canonical reference for the agent-assisted development methodology used across all 17 Bob sessions.
+This document describes how **IBM Bob 2.0** (the AI coding agent) was used to design, plan, and build every feature of Sniff from the ground up. It serves as the canonical reference for the agent-assisted development methodology used across all 18 Bob sessions.
 
 ---
 
@@ -11,7 +11,7 @@ This project was built using **IBM Bob 2.0** across two IBM organisations:
 | Organisation | Region | Sessions | Notes |
 |---|---|---|---|
 | `TECHZONE-TS022872826` | us-east | Sessions 00–12 | Existing organisation from a prior IBM hackathon. Used for the majority of the build — all foundational, architectural, and early-feature work. |
-| `ibm-coding-challenge-uat` | us-east | Sessions 13–16 + current | Active organisation for this challenge. Used for deployment, the audit feature, Supabase provisioning, trends analytics, and whole-site audit. |
+| `ibm-coding-challenge-uat` | us-east | Sessions 13–17 + current | Active organisation for this challenge. Used for deployment, the audit feature, Supabase provisioning, trends analytics, whole-site audit, and production reliability hardening. |
 
 > Both organisations ran **identical IBM Bob 2.0 capabilities**: Plan mode, Agent mode, sub-agent spawning, MCP server connections (including Supabase MCP), skills, and shell tool access. The org switch was a workspace/billing boundary, not a capability boundary — the same Bob tooling and the same methodology applied across both.
 
@@ -41,7 +41,7 @@ Sniff is an autonomous browser agent that simulates real user behaviour to test 
 
 **Starting state**: A Python CLI tool with a single-tier AWS Bedrock Claude decision pipeline, no public name, no web product surface, and no deployment.
 
-**Final state**: A fully deployed product (Cloud Run backend + Vercel frontend), two product surfaces (signup-flow testing + landing-page conversion audit + whole-site crawl), a three-tier AI reasoning stack (Deterministic → Jev → Gemini/k2-horizon), shared Supabase persistence, scheduled continuous runs, and 193 passing tests.
+**Final state**: A fully deployed product (Cloud Run backend + Vercel frontend), three product surfaces (signup-flow testing + landing-page conversion audit + whole-site crawl), a three-tier AI reasoning stack (Deterministic → Jev → Gemini/k2-horizon), shared Supabase persistence, scheduled continuous runs, a single-worker job queue serializing all background execution, and 201 passing tests.
 
 ---
 
@@ -66,6 +66,7 @@ Sniff is an autonomous browser agent that simulates real user behaviour to test 
 | [14](./bob_sessions/14-ui-reimagine-and-shared-data/) | UI Reimagine + Shared Data | Agent | Supabase MCP provisioning; sub-agent delegation; investigate-before-build discipline |
 | [15](./bob_sessions/15-trends-and-scheduled-runs/) | Trends + Reliable Scheduled Runs | Agent | Sub-agent parallelism; GCP Cloud Scheduler integration; live production verification |
 | [16](./bob_sessions/16-whole-site-audit/) | Whole-Site Audit | Agent | Research-before-design; live-testing-as-bug-finder; four bug fixes from real runs |
+| [17](./bob_sessions/17-production-reliability-hardening/) | Production Reliability Hardening | Agent | Root-caused a live failure from Supabase data + Cloud Run logs; fixed a blocking-call bug and a concurrent-execution bug found via real production use |
 
 ---
 
