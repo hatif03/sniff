@@ -30,7 +30,12 @@ from ..core.experiment_models import ExperimentConfig
 from ..core.experiment_orchestrator import ExperimentOrchestrator
 from ..core.models import DiagnosisResult
 from ..core.orchestrator import RunOrchestrator
-from ..integrations.supabase_client import create_schedule_store, create_supabase_uploader
+from ..core.site_audit_orchestrator import SiteAuditOrchestrator
+from ..integrations.supabase_client import (
+    create_schedule_store,
+    create_site_audit_store,
+    create_supabase_uploader,
+)
 from .schemas import (
     AuditRequest,
     AuditResponse,
@@ -45,6 +50,10 @@ from .schemas import (
     ScheduleRequest,
     ScheduleResponse,
     ScheduleUpdateRequest,
+    SiteAuditPageSummary,
+    SiteAuditRequest,
+    SiteAuditResponse,
+    SiteAuditStatusResponse,
     TickResponse,
 )
 
@@ -62,6 +71,13 @@ RUN_STORE: dict[str, dict[str, Any]] = {}
 # GET /audits/{audit_id} returns the full AuditReport straight out of this
 # in-process dict once status == "completed".
 AUDIT_STORE: dict[str, dict[str, Any]] = {}
+
+# Same pattern again, for whole-site audit crawls. Each individual page a
+# crawl visits also gets its own entry in AUDIT_STORE above (tagged with a
+# synthetic "{site_audit_id}_pN" audit_id) - the existing GET /audits/{id}
+# and image-serving endpoints work unchanged for every page a site audit
+# produces, no new endpoint needed for per-page detail.
+SITE_AUDIT_STORE: dict[str, dict[str, Any]] = {}
 
 app = FastAPI(title="Sniff API")
 
@@ -449,3 +465,155 @@ def scheduler_tick(background_tasks: BackgroundTasks) -> TickResponse:
         triggered.append(schedule_id)
 
     return TickResponse(ticked_at=now.isoformat(), triggered=triggered, skipped_busy=skipped_busy)
+
+
+# -- Whole-site audits: crawl every reachable page, log in if given --------
+
+
+async def _execute_site_audit(site_audit_id: str, req: SiteAuditRequest) -> None:
+    """Background task body for a whole-site audit crawl. Updates
+    SITE_AUDIT_STORE[site_audit_id] in place, plus AUDIT_STORE for every
+    individual page as it completes (so GET /audits/{page_id} and its image
+    endpoint work unchanged for each page - no new per-page endpoint
+    needed)."""
+    SITE_AUDIT_STORE[site_audit_id]["status"] = "running"
+    site_audit_store = create_site_audit_store(config)
+    uploader = create_supabase_uploader(config)
+
+    try:
+        if site_audit_store:
+            try:
+                site_audit_store.create_site_audit(
+                    site_audit_id, req.seed_url, req.max_pages or config.guardrails.max_site_audit_pages
+                )
+            except Exception as e:
+                logger.warning(f"Could not create site_audits row for {site_audit_id}: {e}")
+
+        pages_done = {"n": 0}
+
+        async def _on_page_complete(url: str, page_audit_id: str, report) -> None:
+            # page_audit_id comes straight from the orchestrator (the exact
+            # ID it already used for this page's artifacts_dir/manifest
+            # entry) rather than being independently re-derived here, so
+            # the two can never drift out of sync.
+            pages_done["n"] += 1
+            AUDIT_STORE[page_audit_id] = {"status": "completed", "report": report, "error": None}
+            # Update the live in-process store immediately, not just once at
+            # crawl end - this is what GET /site-audits/{id} reads while
+            # status is "running", and a poll mid-crawl must show real
+            # progress. The final manifest (incl. skipped/failed entries)
+            # still overwrites this in full once the crawl completes below.
+            store_entry = SITE_AUDIT_STORE[site_audit_id]
+            store_entry["manifest"][url] = {"status": "audited", "audit_id": page_audit_id}
+            store_entry["pages_audited"] = pages_done["n"]
+            store_entry["pages_discovered"] = len(store_entry["manifest"])
+            if uploader:
+                try:
+                    uploader.upload_audit(
+                        audit_id=page_audit_id, url=url, persona=req.persona, report=report,
+                        site_audit_id=site_audit_id,
+                    )
+                except Exception as e:
+                    logger.warning(f"Supabase upload failed for site-audit page {page_audit_id}: {e}")
+            if site_audit_store:
+                try:
+                    site_audit_store.update_progress(
+                        site_audit_id, pages_audited=pages_done["n"], manifest=store_entry["manifest"]
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not update site_audits progress for {site_audit_id}: {e}")
+
+        orchestrator = SiteAuditOrchestrator(config=config)
+        login = req.login.model_dump() if req.login else None
+        _, manifest = await orchestrator.run_site_audit(
+            seed_url=req.seed_url,
+            persona=req.persona,
+            max_pages=req.max_pages,
+            max_depth=req.max_depth,
+            login=login,
+            storage_state=req.storage_state,
+            site_audit_id=site_audit_id,
+            on_page_complete=_on_page_complete,
+        )
+
+        manifest_dict = manifest.as_dict()
+        pages_audited = len([v for v in manifest_dict.values() if v.get("status") == "audited"])
+        SITE_AUDIT_STORE[site_audit_id].update(
+            status="completed",
+            manifest=manifest_dict,
+            pages_discovered=len(manifest_dict),
+            pages_audited=pages_audited,
+            error=None,
+        )
+        if site_audit_store:
+            try:
+                site_audit_store.complete(site_audit_id, "completed", manifest_dict)
+            except Exception as e:
+                logger.warning(f"Could not finalize site_audits row for {site_audit_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"Site audit {site_audit_id} failed: {e}", exc_info=True)
+        SITE_AUDIT_STORE[site_audit_id].update(status="failed", error=str(e))
+        if site_audit_store:
+            try:
+                site_audit_store.complete(site_audit_id, "failed", SITE_AUDIT_STORE[site_audit_id].get("manifest", {}), error=str(e))
+            except Exception:
+                pass
+
+
+@app.post("/site-audits", response_model=SiteAuditResponse, dependencies=[Depends(require_auth)])
+def create_site_audit(req: SiteAuditRequest, background_tasks: BackgroundTasks) -> SiteAuditResponse:
+    """Start a whole-site audit crawl in the background. Returns immediately.
+
+    The request body's `login.password`/`storage_state` are used only by the
+    background task to establish a browser session - never written into
+    SITE_AUDIT_STORE, never logged, never returned by any response."""
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    site_audit_id = f"site_audit_{timestamp}_{uuid4().hex[:8]}"
+
+    SITE_AUDIT_STORE[site_audit_id] = {
+        "status": "queued",
+        "seed_url": req.seed_url,
+        "max_pages": req.max_pages or config.guardrails.max_site_audit_pages,
+        "pages_discovered": 0,
+        "pages_audited": 0,
+        "manifest": {},
+        "error": None,
+    }
+    background_tasks.add_task(_execute_site_audit, site_audit_id, req)
+
+    return SiteAuditResponse(site_audit_id=site_audit_id, status="queued")
+
+
+@app.get("/site-audits/{site_audit_id}", response_model=SiteAuditStatusResponse, dependencies=[Depends(require_auth)])
+def get_site_audit(site_audit_id: str) -> SiteAuditStatusResponse:
+    """Poll status/progress for a previously-started site audit. `pages`
+    lists every page audited so far, each linkable to its full report via
+    the existing GET /audits/{audit_id}."""
+    entry = SITE_AUDIT_STORE.get(site_audit_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"Unknown site_audit_id: {site_audit_id}")
+
+    pages = [
+        SiteAuditPageSummary(
+            audit_id=audit_id,
+            url=url,
+            overall_score=(AUDIT_STORE.get(audit_id, {}).get("report").overall_score if AUDIT_STORE.get(audit_id, {}).get("report") else None),
+            label=(AUDIT_STORE.get(audit_id, {}).get("report").label if AUDIT_STORE.get(audit_id, {}).get("report") else None),
+        )
+        for url, info in entry.get("manifest", {}).items()
+        if info.get("status") == "audited"
+        for audit_id in [info["audit_id"]]
+    ]
+
+    return SiteAuditStatusResponse(
+        site_audit_id=site_audit_id,
+        status=entry["status"],
+        seed_url=entry["seed_url"],
+        max_pages=entry["max_pages"],
+        pages_discovered=entry.get("pages_discovered", 0),
+        pages_audited=entry.get("pages_audited", 0),
+        manifest=entry.get("manifest", {}),
+        pages=pages,
+        error=entry.get("error"),
+    )

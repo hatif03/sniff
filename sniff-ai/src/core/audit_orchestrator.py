@@ -78,6 +78,12 @@ class AuditOrchestrator:
     async def _run_audit_body(
         self, url: str, audit_id: str, persona_profile: PersonaProfile
     ) -> AuditReport:
+        """Single-page entry point: create a worker, navigate once, hand off
+        to run_audit_on_page. Kept as a thin wrapper so this method's own
+        behavior is unchanged - the reusable per-page logic now lives in
+        run_audit_on_page, which SiteAuditOrchestrator also calls directly
+        (once per crawled page, on one shared worker session) without going
+        through this per-call worker creation."""
         artifacts_dir = Path(self.config.artifacts_path) / audit_id
         artifacts_dir.mkdir(parents=True, exist_ok=True)
 
@@ -92,28 +98,47 @@ class AuditOrchestrator:
             slow_mo=self.config.playwright.slow_mo,
         ) as worker:
             observation = await worker.navigate(url, timeout=self.config.playwright.navigation_timeout)
-
-            raw_checks = await worker.evaluate_page_checks()
-            candidates = select_cta_candidates(raw_checks)
-            visual_teaser = build_visual_teaser(raw_checks)
-            evidence_base = build_browsing_evidence_base(raw_checks, candidates)
-
-            gemini_result = await self._run_vision_synthesis(
-                gemini_client, url, observation, raw_checks, candidates, persona_profile
+            return await self.run_audit_on_page(
+                worker, url, observation, persona_profile, gemini_client, k2_client
             )
-            role_assignments = gemini_result.get("cta_role_assignments") or []
 
-            overlay_annotations = merge_role_assignments(candidates, role_assignments)
-            images = await capture_audit_screenshots(worker, overlay_annotations)
+    async def run_audit_on_page(
+        self,
+        worker: PlaywrightWorker,
+        url: str,
+        observation: Any,
+        persona_profile: PersonaProfile,
+        gemini_client: Any,
+        k2_client: Any,
+    ) -> AuditReport:
+        """Per-page audit body: checks -> CTA testing -> screenshots -> both
+        LLM syntheses -> AuditReport. Takes an already-initialized worker
+        that has already navigated to `url` (its resulting `observation`) -
+        this is the reusable unit a multi-page crawl calls once per page on
+        one shared (optionally already-authenticated) worker session,
+        instead of creating a brand new session - and losing any login -
+        for every page."""
+        raw_checks = await worker.evaluate_page_checks()
+        candidates = select_cta_candidates(raw_checks)
+        visual_teaser = build_visual_teaser(raw_checks)
+        evidence_base = build_browsing_evidence_base(raw_checks, candidates)
 
-            tests = await self._run_cta_click_tests(worker, url, candidates, role_assignments)
+        gemini_result = await self._run_vision_synthesis(
+            gemini_client, url, observation, raw_checks, candidates, persona_profile
+        )
+        role_assignments = gemini_result.get("cta_role_assignments") or []
 
-            link_results = await check_footer_links(raw_checks.get("footer_nav_links") or [])
-            navigation_findings = build_navigation_findings(link_results)
+        overlay_annotations = merge_role_assignments(candidates, role_assignments)
+        images = await capture_audit_screenshots(worker, overlay_annotations)
 
-            k2_result = await self._run_text_synthesis(
-                k2_client, url, observation, raw_checks, tests, navigation_findings, gemini_result, persona_profile
-            )
+        tests = await self._run_cta_click_tests(worker, url, candidates, role_assignments)
+
+        link_results = await check_footer_links(raw_checks.get("footer_nav_links") or [])
+        navigation_findings = build_navigation_findings(link_results)
+
+        k2_result = await self._run_text_synthesis(
+            k2_client, url, observation, raw_checks, tests, navigation_findings, gemini_result, persona_profile
+        )
 
         growth_navigation = dict(k2_result.get("growth_navigation") or {"score": 5.0, "findings": []})
         growth_navigation["findings"] = navigation_findings + list(growth_navigation.get("findings") or [])
@@ -245,7 +270,12 @@ class AuditOrchestrator:
             lambda: k2_client.invoke_with_json_response(
                 system_prompt=_K2_AUDIT_SYSTEM_PROMPT,
                 user_message=_json.dumps(user_payload),
-                max_tokens=4096,
+                # k2-horizon is a reasoning model: response_format=json_object
+                # guarantees syntax but not that reasoning stays out of the
+                # budget - discovered live against real sites, where 4096
+                # was sometimes exhausted by chain-of-thought before any
+                # JSON was emitted at all, failing the whole page audit.
+                max_tokens=8192,
                 temperature=0.5,
             ),
         )

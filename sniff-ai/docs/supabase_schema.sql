@@ -196,6 +196,11 @@ CREATE TABLE audits (
     lcp NUMERIC,
     fcp NUMERIC,
     cls NUMERIC,
+    -- Nullable: most audits are still standalone single-page audits. Set
+    -- when this audit is one page of a whole-site audit (see site_audits
+    -- below - the FK constraint is added after that table exists, further
+    -- down this file, since it's defined later for readability).
+    site_audit_id TEXT,
     report_json JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -203,6 +208,7 @@ CREATE TABLE audits (
 CREATE INDEX idx_audits_audit_id ON audits (audit_id);
 CREATE INDEX idx_audits_created_at ON audits (created_at DESC);
 CREATE INDEX idx_audits_url ON audits (url);
+CREATE INDEX idx_audits_site_audit_id ON audits (site_audit_id);
 
 ALTER TABLE audits ENABLE ROW LEVEL SECURITY;
 
@@ -243,6 +249,44 @@ ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public schedules are viewable by everyone"
     ON schedules FOR SELECT
     USING (true);
+
+-- =============================================================================
+-- SITE_AUDITS TABLE
+-- Whole-site audit crawls (parent record). Each page it visits is a normal
+-- row in the existing `audits` table, tagged via audits.site_audit_id - the
+-- per-page report/screenshot/CTA-click-evidence shape is completely reused,
+-- unchanged, from the single-page audit feature.
+-- =============================================================================
+CREATE TABLE site_audits (
+    id BIGSERIAL PRIMARY KEY,
+    site_audit_id TEXT UNIQUE NOT NULL,
+    seed_url TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+    max_pages INTEGER NOT NULL,
+    pages_discovered INTEGER NOT NULL DEFAULT 0,
+    pages_audited INTEGER NOT NULL DEFAULT 0,
+    -- Per-URL {status: audited|skipped|failed, ...} record - the literal
+    -- "what we visited and what not" proof surfaced in the dashboard.
+    manifest JSONB,
+    error TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_site_audits_site_audit_id ON site_audits (site_audit_id);
+CREATE INDEX idx_site_audits_created_at ON site_audits (created_at DESC);
+
+ALTER TABLE site_audits ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public site audits are viewable by everyone"
+    ON site_audits FOR SELECT
+    USING (true);
+
+-- Deferred FK: audits.site_audit_id references this table, added here now
+-- that site_audits exists (the column itself was declared nullable, with no
+-- inline constraint, back in the AUDITS TABLE section above).
+ALTER TABLE audits
+    ADD CONSTRAINT fk_audits_site_audit_id
+    FOREIGN KEY (site_audit_id) REFERENCES site_audits(site_audit_id) ON DELETE CASCADE;
 
 -- =============================================================================
 -- VIEWS FOR DASHBOARD QUERIES
@@ -358,6 +402,7 @@ COMMENT ON TABLE agent_reasoning IS 'Agent decision-making transparency log';
 COMMENT ON TABLE persona_reviews IS 'Persona experience reviews for UX insights';
 COMMENT ON TABLE audits IS 'Landing-page conversion audit records, full report stored as JSONB';
 COMMENT ON TABLE schedules IS 'Recurring run/audit definitions, ticked by an external Cloud Scheduler job';
+COMMENT ON TABLE site_audits IS 'Whole-site audit crawls - parent record; each visited page is a normal audits row tagged via site_audit_id';
 
 COMMENT ON VIEW run_summaries IS 'Denormalized view for dashboard run list';
 COMMENT ON VIEW persona_metrics IS 'Aggregated persona performance metrics';

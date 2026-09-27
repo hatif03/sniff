@@ -4,6 +4,8 @@ Mocks RunOrchestrator/ExperimentOrchestrator and the Supabase uploader so no
 real Playwright browser, Gemini/k2-horizon call, or Supabase upload happens.
 """
 
+import copy
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -19,9 +21,11 @@ def api_token(monkeypatch):
     monkeypatch.setattr(api_main.config.api, "token", "test-token")
     api_main.RUN_STORE.clear()
     api_main.AUDIT_STORE.clear()
+    api_main.SITE_AUDIT_STORE.clear()
     yield
     api_main.RUN_STORE.clear()
     api_main.AUDIT_STORE.clear()
+    api_main.SITE_AUDIT_STORE.clear()
 
 
 @pytest.fixture
@@ -521,4 +525,145 @@ def test_scheduler_tick_triggers_due_schedule_and_skips_busy_one(client, monkeyp
 
 def test_scheduler_tick_requires_auth(client):
     response = client.post("/internal/scheduler/tick")
+    assert response.status_code == 401
+
+
+class FakeSiteAuditOrchestrator:
+    """Stand-in for core.site_audit_orchestrator.SiteAuditOrchestrator - no
+    browser, no LLM, no real crawl."""
+
+    def __init__(self, config):
+        self.config = config
+
+    async def run_site_audit(
+        self, seed_url, persona=None, max_pages=None, max_depth=None,
+        login=None, storage_state=None, site_audit_id=None, on_page_complete=None,
+    ):
+        from src.core.site_crawl import CrawlManifest
+
+        manifest = CrawlManifest()
+        page_audit_id = f"{site_audit_id}_p0"
+        manifest.mark_audited(seed_url, page_audit_id)
+        if on_page_complete:
+            result = on_page_complete(seed_url, page_audit_id, _sample_audit_report())
+            if hasattr(result, "__await__"):
+                await result
+        return site_audit_id, manifest
+
+
+class FailingSiteAuditOrchestrator(FakeSiteAuditOrchestrator):
+    async def run_site_audit(self, *args, **kwargs):
+        raise RuntimeError("crawl boom")
+
+
+def test_create_site_audit_requires_auth(client):
+    response = client.post("/site-audits", json={"seed_url": "https://staging.example.com"})
+    assert response.status_code == 401
+
+
+def test_create_site_audit_queues_and_completes(client, monkeypatch):
+    monkeypatch.setattr(api_main, "SiteAuditOrchestrator", FakeSiteAuditOrchestrator)
+
+    created = client.post(
+        "/site-audits", json={"seed_url": "https://staging.example.com", "max_pages": 5}, headers=auth_headers()
+    )
+    assert created.status_code == 200
+    site_audit_id = created.json()["site_audit_id"]
+    assert created.json()["status"] == "queued"
+
+    status = client.get(f"/site-audits/{site_audit_id}", headers=auth_headers())
+    assert status.status_code == 200
+    body = status.json()
+    assert body["status"] == "completed"
+    assert body["pages_audited"] == 1
+    assert len(body["pages"]) == 1
+    assert body["pages"][0]["url"] == "https://staging.example.com"
+
+    # The individual page is a real, independently-fetchable audit via the
+    # existing GET /audits/{audit_id} - no new per-page endpoint needed.
+    page_audit_id = body["pages"][0]["audit_id"]
+    page_response = client.get(f"/audits/{page_audit_id}", headers=auth_headers())
+    assert page_response.status_code == 200
+    assert page_response.json()["status"] == "completed"
+
+
+def test_create_site_audit_failure_reflected_in_status(client, monkeypatch):
+    monkeypatch.setattr(api_main, "SiteAuditOrchestrator", FailingSiteAuditOrchestrator)
+
+    created = client.post("/site-audits", json={"seed_url": "https://staging.example.com"}, headers=auth_headers())
+    site_audit_id = created.json()["site_audit_id"]
+
+    status = client.get(f"/site-audits/{site_audit_id}", headers=auth_headers())
+    assert status.json()["status"] == "failed"
+    assert "crawl boom" in status.json()["error"]
+
+
+def test_create_site_audit_password_never_appears_in_any_response(client, monkeypatch):
+    """The literal security guarantee from the plan: a login password must
+    never be echoed back by the API, in the create response or the status
+    poll."""
+    monkeypatch.setattr(api_main, "SiteAuditOrchestrator", FakeSiteAuditOrchestrator)
+
+    created = client.post(
+        "/site-audits",
+        json={
+            "seed_url": "https://staging.example.com",
+            "login": {"url": "https://staging.example.com/login", "username": "test@example.com", "password": "hunter2"},
+        },
+        headers=auth_headers(),
+    )
+    site_audit_id = created.json()["site_audit_id"]
+    assert "hunter2" not in created.text
+
+    status = client.get(f"/site-audits/{site_audit_id}", headers=auth_headers())
+    assert "hunter2" not in status.text
+
+
+async def test_site_audit_status_reflects_progress_before_the_crawl_finishes(monkeypatch):
+    """Regression test: SITE_AUDIT_STORE used to only get its manifest/
+    pages_audited written once, after run_site_audit() fully returned - so a
+    poll mid-crawl always saw manifest={}/pages_audited=0 regardless of real
+    progress, discovered via a live end-to-end run. _on_page_complete must
+    update the store as each page finishes, not just at the very end."""
+    from src.api.schemas import SiteAuditRequest
+
+    site_audit_id = "site_audit_progress_test"
+    api_main.SITE_AUDIT_STORE[site_audit_id] = {
+        "status": "queued", "seed_url": "https://staging.example.com", "max_pages": 5,
+        "pages_discovered": 0, "pages_audited": 0, "manifest": {}, "error": None,
+    }
+
+    seen_mid_crawl: dict = {}
+
+    class PausingOrchestrator(FakeSiteAuditOrchestrator):
+        async def run_site_audit(self, *args, site_audit_id=None, on_page_complete=None, **kwargs):
+            await on_page_complete("https://staging.example.com/page1", f"{site_audit_id}_p0", _sample_audit_report())
+            # Snapshot (deep copy - the store's manifest dict is mutated in
+            # place by later pages) the live store before the crawl finishes -
+            # this is what a real client's poll would see mid-crawl.
+            seen_mid_crawl.update(copy.deepcopy(api_main.SITE_AUDIT_STORE[site_audit_id]))
+            await on_page_complete("https://staging.example.com/page2", f"{site_audit_id}_p1", _sample_audit_report())
+            from src.core.site_crawl import CrawlManifest
+            manifest = CrawlManifest()
+            manifest.mark_audited("https://staging.example.com/page1", f"{site_audit_id}_p0")
+            manifest.mark_audited("https://staging.example.com/page2", f"{site_audit_id}_p1")
+            return site_audit_id, manifest
+
+    monkeypatch.setattr(api_main, "SiteAuditOrchestrator", PausingOrchestrator)
+
+    await api_main._execute_site_audit(site_audit_id, SiteAuditRequest(seed_url="https://staging.example.com"))
+
+    assert seen_mid_crawl["pages_audited"] == 1
+    assert seen_mid_crawl["manifest"] == {
+        "https://staging.example.com/page1": {"status": "audited", "audit_id": f"{site_audit_id}_p0"}
+    }
+
+
+def test_get_unknown_site_audit_is_404(client):
+    response = client.get("/site-audits/site_audit_never_existed", headers=auth_headers())
+    assert response.status_code == 404
+
+
+def test_get_site_audit_requires_auth(client):
+    response = client.get("/site-audits/site_audit_never_existed")
     assert response.status_code == 401

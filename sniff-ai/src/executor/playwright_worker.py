@@ -38,6 +38,7 @@ class PlaywrightWorker:
         device_name: str = "iPhone 13",
         headless: bool = False,
         slow_mo: int = 0,
+        storage_state: dict | str | None = None,
     ):
         """Initialize Playwright worker.
 
@@ -47,6 +48,11 @@ class PlaywrightWorker:
             device_name: Playwright device to emulate (default: iPhone 13)
             headless: Whether to run in headless mode
             slow_mo: Milliseconds to slow down operations (useful for demos)
+            storage_state: Optional pre-authenticated Playwright storage_state
+                (cookies/localStorage) to start the browser context already
+                logged in - the "paste an existing session" auth path for a
+                site audit, as an alternative to login(). Never persisted by
+                this class; the caller owns its lifecycle.
         """
         self.run_id = run_id
         self.artifacts_dir = Path(artifacts_dir)
@@ -55,6 +61,7 @@ class PlaywrightWorker:
         self.device_name = device_name
         self.headless = headless
         self.slow_mo = slow_mo
+        self.storage_state = storage_state
 
         # Playwright objects
         self._playwright = None
@@ -101,6 +108,7 @@ class PlaywrightWorker:
             locale="en-US",
             timezone_id="America/New_York",
             record_video_dir=str(self.artifacts_dir / "videos") if not self.headless else None,
+            **({"storage_state": self.storage_state} if self.storage_state else {}),
         )
 
         # Enable tracing for debugging
@@ -566,6 +574,68 @@ class PlaywrightWorker:
                 logger.warning(f"Audit check '{key}' failed, using default: {e}")
                 results[key] = default
         return results
+
+    async def get_page_links(self) -> list[str]:
+        """Raw href values of every <a href> on the current page - the
+        site-audit crawler's link-discovery source (site_crawl.py filters/
+        normalizes these into same-origin candidate URLs)."""
+        if not self._page:
+            raise RuntimeError("Worker not initialized. Call initialize() first.")
+        try:
+            return await self._page.evaluate(
+                "Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href'))"
+            )
+        except Exception as e:
+            logger.warning(f"Link discovery failed on {self._page.url}: {e}")
+            return []
+
+    async def login(self, login_url: str, username: str, password: str, timeout: int = 15000) -> bool:
+        """Log in once via a real form submission, then leave the resulting
+        session on this worker's browser context - every subsequent
+        navigate() call on this same worker reuses it automatically (no
+        storage_state export/import needed for this path; that mechanism is
+        only for the separate "paste an existing session" auth mode handled
+        at context-creation time via the constructor's storage_state param).
+
+        The password is used exactly once, right here, and is never written
+        to a log line, a return value, or any persisted state - only whether
+        login looked successful (a bool) is reported back.
+
+        Best-effort heuristic (no site-specific config): finds the first
+        password field on the login page, the nearest text/email field
+        before it, fills both, and submits. Good enough for a standard
+        single-step username+password form; anything more exotic (multi-step
+        SSO, CAPTCHA, 2FA) is out of scope - report the login as failed
+        rather than guess further.
+        """
+        if not self._page:
+            raise RuntimeError("Worker not initialized. Call initialize() first.")
+
+        try:
+            await self._page.goto(login_url, timeout=timeout, wait_until="domcontentloaded")
+
+            password_field = self._page.locator("input[type='password']").first
+            await password_field.wait_for(state="visible", timeout=timeout)
+
+            identifier_field = self._page.locator(
+                "input[type='email'], input[type='text'], input[name*='user' i], input[name*='email' i]"
+            ).first
+            await identifier_field.fill(username, timeout=timeout)
+            await password_field.fill(password, timeout=timeout)
+
+            submit_button = self._page.locator("button[type='submit'], input[type='submit']").first
+            if await submit_button.count() > 0:
+                await submit_button.click(timeout=timeout)
+            else:
+                await password_field.press("Enter")
+
+            await self._page.wait_for_load_state("domcontentloaded", timeout=timeout)
+            still_on_login = self._page.url.rstrip("/") == login_url.rstrip("/")
+            still_has_password_field = await self._page.locator("input[type='password']").count() > 0
+            return not (still_on_login and still_has_password_field)
+        except Exception as e:
+            logger.warning(f"Login at {login_url} failed: {e}")
+            return False
 
     async def detect_modal(self) -> bool:
         """Cheap heuristic check for a dialog/modal overlay having appeared.

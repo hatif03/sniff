@@ -67,6 +67,15 @@ class GuardrailsConfig(BaseModel):
     max_dwell_time: int = Field(default=30, ge=1, description="Max seconds per screen")
     hard_timeout: int = Field(default=600, ge=1, description="Hard timeout per run in seconds")
     max_run_duration: int = Field(default=300, ge=1, description="Maximum run duration in seconds")
+    max_site_audit_pages: int = Field(
+        default=10, ge=1, le=30, description="Max pages crawled/audited per whole-site audit"
+    )
+    max_site_audit_depth: int = Field(
+        default=3, ge=1, description="Max link-following depth from the seed page during discovery"
+    )
+    site_audit_hard_timeout: int = Field(
+        default=1800, ge=1, description="Hard timeout for a whole-site audit in seconds (larger than hard_timeout - a multi-page crawl legitimately takes longer than one page)"
+    )
 
 
 class SecurityConfig(BaseModel):
@@ -212,6 +221,9 @@ class SniffConfig(BaseModel):
                 max_dwell_time=int(os.getenv('SNIFF_MAX_DWELL_TIME', '30')),
                 hard_timeout=int(os.getenv('SNIFF_HARD_TIMEOUT', '600')),
                 max_run_duration=int(os.getenv('SNIFF_MAX_RUN_DURATION', '300')),
+                max_site_audit_pages=int(os.getenv('SNIFF_MAX_SITE_AUDIT_PAGES', '10')),
+                max_site_audit_depth=int(os.getenv('SNIFF_MAX_SITE_AUDIT_DEPTH', '3')),
+                site_audit_hard_timeout=int(os.getenv('SNIFF_SITE_AUDIT_HARD_TIMEOUT', '1800')),
             ),
 
             security=SecurityConfig(

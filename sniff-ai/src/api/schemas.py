@@ -126,3 +126,54 @@ class TickResponse(BaseModel):
     ticked_at: str
     triggered: list[str] = Field(default_factory=list, description="schedule_ids that fired this tick")
     skipped_busy: list[str] = Field(default_factory=list, description="schedule_ids skipped - previous run still in flight")
+
+
+class SiteAuditLogin(BaseModel):
+    """Optional username/password login, used exactly once to establish a
+    session before the crawl starts - never stored or echoed back anywhere."""
+    url: str = Field(..., description="Login page URL")
+    username: str
+    password: str = Field(..., description="Used once in-memory to log in, then discarded - never persisted or logged")
+
+
+class SiteAuditRequest(BaseModel):
+    """Body for POST /site-audits."""
+    seed_url: str = Field(..., description="Starting page - the rest of the site is discovered from here")
+    persona: str | None = None
+    max_pages: int | None = Field(default=None, ge=1, le=30, description="Defaults to the server's configured cap")
+    max_depth: int | None = Field(default=None, ge=1)
+    login: SiteAuditLogin | None = Field(default=None, description="Alternative to storage_state - a one-time username/password login")
+    storage_state: dict | None = Field(
+        default=None, description="Alternative to login - a pre-authenticated Playwright storage_state export"
+    )
+
+
+class SiteAuditResponse(BaseModel):
+    """Response for POST /site-audits - queued, not yet complete."""
+    site_audit_id: str
+    status: str
+
+
+class SiteAuditPageSummary(BaseModel):
+    audit_id: str
+    url: str
+    overall_score: float | None = None
+    label: str | None = None
+
+
+class SiteAuditStatusResponse(BaseModel):
+    """Response for GET /site-audits/{site_audit_id}.
+
+    `manifest` records every URL the crawl considered and what happened to
+    it (audited/skipped/failed + why) - updated incrementally as pages
+    complete, not only once the whole crawl finishes.
+    """
+    site_audit_id: str
+    status: str
+    seed_url: str
+    max_pages: int
+    pages_discovered: int = 0
+    pages_audited: int = 0
+    manifest: dict = Field(default_factory=dict)
+    pages: list[SiteAuditPageSummary] = Field(default_factory=list)
+    error: str | None = None

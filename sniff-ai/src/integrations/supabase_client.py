@@ -193,6 +193,7 @@ class SupabaseUploader:
         url: str,
         persona: Optional[str],
         report: Any,
+        site_audit_id: Optional[str] = None,
     ) -> dict[str, Any]:
         """Upload a completed landing-page audit to Supabase.
 
@@ -206,6 +207,9 @@ class SupabaseUploader:
             url: The audited URL
             persona: Persona used, if any
             report: The AuditReport pydantic model
+            site_audit_id: Set when this audit is one page of a whole-site
+                audit - tags the row so the site-audit dashboard can query
+                every page belonging to one crawl.
 
         Returns:
             Dictionary with upload status
@@ -229,6 +233,7 @@ class SupabaseUploader:
                 "lcp": web_vitals.get("lcp"),
                 "fcp": web_vitals.get("fcp"),
                 "cls": web_vitals.get("cls"),
+                "site_audit_id": site_audit_id,
                 "report_json": report_dict,
                 "created_at": datetime.utcnow().isoformat(),
             }
@@ -708,4 +713,74 @@ def create_schedule_store(config) -> Optional[ScheduleStore]:
         return ScheduleStore(supabase_url=config.supabase.url, supabase_key=config.supabase.key)
     except Exception as e:
         logger.warning(f"Could not create ScheduleStore: {e}")
+        return None
+
+
+class SiteAuditStore:
+    """CRUD for the site_audits parent-record table. Unlike ScheduleStore,
+    a site audit still runs and returns a result without Supabase (the
+    in-process SITE_AUDIT_STORE dict in main.py is the same Phase-1
+    fallback every other feature has) - this class is purely the optional
+    persistence/dashboard-visibility layer on top of that."""
+
+    def __init__(self, supabase_url: str, supabase_key: str):
+        if not HAS_SUPABASE:
+            raise RuntimeError("supabase-py is not installed. Install with: pip install supabase")
+        self.client: Client = create_client(supabase_url, supabase_key)
+
+    def create_site_audit(self, site_audit_id: str, seed_url: str, max_pages: int) -> dict:
+        data = {
+            "site_audit_id": site_audit_id,
+            "seed_url": seed_url,
+            "status": "running",
+            "max_pages": max_pages,
+            "pages_discovered": 0,
+            "pages_audited": 0,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        result = self.client.table("site_audits").insert(data).execute()
+        return result.data[0]
+
+    def update_progress(self, site_audit_id: str, pages_audited: int, manifest: dict) -> None:
+        self.client.table("site_audits").update(
+            {"pages_audited": pages_audited, "pages_discovered": len(manifest), "manifest": manifest}
+        ).eq("site_audit_id", site_audit_id).execute()
+
+    def complete(self, site_audit_id: str, status: str, manifest: dict, error: Optional[str] = None) -> None:
+        self.client.table("site_audits").update(
+            {
+                "status": status,
+                "pages_audited": len([v for v in manifest.values() if v.get("status") == "audited"]),
+                "pages_discovered": len(manifest),
+                "manifest": manifest,
+                "error": error,
+            }
+        ).eq("site_audit_id", site_audit_id).execute()
+
+    def get_site_audit(self, site_audit_id: str) -> Optional[dict]:
+        result = self.client.table("site_audits").select("*").eq("site_audit_id", site_audit_id).execute()
+        return result.data[0] if result.data else None
+
+    def get_pages(self, site_audit_id: str) -> list[dict]:
+        result = (
+            self.client.table("audits")
+            .select("audit_id, url, overall_score, label, created_at")
+            .eq("site_audit_id", site_audit_id)
+            .order("created_at")
+            .execute()
+        )
+        return result.data or []
+
+
+def create_site_audit_store(config) -> Optional[SiteAuditStore]:
+    """Create a SiteAuditStore from configuration, or None if Supabase isn't
+    configured - a site audit still works without it (see SiteAuditStore's
+    own docstring), it just won't persist across a restart or show up in
+    any cross-visitor dashboard list."""
+    if not hasattr(config, "supabase") or not config.supabase.enabled:
+        return None
+    try:
+        return SiteAuditStore(supabase_url=config.supabase.url, supabase_key=config.supabase.key)
+    except Exception as e:
+        logger.warning(f"Could not create SiteAuditStore: {e}")
         return None
