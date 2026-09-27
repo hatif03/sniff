@@ -2,6 +2,21 @@
 
 This folder documents every Bob agent session used to build and expand Sniff. It follows the same convention as the [Atlas project](https://github.com/chanjoongx/atlas/tree/main/bob_sessions), which was used as a reference for this documentation format.
 
+---
+
+## ⚠️ IBM Bob Organisation Disclaimer
+
+This project was built using **IBM Bob 2.0** across two IBM organisations:
+
+| Organisation | Region | Sessions |
+|---|---|---|
+| `TECHZONE-TS022872826` | us-east | Sessions 00–12 — existing org from a prior IBM hackathon, used for the majority of the early build |
+| `ibm-coding-challenge-uat` | us-east | Sessions 13–16 and all current work — the active org for this challenge |
+
+> All sessions documented in this folder were run in IBM Bob 2.0's Plan mode or Agent mode. The `TECHZONE-TS022872826` organisation was already provisioned from a previous hackathon and was the primary workspace during the foundational and feature-building phases. The `ibm-coding-challenge-uat` organisation is the current active workspace. Both ran identical IBM Bob 2.0 tooling with the same capabilities (Plan mode, Agent mode, MCP servers, sub-agents, skills).
+
+---
+
 ## What Is This?
 
 Each subfolder represents one distinct Bob session (a focused unit of work). Inside each folder you will find:
