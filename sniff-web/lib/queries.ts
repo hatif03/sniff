@@ -16,6 +16,7 @@ export async function getRecentRuns(limit = 10) {
   const { data, error } = await supabase
     .from('run_summaries')
     .select('*')
+    .neq('outcome', 'failure')
     .order('created_at', { ascending: false })
     .limit(limit);
 

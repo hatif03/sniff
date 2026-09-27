@@ -5,13 +5,11 @@ import { ImageOff } from "lucide-react";
 import { auditImageSrc } from "@/lib/audits";
 
 /**
- * Renders one audit screenshot via the image-proxy route handler, falling
- * back to a plain "unavailable" placeholder instead of a broken <img> icon.
- *
- * The backend does not yet expose these files over HTTP (see the GAP
- * comment in app/api/backend/audits/[auditId]/images/[filename]/route.ts),
- * so today this will always render the placeholder - that's expected, not
- * a bug in this component.
+ * Renders one audit screenshot - a real Supabase Storage URL for a new
+ * audit (used directly), or the backend's image-proxy route for an older
+ * row that only has a local path (see auditImageSrc in lib/audits.ts) -
+ * falling back to a plain "unavailable" placeholder instead of a broken
+ * <img> icon if even that 404s.
  */
 export function AuditScreenshot({
   auditId,

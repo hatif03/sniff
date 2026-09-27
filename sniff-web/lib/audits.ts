@@ -148,14 +148,18 @@ export interface AuditStatusResponse {
 }
 
 /**
- * images.above_fold/full_page/annotated are local filesystem paths on the
- * backend host (e.g. "/tmp/sniff_audits/audit_xxx/annotated.png"). The route
- * handler at app/api/backend/audits/[auditId]/images/[filename]/route.ts only
- * needs the basename - it re-resolves the full path against the backend's
- * own artifacts dir (see that file's GAP comment: the backend doesn't
- * actually expose this yet, so this always 404s upstream today).
+ * images.above_fold/full_page/annotated are, for a new audit, real Supabase
+ * Storage public URLs (uploaded by upload_audit() so they survive past the
+ * ephemeral Cloud Run instance that captured them) - used directly as-is.
+ * An older row from before that upload existed still has a bare local
+ * filesystem path (e.g. "/app/artifacts/audit_xxx/annotated.png"); for that
+ * case only, fall back to the backend's own image-serving route, which only
+ * works while that specific instance/process is still alive.
  */
-export function auditImageSrc(auditId: string, localPath: string): string {
-  const filename = localPath.split(/[/\\]/).pop() || localPath;
+export function auditImageSrc(auditId: string, path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  const filename = path.split(/[/\\]/).pop() || path;
   return `/api/backend/audits/${encodeURIComponent(auditId)}/images/${encodeURIComponent(filename)}`;
 }

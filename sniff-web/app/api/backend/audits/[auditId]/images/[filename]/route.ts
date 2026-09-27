@@ -6,14 +6,13 @@ import { NextResponse } from "next/server";
  * lib/backend.ts (not reused directly - that helper always returns JSON,
  * this needs to pass binary image bytes through).
  *
- * GAP: as of this writing, src/api/main.py has no route that serves audit
- * screenshot files - AuditReport.images.* are local filesystem paths on the
- * backend host (see AuditOrchestrator / ImagePaths in audit_models.py), and
- * nothing mounts them over HTTP (no StaticFiles, no FileResponse route).
- * This handler calls a guessed REST-shaped path, `/audits/{id}/images/{file}`,
- * so the frontend is wired up and works the moment that backend route exists.
- * Until then every request here 404s upstream and callers should treat that
- * as "screenshot unavailable", not a broken image.
+ * The backend does have this route (GET /audits/{id}/images/{file}), but it
+ * serves the file straight off local disk, keyed by the in-process
+ * AUDIT_STORE - both ephemeral, gone after a redeploy/restart/scale event.
+ * A new audit's screenshots are Supabase Storage URLs (see auditImageSrc in
+ * lib/audits.ts) and never reach this route at all; this path is now only
+ * the fallback for an older row that predates that upload, where a 404 here
+ * genuinely does mean "gone," not "not wired up yet."
  */
 export async function GET(
   _req: Request,
