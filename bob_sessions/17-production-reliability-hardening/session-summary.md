@@ -46,7 +46,19 @@ Added a fallback chain to `PlaywrightWorker.screenshot()`: full-page capture, th
 
 Seeded `github.com` (6.5/10, "Strong concept, but form friction") as a real audit via the fixed production backend, seeded one more site after this session's fixes, and deleted 2 of 3 duplicate `example.com` demo rows (kept the most recent), all via the Supabase REST API using the service-role key pulled quietly from the Cloud Run service's own environment — never printed or logged. Confirmed the dashboard's `getRecentAudits`/`getRecentRuns`/`getRecentSiteAudits` queries have no `user_id` filtering, no auth middleware, no session-scoping anywhere: every audit, run, and site-audit — seeded or user-created — is visible to any visitor, exactly matching the current no-auth Phase 1 design.
 
-Re-ran the exact goal/URL combination that failed in the user's report (`"Find and open the AI Hackathons section"` against `https://lablab.ai/`, `confused_first_time_user` persona) against the fixed, deployed backend to confirm the fix holds for the real reported failure, not just in isolated unit tests.
+Re-ran the exact goal/URL combination that failed in the user's report (`"Find and open the AI Hackathons section"` against `https://lablab.ai/`, `confused_first_time_user` persona) against the fixed, deployed backend to confirm the fix holds for the real reported failure, not just in isolated unit tests. That run genuinely succeeded from a reliability standpoint (2 real steps, a real diagnosis produced, no freeze, no data loss) - but its own outcome was still "failure," which triggered the next round below.
+
+### 5. Two screenshots that never actually worked, and a third real agent bug
+
+Trying to view the seeded `github.com` audit surfaced a `Backend returned 404`, and the re-run `lablab.ai` run's step-by-step replay showed a completely blank screenshot area. Neither was new breakage - both were pre-existing gaps this session's own redeploys and seeding finally exposed:
+
+- `GET /audits/{audit_id}` only ever checked the in-process `AUDIT_STORE`, no Supabase fallback - any completed audit became a permanent 404 the moment that dict lost the entry (which every one of this session's several redeploys did). Fixed by falling back to Supabase (the actual system of record) and reconstructing the response from `report_json`.
+- `upload_audit()`'s own docstring admitted the gap: screenshots were never uploaded to Supabase Storage, just left as local filesystem path *strings* inside `report_json.images` - ephemeral, gone the moment the capturing Cloud Run instance did. Fixed by uploading each screenshot the same way run screenshots already were, storing the resulting public URL in `report_json.images` instead.
+- Separately, `ScreenshotGallery`'s run screenshots (already real, working Supabase Storage URLs) never rendered either - `next.config.ts`'s image allowlist hardcoded a *different, stale* Supabase project hostname left over from an earlier re-provisioning. Next.js silently refuses any image from a non-allowlisted host, no error, just a blank image. Fixed by deriving the allowlisted hostname from `NEXT_PUBLIC_SUPABASE_URL` at build time instead of a hand-copied string, so it can't drift out of sync again.
+
+Re-running the `lablab.ai` goal repeatedly (to verify the above, and per an explicit ask to get one genuinely clean success for a live demo) surfaced a fourth, independent real bug: the same run kept trying to tap "Accept All" a second time after already successfully dismissing the cookie banner, failing every time. Root-caused via the raw observation data, not guessed: the second observation's `visible_text` still contained the entire cookie banner, word-for-word identical to before the tap - even ~15+ seconds later, ruling out a simple timing race. The actual bug was in `_extract_visible_text()`'s own JS: `el.innerText || el.textContent` specifically defeats visibility-awareness - `innerText` correctly returns `""` for a dismissed (`display:none`) element, but the `textContent` fallback then pulls that same stale text right back in, forever, regardless of how long anything waits. Fixed by checking `el.offsetParent === null` before including an element at all, and dropping the `textContent` fallback. `PlaywrightWorker.tap()`'s fixed 0.5s post-click settle delay was also bumped to 1.2s along the way (a real, if smaller, contributor - `networkidle` was considered and rejected, since these real pages have constant background analytics traffic that never goes idle).
+
+Also fixed, on request: `getRecentRuns()` now excludes `outcome=failure` so the shared public dashboard isn't cluttered with failed attempts from active debugging.
 
 ---
 
@@ -58,20 +70,30 @@ Re-ran the exact goal/URL combination that failed in the user's report (`"Find a
 
 **Live production data was the actual bug-finder, twice in one session.** Neither the blocking-call bug nor the concurrent-execution bug was caught by 193 passing mocked tests — both needed a real failed run and real seeding attempts against a real deployed service to surface. Both got a deterministic regression test afterward, but the discovery itself required live data.
 
-**Investigate before concluding "it's just this site."** The instinct on seeing a failed run against one specific site could have been to blame the site. Pulling the actual Supabase rows and Cloud Run logs first showed the real mechanism (a blocking call + a guardrail race), which also explained why the failure was 100%-reproducible rather than a flaky one-off.
+**Investigate before concluding "it's just this site."** The instinct on seeing a failed run against one specific site could have been to blame the site. Pulling the actual Supabase rows and Cloud Run logs first showed the real mechanism (a blocking call + a guardrail race, then later a genuine visibility-detection bug in text extraction), which also explained why each failure was 100%-reproducible rather than a flaky one-off.
+
+**A timing symptom deserves a timing-vs-logic diagnosis, not just a bigger sleep.** The repeat-tap failure recurred even after the settle delay was bumped from 0.5s to 1.2s. Rather than keep guessing larger numbers, the raw observation data was checked directly: the second tap attempt happened ~15 seconds after the first succeeded - far more time than any real animation needs. That ruled out "not enough wait time" and pointed straight at the actual bug (a visibility-detection defect that no amount of waiting could ever fix).
+
+**Don't silently backfill history to make a fix look more complete than it is.** Audit screenshots uploaded before the Supabase-persistence fix still hold dead local paths - deliberately left as-is (documented as a known limitation) rather than quietly reprocessed, since reprocessing would need the original ephemeral files, which are already gone.
 
 ---
 
 ## Verification
 
-- `uv run --extra dev pytest`: 201/201 passing (up from 193) — 8 new tests (3 goal-enhancement/blocking-call regression, 4 screenshot-resilience, 1 direct queue-serialization proof) plus 7 existing tests updated for the new async execution model.
-- `ruff check` clean on every touched file.
-- Real production verification, not just unit tests: the exact reported failure (lablab.ai goal-run) re-run successfully against the fixed, deployed backend; a real audit (github.com) completed via the queued execution path; a real screenshot-timeout site (stripe.com) completed via the resilience fallback.
-- Backend redeployed to Cloud Run (`sniff-api`) and confirmed serving 100% of traffic on the new revision.
+- `uv run --extra dev pytest`: 208/208 passing (up from 193 at session start) — goal-enhancement/blocking-call regression (3), screenshot-resilience (4), direct queue-serialization proof (1), Supabase audit-image upload/read-back (6), GET /audits Supabase-fallback (1), plus 7 existing tests updated for the new async execution model.
+- `ruff check` clean on every touched file; `yarn build`/`yarn lint` clean on every touched frontend file.
+- Real production verification, not just unit tests, at every step: the exact reported failure (lablab.ai goal-run) re-run against the fixed, deployed backend; a real audit (github.com) completed via the queued execution path; a real screenshot-timeout site (stripe.com) completed via the resilience fallback with a real *different* failure surfaced downstream (an unrelated k2-horizon network timeout, not a regression); a previously-404ing audit confirmed viewable again via the Supabase fallback; the `lablab.ai` goal re-run repeatedly until the actual repeat-tap root cause was found and fixed.
+- Backend redeployed to Cloud Run (`sniff-api`) five times across this session as each fix landed, each confirmed serving 100% of traffic on its new revision; frontend redeployed to Vercel twice.
 
 ---
 
+## Known Limitations
+
+A full, honest list lives in `sniff-ai/docs/product/ARCHITECTURE.md` Section 17 ("Known Limitations"), added this session. Highlights: text extraction can still concatenate two adjacent elements' text with no separator (a *different* bug from the visibility-detection one fixed here, still open); a raw k2-horizon network timeout still fails a page outright (no retry for that failure class, only for reasoning-token exhaustion); the job queue serializes across requests but not within one `parallel=True` experiment; historical audits from before the screenshot-persistence fix still show "unavailable."
+
 ## Next Steps
 
+→ Text-run separation in `_extract_visible_text()` (distinct from the visibility-detection bug fixed this session) - two adjacent DOM elements with no whitespace between them still concatenate into one nonsensical string the agent can try to tap.
 → `ExperimentOrchestrator`'s `parallel=True` mode still runs multiple personas' browser sessions concurrently *within* one experiment job — the new queue only serializes *across* separate top-level requests, not a single experiment's own internal concurrency. Deliberately out of scope here (it's the feature's intended behavior, not a bug this session found), but worth keeping in mind if experiments start showing the same Cloud Run scale-up/down symptom.
 → The screenshot resilience fallback logs a warning at each degraded tier but doesn't currently surface "this page's screenshot is a placeholder" anywhere in the `AuditReport` itself — a user looking at a placeholder-image audit today has no in-product signal that the capture degraded, just an unusually blank screenshot.
+→ No retry exists for a raw k2-horizon network-level timeout (as opposed to the reasoning-token-exhaustion case the continuation retry already handles) - a genuinely slow/unresponsive upstream response still fails that page outright.

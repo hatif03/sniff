@@ -41,7 +41,7 @@ Sniff is an autonomous browser agent that simulates real user behaviour to test 
 
 **Starting state**: A Python CLI tool with a single-tier AWS Bedrock Claude decision pipeline, no public name, no web product surface, and no deployment.
 
-**Final state**: A fully deployed product (Cloud Run backend + Vercel frontend), three product surfaces (signup-flow testing + landing-page conversion audit + whole-site crawl), a three-tier AI reasoning stack (Deterministic → Jev → Gemini/k2-horizon), shared Supabase persistence, scheduled continuous runs, a single-worker job queue serializing all background execution, and 201 passing tests.
+**Final state**: A fully deployed product (Cloud Run backend + Vercel frontend), three product surfaces (signup-flow testing + landing-page conversion audit + whole-site crawl), a three-tier AI reasoning stack (Deterministic → Jev → Gemini/k2-horizon), shared Supabase persistence, scheduled continuous runs, a single-worker job queue serializing all background execution, and 208 passing tests.
 
 ---
 
@@ -66,7 +66,7 @@ Sniff is an autonomous browser agent that simulates real user behaviour to test 
 | [14](./bob_sessions/14-ui-reimagine-and-shared-data/) | UI Reimagine + Shared Data | Agent | Supabase MCP provisioning; sub-agent delegation; investigate-before-build discipline |
 | [15](./bob_sessions/15-trends-and-scheduled-runs/) | Trends + Reliable Scheduled Runs | Agent | Sub-agent parallelism; GCP Cloud Scheduler integration; live production verification |
 | [16](./bob_sessions/16-whole-site-audit/) | Whole-Site Audit | Agent | Research-before-design; live-testing-as-bug-finder; four bug fixes from real runs |
-| [17](./bob_sessions/17-production-reliability-hardening/) | Production Reliability Hardening | Agent | Root-caused a live failure from Supabase data + Cloud Run logs; fixed a blocking-call bug and a concurrent-execution bug found via real production use |
+| [17](./bob_sessions/17-production-reliability-hardening/) | Production Reliability Hardening | Agent | Root-caused four independent live-production bugs from raw Supabase data + Cloud Run logs (blocking call, job concurrency, missing screenshot persistence, a visibility-detection defect in text extraction) - each with its own regression test and live re-verification |
 
 ---
 

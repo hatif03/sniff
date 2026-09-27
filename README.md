@@ -2,7 +2,7 @@
 
 > An autonomous browser agent that tests signup flows and audits landing pages the way a real, easily-confused human would — then tells you exactly why they left.
 
-[![Tests](https://img.shields.io/badge/tests-201%20passing-brightgreen)](./sniff-ai)
+[![Tests](https://img.shields.io/badge/tests-208%20passing-brightgreen)](./sniff-ai)
 [![Backend](https://img.shields.io/badge/backend-Cloud%20Run-blue)](https://cloud.google.com/run)
 [![Frontend](https://img.shields.io/badge/frontend-Vercel-black)](https://vercel.com)
 [![Built with IBM Bob](https://img.shields.io/badge/built%20with-IBM%20Bob%202.0-0f62fe)](./agents.md)
@@ -218,7 +218,7 @@ timeline
     section Production Hardening
         Session 17 : Fixed a blocking-call bug freezing the server
                    : JOB_QUEUE — background jobs now serialized
-                   : Screenshot-timeout resilience, 201 tests passing
+                   : Screenshot-timeout resilience, 208 tests passing
 ```
 
 ---
@@ -467,7 +467,7 @@ See [`agents.md`](./agents.md) for the complete record and [`bob_sessions/archit
 
 | Metric | Value |
 |---|---|
-| Tests | 201 / 201 passing |
+| Tests | 208 / 208 passing |
 | Bob sessions | 18 (13 complete, 5 planned features pending) |
 | Product surfaces | 3 (signup testing · landing-page audit · whole-site audit) |
 | Deployment | Live — Cloud Run + Vercel |

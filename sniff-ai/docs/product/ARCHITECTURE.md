@@ -513,3 +513,27 @@ This architecture maximizes:
 - `STRANDS_BEDROCK_REPORT.md` is a **historical decision report** for the `Agent Service` layer from when it ran on AWS Bedrock/Strands - kept for context on that tradeoff, superseded by the Gemini + k2-horizon provider swap (Section 8).
 - It does not change control-plane ownership: the orchestrator remains the runtime authority in this architecture.
 - `MARKET_RESEARCH.md` covers the competitive landscape and customer segments referenced when prioritizing the Post-Hackathon Evolution Path (Section 14).
+
+---
+
+## 17) Known Limitations (as of session 17)
+
+An honest list, not a roadmap teaser - what's actually still fragile today, found through live testing rather than assumed:
+
+**Agent decision-making on real, messy websites**:
+- Text extraction can still concatenate two adjacent DOM elements' text with no separator between them (e.g. a "Join" button immediately followed by a promo banner reads as one string, `"JoinChallenge + Get $100 credits"`). The agent then tries to tap that literal (non-existent) string and fails. Confirmed live against `lablab.ai`; not yet fixed - the visibility-detection bug that caused a *related*, more severe symptom (a dismissed cookie banner's text never disappearing at all) was fixed this session, but true text-run separation is a separate, still-open gap.
+- More generally: autonomous browsing against arbitrary real sites is inherently less predictable than a scripted test suite. Three separate, genuine bugs (a blocking LLM call, an insufficient post-tap settle delay, a visibility-detection bug in text extraction) were found via live runs against exactly one real site in a single investigation - a different real site would likely surface different edge cases. Real websites, not the test suite, remain the actual source of truth for what's fragile.
+
+**Screenshot capture**:
+- The full-page → viewport → placeholder fallback (this session) stops a slow/animated page from failing an entire audit, but a page that fails even the viewport capture still shows a placeholder image, not a real screenshot - the audit completes, but that page's visual proof is a gray rectangle.
+- Any audit's screenshots uploaded to Supabase *before* this session's persistence fix still hold now-dead local filesystem paths. Not backfilled - those specific historical rows will show "screenshot unavailable" permanently.
+
+**LLM reliability**:
+- k2-horizon's continuation retry (session 16) handles the "model exhausts its token budget on reasoning" failure mode, not a raw network-level timeout - a genuine slow/unresponsive upstream response (confirmed live: a 60s timeout auditing `stripe.com`) still fails that page outright. There is currently no retry for this distinct failure class.
+
+**Execution model**:
+- Every run/audit/site-audit/experiment now executes strictly one at a time through a single in-process queue (session 17) - this fixed real data loss from concurrent Cloud Run scale events, but it also means a single slow job (a large whole-site crawl, a stuck run) delays every other job behind it, with no priority or per-tenant fairness. Fine for today's demo-scale traffic, not fine for concurrent paying customers (tracked as a real distributed queue in `SAAS_ROADMAP.md`).
+- `ExperimentOrchestrator`'s `parallel=True` mode still runs multiple personas' browser sessions concurrently *within* one experiment job - the queue only serializes *across* separate top-level requests, not a single experiment's own internal concurrency. Could in principle still trigger the same class of Cloud Run scale-up/down issue the queue was built to fix, just at one level down.
+
+**Auth and multi-tenancy** (already tracked, restated here for completeness):
+- Phase 1 shared-secret auth, public-read RLS on every table - any visitor can see every run/audit ever created, not just their own. Real per-user auth is `SAAS_ROADMAP.md` Section 1, not yet built.

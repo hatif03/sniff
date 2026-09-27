@@ -290,6 +290,32 @@ A seeded audit against `stripe.com` failed entirely: `Page.screenshot(full_page=
 
 ---
 
+## Decision 14: Audit Data Must Survive Its Own Backend
+
+**Session**: 17
+**Status**: In production
+
+### What Happened
+Trying to view a seeded `github.com` audit returned `Backend returned 404`, and a run's step-by-step screenshots rendered as blank. Neither was new breakage: `GET /audits/{id}` only ever checked the in-process `AUDIT_STORE` (no Supabase fallback, so any redeploy lost every completed audit permanently); `upload_audit()` stored screenshot *local path strings*, never the actual files, into Supabase (`report_json.images` pointed at a filesystem path that only ever existed on the capturing Cloud Run instance); and `next.config.ts`'s image allowlist hardcoded a stale Supabase project hostname from an earlier re-provisioning, so Next.js silently refused to render even the screenshots that *were* real, working Storage URLs (run screenshots, uploaded correctly since session 13).
+
+### Fix
+`upload_audit()` now uploads each screenshot to Supabase Storage the same way run screenshots already are, storing the public URL in `report_json.images`. `GET /audits/{id}` falls back to Supabase (the actual system of record) when the in-process store has lost the entry, reconstructing the response from `report_json`. `next.config.ts` now derives its allowlisted hostname from `NEXT_PUBLIC_SUPABASE_URL` at build time instead of a hand-copied string. Audits uploaded before this fix still hold dead local paths - not backfilled, documented as a known limitation (`ARCHITECTURE.md` Section 17).
+
+---
+
+## Decision 15: Visibility-Blind Text Extraction
+
+**Session**: 17
+**Status**: In production
+
+### What Happened
+A goal-run against a real site kept trying to tap "Accept All" a second time after already successfully dismissing the cookie banner, failing every time. The raw observation data showed why: `visible_text` after the first (successful) tap was byte-for-byte identical to before it, even ~15 seconds later - too long for any real animation, ruling out a simple timing race. The actual bug was in `_extract_visible_text()`'s JS: `el.innerText || el.textContent` specifically defeats visibility-awareness. `innerText` correctly returns `""` for a dismissed (`display:none`) element, but the `textContent` fallback then pulled that same stale text back in, forever, regardless of how long anything waited.
+
+### Fix
+Check `el.offsetParent === null` before including any element at all; dropped the `textContent` fallback. `PlaywrightWorker.tap()`'s post-click settle delay was also bumped from 0.5s to 1.2s along the way (a real, smaller contributor - `networkidle` was considered and rejected since these real pages have constant background analytics traffic that never goes idle).
+
+---
+
 ## Architecture State: Beginning vs End
 
 ### Beginning (Before Session 00)
@@ -325,5 +351,5 @@ sniff-web/ (Next.js App Router)
 └── Supabase (public Postgres): runs, audits, site_audits, schedules
 
 Deployed: Cloud Run (backend) + Vercel (frontend) + GCP Cloud Scheduler
-Tests: 201/201 passing
+Tests: 208/208 passing
 ```

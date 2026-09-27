@@ -34,6 +34,15 @@ While wrapping a second blocking call in `run_in_executor`, Bob introduced a gen
 ### Closing the Loop With the Original Failure
 The session did not end at "the unit tests pass." Bob re-ran the exact goal and URL from the user's original bug report against the fixed, deployed backend, closing the loop on the specific complaint rather than treating a passing test suite as sufficient proof.
 
+### Diagnosing Timing Symptoms as Timing-vs-Logic, Not Just Adjusting a Number
+A repeat-tap failure looked, at first glance, like a settle-timing problem - Bob's first fix bumped a fixed delay from 0.5s to 1.2s. When the exact same failure recurred, Bob did not reach for a bigger number next. It pulled the raw observation timestamps and found the second tap attempt happened roughly 15 seconds after the first succeeded - far beyond any plausible animation duration. That ruled out "insufficient wait" as the actual mechanism and pointed at the real bug: a visibility-detection defect in text extraction that no amount of waiting could fix, because the stale text was being re-included by design (a `textContent` fallback that ignores whether the element is even visible). Distinguishing "this looks like timing" from "this is actually a timing problem" - by checking the numbers, not by pattern-matching the symptom - avoided shipping a second cosmetic fix for the same real bug.
+
+### Knowing When a Live Site Has Stopped Teaching and Started Costing
+Continuing to debug `lablab.ai` surfaced a third, site-specific quirk after two genuine, broadly-valuable bugs had already been found and fixed from the same investigation. Bob recognized the shift from "this site is revealing real product bugs" to "this specific site has its own idiosyncrasies with diminishing general value" and recommended switching the live demo to a site already proven clean that session (`github.com`), rather than continuing to chase site-specific quirks against a time-sensitive deadline. Two real fixes shipped either way; the third quirk was documented as a known limitation, not silently abandoned.
+
+### Documenting Limitations as Their Own Deliverable, Not an Afterthought
+Asked directly "what are the limitations right now," Bob did not roll a vague disclaimer into the session summary. It wrote a dedicated, structured limitations section (`ARCHITECTURE.md` Section 17) naming the specific still-open gaps this exact session's own investigation had surfaced but not fixed (text-run concatenation, raw LLM network timeouts, historical unbackfilled screenshots, intra-experiment concurrency) - each traceable to a real, cited piece of evidence from the session, not a generic "there might be edge cases" hedge.
+
 ---
 
 ## Key Bob Discipline Applied
