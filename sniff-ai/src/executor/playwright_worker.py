@@ -1028,7 +1028,20 @@ class PlaywrightWorker:
             return []
 
         try:
-            # Extract text from interactive and content elements
+            # Extract text from interactive and content elements. Confirmed
+            # live against a real site: `el.innerText || el.textContent`
+            # specifically defeats visibility awareness - innerText
+            # correctly returns "" for a dismissed (display:none) cookie
+            # banner, but the textContent fallback then pulls its stale
+            # text right back in, forever, regardless of how long the
+            # caller waits before capturing the next observation. A tapped
+            # element that had already been dismissed 15+ seconds earlier
+            # was still reported as visible this way, so the agent
+            # reasonably tried tapping it again and failed. `offsetParent
+            # === null` is the standard cheap check for "not display:none"
+            # (it also happens to be null for position:fixed elements, but
+            # that's a rare false-negative worth accepting over the false
+            # positive this replaces).
             text_snippets = await self._page.evaluate("""
                 () => {
                     const elements = document.querySelectorAll(
@@ -1036,7 +1049,8 @@ class PlaywrightWorker:
                     );
                     const texts = [];
                     elements.forEach(el => {
-                        const text = (el.innerText || el.textContent || '').trim();
+                        if (el.offsetParent === null && el.tagName !== 'BODY') return;
+                        const text = (el.innerText || '').trim();
                         if (text && text.length > 0 && text.length < 200) {
                             texts.push(text);
                         }
